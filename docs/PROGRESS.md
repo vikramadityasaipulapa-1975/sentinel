@@ -1,6 +1,6 @@
 # Sentinel progress
 
-Current phase/task: P1.2
+Current phase/task: P1.3 (P1.4-P1.7 authorized next)
 Status: IMPLEMENTATION VERIFIED; learner checkpoints pending
 Last completed task: none
 
@@ -101,3 +101,19 @@ P1.1 remains pending learner completion even after implementation checks pass.
 
 Exercise: add a fixed `"component":"demo"` response field, update the test body,
 and run `npm test`. Explain why the unchanged test would reject the new response.
+
+## P1.3 task record
+
+- Approval: user authorized continuing through P1.7 with complete documentation.
+- Files/concepts/commands/walkthrough/exercise: docs/P1-LEARNING-GUIDE.md, P1.3.
+- Commands: Python 3.11.9 venv; pip install -r requirements.in; pip freeze to
+  requirements.txt; pytest services/payment-service -q; pip check; Ruff check/format.
+- Positive: health/OpenAPI/docs passed. Negative: unknown route returned 404.
+  Payment tests: 3 passed. Existing checkout regressions: 3 passed.
+- pip check: no broken requirements. Ruff import ordering corrected.
+- Environment: sandbox pip could not reach packages; approved retry succeeded.
+  Async TestClient stalled in sandbox; stopped those runs and passed outside it.
+- Warning: installed Starlette deprecates its httpx-backed TestClient; currently
+  working, warning recorded rather than concealed. Revisit when updating tooling.
+- Learner answers/exercise: pending. No claim of student completion.
+- Commit: find with git log --grep="add payment health server".

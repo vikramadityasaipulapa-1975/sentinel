@@ -1,0 +1,7 @@
+# Direct dependencies. requirements.txt pins the complete resolved environment.
+fastapi>=0.115,<1
+pydantic>=2,<3
+uvicorn>=0.30,<1
+httpx>=0.27,<1
+pytest>=8,<10
+ruff>=0.9,<1
