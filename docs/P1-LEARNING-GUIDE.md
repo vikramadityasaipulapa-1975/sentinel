@@ -87,3 +87,70 @@ Exercise: add a fixed component field to payment health and update its test.
 
 P1.3 adds the payment HTTP foundation only; later sections document subsequent
 changes to these same files. Actual command results are recorded in PROGRESS.md.
+
+## P1.4: validated demo payments
+
+### Concept and architecture/data flow
+
+A JSON contract specifies names, types, bounds, and allowed values. HTTP JSON ->
+Pydantic PaymentRequest -> route -> PaymentResponse -> JSON 201. Invalid input
+stops before the route and returns 422. Type annotations alone are not validation;
+Pydantic performs the actual runtime checks. FastAPI publishes these schemas in
+OpenAPI. Response validation catches programming mistakes in server output.
+
+### File plan, implementation, and walkthrough
+
+models.py defines PaymentRequest and PaymentResponse. UUID order_id strings become
+UUID objects. amount_minor is a strict integer from 1 to 100,000,000: booleans,
+floating point numbers, numeric strings, and nonpositive values are rejected.
+currency is exactly INR or USD. Extra fields are forbidden, including card data.
+Integer minor units avoid binary floating-point rounding; 12500 means INR 125.00
+or USD 125.00 under this deliberately small currency set.
+
+PaymentResponse inherits the request fields and adds a generated UUID payment_id
+and fixed succeeded status. main.py's create_payment(payment) returns that model.
+model_dump() produces its field mapping; uuid4() generates the demo identifier.
+No asynchronous I/O occurs yet. Each valid request generates another simulated
+result: no retry/idempotency/persistence guarantees until P2.
+
+### Approval checkpoint
+
+Covered by the user's approval to finish P1; no production payments authorized.
+
+### Run/test
+
+Run `.\.venv\Scripts\python.exe -m pytest services/payment-service -q`.
+Positive: POST /payments with the following body returns 201 and a payment UUID:
+
+```json
+{"order_id":"11111111-1111-4111-8111-111111111111","amount_minor":12500,"currency":"INR"}
+```
+
+From PowerShell while payment is running:
+
+```powershell
+$body = '{"order_id":"11111111-1111-4111-8111-111111111111","amount_minor":12500,"currency":"INR"}'
+Invoke-RestMethod http://127.0.0.1:3002/payments -Method Post -ContentType 'application/json' -Body $body
+```
+
+Negative tests cover zero/negative/oversized amounts, strings, booleans, fractions,
+bad UUID, unsupported currency, extra fields, and missing required fields: 422.
+The existing health/OpenAPI/404 tests must continue to pass.
+
+### Debug
+
+422 means the boundary rejected the request; check the types and field names.
+Do not add real banking fields to get past validation. Later error handling
+deliberately avoids echoing rejected input values. No database schema changes.
+
+### Understanding check
+
+1. Why is 12500 stored instead of 125.00?
+2. How is TypeScript checking different from Pydantic validation?
+3. Why would blindly retrying this endpoint be unsafe for real payments?
+
+Exercise: try amount_minor as a quoted string, then an integer; explain the result.
+
+### Commit summary
+
+P1.4 adds request/response models, POST /payments, and validation regressions.

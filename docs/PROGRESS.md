@@ -1,6 +1,6 @@
 # Sentinel progress
 
-Current phase/task: P1.3 (P1.4-P1.7 authorized next)
+Current phase/task: P1.4 (P1.5-P1.7 authorized next)
 Status: IMPLEMENTATION VERIFIED; learner checkpoints pending
 Last completed task: none
 
@@ -117,3 +117,15 @@ and run `npm test`. Explain why the unchanged test would reject the new response
   working, warning recorded rather than concealed. Revisit when updating tooling.
 - Learner answers/exercise: pending. No claim of student completion.
 - Commit: find with git log --grep="add payment health server".
+
+## P1.4 task record
+
+- Scope/flow/file walkthrough/commands/questions: P1-LEARNING-GUIDE.md, P1.4.
+- Added models.py; updated main.py/test_main.py and learning documentation.
+- `python -m pytest services/payment-service -q` using .venv: 14 passed, including
+  the three P1.3 regressions. TestClient deprecation warning remains documented.
+- Positive: valid simulated payment returns 201, UUID, expected validated fields.
+- Negative: zero/negative/oversized/noninteger amount, invalid UUID/currency,
+  extra/missing fields return 422. No gateway called; no real charges or storage.
+- Ruff import fixes and formatting applied. Learner checkpoint/exercise pending.
+- Commit: find with git log --grep="validate demo payment contracts".
