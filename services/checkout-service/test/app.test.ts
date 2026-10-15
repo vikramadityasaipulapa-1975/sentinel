@@ -42,8 +42,10 @@ for (const [method, path] of [["GET", "/unknown"], ["POST", "/health"]]) {
     });
     assert.equal(response.status, 404);
     assert.match(response.headers.get("content-type") ?? "", /application\/json/);
-    assert.deepEqual(await response.json(), {
-      error: { code: "NOT_FOUND", message: "Route not found" },
+    const body = await response.json();
+    assert.equal(body.request_id, response.headers.get("x-request-id"));
+    assert.deepEqual(body.error, {
+      code: "NOT_FOUND", message: "Route not found",
     });
   });
 }

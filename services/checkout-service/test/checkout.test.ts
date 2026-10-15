@@ -4,6 +4,7 @@ import { createServer, type Server } from "node:http";
 import { test } from "node:test";
 import { createApp } from "../src/app.js";
 import { readConfig } from "../src/config.js";
+import { uuidPattern } from "../src/contracts.js";
 
 const payment = {
   order_id: "11111111-1111-4111-8111-111111111111",
@@ -33,6 +34,7 @@ for (const scenario of ["success", "unavailable", "timeout", "malformed", "wrong
     const stub = createServer((request, response) => {
       assert.equal(request.url, "/payments");
       assert.equal(request.method, "POST");
+      assert.match(String(request.headers["x-request-id"]), uuidPattern);
       if (scenario === "timeout") return;
       response.writeHead(201, { "content-type": "application/json" });
       response.end(scenario === "malformed" ? "not-json" : scenario === "oversized" ? "x".repeat(17000) :

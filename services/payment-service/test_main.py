@@ -69,3 +69,58 @@ def test_invalid_payment(patch):
 def test_missing_payment_fields():
     with TestClient(create_app()) as client:
         assert client.post("/payments", json={}).status_code == 422
+
+
+def test_request_ids_and_safe_logs():
+    records = []
+    request_id = "33333333-3333-4333-8333-333333333333"
+    with TestClient(create_app(sink=records.append)) as client:
+        response = client.get(
+            "/health?secret=secret-marker",
+            headers={"x-request-id": request_id, "authorization": "secret-marker"},
+        )
+        assert response.headers["x-request-id"] == request_id
+        for body, status in [
+            ("{secret-marker", 422),
+            ('{"secret":"secret-marker"}', 422),
+            ("x" * 9000, 413),
+        ]:
+            response = client.post(
+                "/payments",
+                content=body,
+                headers={
+                    "content-type": "application/json",
+                    "x-request-id": "secret-marker",
+                },
+            )
+            assert response.status_code == status
+            assert UUID(response.json()["request_id"])
+            assert response.json()["request_id"] == response.headers["x-request-id"]
+            assert "secret-marker" not in response.text
+    assert len(records) == 4
+    assert records[0]["request_id"] == request_id
+    assert "secret-marker" not in str(records)
+
+
+def test_chunked_body_is_bounded():
+    with TestClient(create_app()) as client:
+        response = client.post(
+            "/payments",
+            content=iter([b"x" * 5000, b"x" * 5000]),
+            headers={"content-type": "application/json"},
+        )
+        assert response.status_code == 413
+
+
+def test_unexpected_error_is_safe():
+    app = create_app()
+
+    @app.get("/test-error")
+    async def broken():
+        raise RuntimeError("secret-marker")
+
+    with TestClient(app, raise_server_exceptions=False) as client:
+        response = client.get("/test-error")
+        assert response.status_code == 500
+        assert "secret-marker" not in response.text
+        assert UUID(response.json()["request_id"])

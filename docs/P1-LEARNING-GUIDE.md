@@ -235,3 +235,83 @@ test payment. Restore it afterward; never infer an actual charge from this demo.
 ### Commit summary
 
 P1.5 adds a bounded HTTP dependency call and controlled failure responses.
+
+## P1.6: request IDs, structured logs, intentional errors
+
+### Concept
+
+Correlation IDs connect records from the same request across services. They are
+identifiers, not authentication. JSON logs are machine-readable records with
+explicit keys; info/warn/error describe outcome severity. An exception boundary
+translates internal failures into stable public errors without exposing secrets.
+
+### Architecture/data flow
+
+Checkout validates X-Request-ID as UUID (otherwise generates one) -> response header
+and local request context -> outgoing payment header -> payment reuses the ID ->
+both emit completion records with the same ID. Errors return
+`{error:{code,message},request_id}`. Successful health/payment bodies stay compatible.
+UTC timestamps record log time; duration_ms uses a monotonic clock for elapsed time.
+
+### Approval checkpoint
+
+Covered by the approved P1 scope. These are local demo logs, not centralized Loki.
+
+### File plan, implementation, walkthrough
+
+- checkout http.ts: requestContext(log) returns middleware. It selects a safe ID,
+  adds the response header, registers a finish callback, then calls next(). The
+  callback writes only allowlisted fields. HttpError carries public status/code/
+  message. handleError has Express's four-argument signature and maps malformed
+  JSON (400), body limit (413), expected errors, and unexpected errors (500).
+- app.ts: context precedes JSON parsing so parser errors also have IDs; the error
+  handler is last. Express forwards async handler failures to that handler.
+- payment-client.ts: pay now receives requestId and forwards it, without forwarding
+  credentials or arbitrary client headers. server.ts emits JSON startup records
+  and reports invalid configuration without echoing environment values.
+- payment observability.py: RequestContext is ASGI middleware. __call__ takes
+  scope (request metadata), receive (input messages), send (output messages).
+  It buffers at most 8 KiB of request body, then replays it to FastAPI; oversized
+  input returns 413, including chunked requests. Lifespan messages pass through.
+  The send wrapper adds the ID header. finally emits a safe completion record.
+- main.py: exception handlers return sanitized 422/HTTP/500 errors. Pydantic's
+  raw errors can contain rejected inputs; we intentionally do not return those.
+- logging.test.ts/test_main.py: capture log records, inject fake secret markers in
+  query/body/header/exception, and verify absence from logs/public errors. This is
+  a targeted regression check, not a claim of a full security audit.
+
+### Run/test
+
+```powershell
+npm test
+.\.venv\Scripts\python.exe -m pytest services/payment-service -q
+curl.exe -i -H 'X-Request-ID: 33333333-3333-4333-8333-333333333333' http://127.0.0.1:3001/health
+```
+
+Expected: tests pass; response header contains the supplied UUID. Positive
+completion logs include timestamp, level, service, event, request_id, route, status,
+duration_ms. Negative malformed/oversized/invalid payload tests produce bounded
+errors and safe IDs; invalid incoming IDs are replaced. Payment's malformed JSON
+is 422 through FastAPI's validation path; checkout parser returns 400.
+
+### Debug and security boundaries
+
+Search both service outputs for the same request_id. An unknown route is logged as
+unmatched; query strings, raw paths, bodies, authorization headers, and raw exception
+messages are excluded. Existing client code asserting the entire 404 body must now
+allow the added request_id. Request IDs alone never authorize an action.
+Uvicorn startup/shutdown messages are server diagnostics; application completion
+logs are JSON. Start Uvicorn with --no-access-log to avoid raw URL access records.
+No trace IDs or centralized observability backend are implemented in P1.
+
+### Understanding check
+
+1. Why must request context run before JSON parsing?
+2. Why exclude query strings as well as authorization headers from logs?
+3. What does a matching ID across two services prove, and what does it not prove?
+
+Exercise: supply a valid UUID, then a malformed ID, and compare response headers.
+
+### Commit summary
+
+P1.6 adds safe correlated logs and consistent error envelopes with regression tests.

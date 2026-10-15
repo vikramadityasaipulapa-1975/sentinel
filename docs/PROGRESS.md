@@ -1,6 +1,6 @@
 # Sentinel progress
 
-Current phase/task: P1.5 (P1.6-P1.7 authorized next)
+Current phase/task: P1.6 (P1.7 authorized next)
 Status: IMPLEMENTATION VERIFIED; learner checkpoints pending
 Last completed task: none
 
@@ -142,3 +142,17 @@ and run `npm test`. Explain why the unchanged test would reject the new response
 - Timeout 504; other dependency failures 502; no retries or persistence.
 - Documentation/environment example added; learner exercise/answers pending.
 - Commit: find with git log --grep="connect checkout to payment over bounded HTTP".
+
+## P1.6 task record
+
+- Detailed reference: P1-LEARNING-GUIDE.md, P1.6 (concepts/flow/files/errors/debug).
+- `npm test`: 12 passed, including health/404, payment boundary regressions, safe
+  request IDs, invalid JSON/input and 8 KiB body cap. pytest: 17 passed, including
+  health/OpenAPI/payment, chunked size cap, safe 500 and secret-marker redaction.
+- Ruff check passed; Python formatting applied. Shared IDs forwarded in HTTP test
+  double checks; full cross-runtime log correlation will be checked in P1.7.
+- Intentional contract change: errors now include request_id; successful health
+  and payment bodies unchanged. All HTTP responses carry X-Request-ID.
+- Startup logs now use JSON; earlier P1.2 plain startup text is historical.
+- Secrets absent from targeted log/error tests; no claim of comprehensive audit.
+- Learner checkpoint/exercise pending. Commit: git log --grep="correlate requests".

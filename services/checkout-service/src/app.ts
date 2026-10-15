@@ -1,11 +1,13 @@
 import express from "express";
 import { readConfig, type Config } from "./config.js";
 import { isPaymentRequest } from "./contracts.js";
-import { pay, PaymentError } from "./payment-client.js";
+import { pay } from "./payment-client.js";
+import { handleError, HttpError, requestContext, stdoutLog, type LogSink } from "./http.js";
 
-export function createApp(config: Config = readConfig()) {
+export function createApp(config: Config = readConfig(), log: LogSink = stdoutLog) {
   const app = express();
   app.disable("x-powered-by");
+  app.use(requestContext(log));
   app.use(express.json({ limit: "8kb" }));
 
   app.get("/health", (_request, response) => {
@@ -14,28 +16,20 @@ export function createApp(config: Config = readConfig()) {
 
   app.post("/checkout", async (request, response) => {
     if (!request.is("application/json")) {
-      response.status(415).json({ error: { code: "UNSUPPORTED_MEDIA_TYPE", message: "Use application/json" } });
-      return;
+      throw new HttpError(415, "UNSUPPORTED_MEDIA_TYPE", "Use application/json");
     }
     if (!isPaymentRequest(request.body)) {
-      response.status(422).json({ error: { code: "INVALID_CHECKOUT", message: "Invalid checkout fields" } });
-      return;
+      throw new HttpError(422, "INVALID_CHECKOUT", "Invalid checkout fields");
     }
-    try {
-      const payment = await pay(request.body, config);
-      response.status(201).json(payment);
-    } catch (error) {
-      if (!(error instanceof PaymentError)) throw error;
-      response.status(error.status).json({ error: { code: error.code, message: "Payment could not be confirmed" } });
-    }
+    const payment = await pay(request.body, config, response.locals.requestId);
+    response.status(201).json(payment);
   });
 
   // Registered last so only requests without a matching route reach this handler.
   app.use((_request, response) => {
-    response.status(404).json({
-      error: { code: "NOT_FOUND", message: "Route not found" },
-    });
+    throw new HttpError(404, "NOT_FOUND", "Route not found");
   });
+  app.use(handleError);
 
   return app;
 }
