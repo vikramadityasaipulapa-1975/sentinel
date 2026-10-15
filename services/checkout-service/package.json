@@ -1,0 +1,19 @@
+{
+  "name": "@sentinel/checkout-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/src/server.js",
+    "test": "npm run build && node --test dist/test/app.test.js"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.6",
+    "@types/node": "24.19.2",
+    "typescript": "5.9.3"
+  },
+  "dependencies": {
+    "express": "5.3.0"
+  }
+}

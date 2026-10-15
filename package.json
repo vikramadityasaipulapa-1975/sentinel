@@ -7,5 +7,11 @@
     "node": "24.x",
     "npm": "11.x"
   },
-  "packageManager": "npm@11.6.2"
+  "packageManager": "npm@11.6.2",
+  "workspaces": ["services/checkout-service"],
+  "scripts": {
+    "build": "npm run build --workspace=@sentinel/checkout-service",
+    "test": "npm run test --workspace=@sentinel/checkout-service",
+    "start:checkout": "npm run start --workspace=@sentinel/checkout-service"
+  }
 }

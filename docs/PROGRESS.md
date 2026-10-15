@@ -1,6 +1,6 @@
 # Sentinel progress
 
-Current phase/task: P1.1
+Current phase/task: P1.2
 Status: IMPLEMENTATION VERIFIED; learner checkpoints pending
 Last completed task: none
 
@@ -49,3 +49,55 @@ Last completed task: none
 
 Exercise: add a README sentence in your own words and explain its `git diff`.
 P1.1 remains pending learner completion even after implementation checks pass.
+
+## P1.2 task record
+
+- Approval: user approved the P1.2 explanation/file/test plan with "continue" on
+  2026-10-15. P1.1 learner checkpoints remain pending; not marked complete.
+- Concepts: HTTP methods, routes, ports, status codes, JSON content type,
+  middleware order, TypeScript compilation, ES modules, workspaces, async tests.
+- Files changed: root package.json/package-lock.json, README.md, this log;
+  services/checkout-service/package.json, tsconfig.json, src/app.ts,
+  src/server.ts, test/app.test.ts.
+- Dependencies: Express 5.3.0 at runtime; TypeScript 5.9.3, @types/node 24.19.2,
+  @types/express 5.0.6 for development. Exact direct versions and resolved
+  transitive packages are recorded in the manifests/lockfile.
+- Data flow: Node listens on loopback port 3001; Express dispatches GET /health
+  to fixed 200 JSON, then final middleware returns JSON 404 for unmatched requests.
+  app.ts constructs routes without listening; server.ts starts the listener.
+- Commands: dependency installation, `npm run build`, `npm test`,
+  `npm ls --workspace=@sentinel/checkout-service --depth=0`,
+  `npm ci --no-audit --no-fund --fetch-retries=0 --fetch-timeout=10000`.
+- Positive test: GET /health returned 200, application/json and the exact expected
+  body. npm ci succeeded and preserved the lockfile SHA256 hash.
+- Negative tests: GET /unknown and POST /health returned 404, application/json
+  and the expected error body. Node test runner: 3 passed, 0 failed.
+- Environment issues: initial workspace installation failed with Windows EPERM
+  on a workspace link; sandboxed registry lookup later failed with ENOTFOUND.
+  Authorized installation outside the sandbox succeeded. Initial HTTP tests
+  failed with loopback EACCES in the sandbox; authorized rerun outside it passed.
+  No application changes were needed to bypass these environment restrictions.
+- Startup/occupied-port checks: a bounded Node smoke script started the compiled
+  server, verified its startup message and real GET /health, then started a second
+  copy. The second copy reported EADDRINUSE and exited 1. The script stopped its
+  own server afterward. To reproduce manually: `npm run build`, run
+  `npm run start:checkout` in one terminal, request /health in another, then run
+  `npm run start:checkout` again while the first copy is active. Stop the first
+  copy with Ctrl+C afterward.
+- Known limitations: fixed local port; health is process responsiveness only.
+  No payment/database checks, request IDs, centralized errors, auth, or telemetry.
+  Express provides HEAD handling for GET routes; unsupported POST returns 404.
+- My own explanation of data flow: pending student response.
+- Independent exercise completed: pending student action.
+- Commit reference: P1.2 implementation commit containing this record; find with
+  `git log --oneline --grep="add checkout service health endpoint"`.
+- Next task (not approved): P1.3, payment FastAPI health endpoint.
+
+### P1.2 learner checkpoint
+
+1. How does a port differ from a route?
+2. Why can /health succeed while a future payment dependency is unavailable?
+3. Why separate app creation from opening a listening port?
+
+Exercise: add a fixed `"component":"demo"` response field, update the test body,
+and run `npm test`. Explain why the unchanged test would reject the new response.

@@ -7,10 +7,9 @@ approved sandbox remediation. These capabilities are not implemented yet.
 
 ## Current scope
 
-P1.1 establishes Git, documentation, ignore rules, and a minimal npm manifest and
-lockfile. There is no application server, database, AI integration, or deployment.
-TypeScript and the checkout HTTP server are planned for P1.2, which requires
-separate approval. No runtime or development dependencies are declared yet.
+P1.1 establishes Git, documentation, ignore rules, and npm configuration.
+P1.2 adds a local Express + TypeScript checkout service with a health endpoint.
+There is no payment service, database, AI integration, or deployment yet.
 
 ## Prerequisites
 
@@ -35,14 +34,57 @@ npm ci
 git status --short
 ```
 
-`npm ci` installs the dependency tree described by `package-lock.json`. At P1.1
-there are no external packages to install. It should exit successfully without
+`npm ci` installs the dependency tree described by `package-lock.json`, including
+the checkout npm workspace. It should exit successfully without
 changing the manifest or lockfile. A committed, unchanged checkout should produce
 no output from `git status --short`.
 
 When intentionally changing dependencies, use `npm install`, review the manifest
 and lockfile changes, and commit both. Use `npm ci` to reproduce an existing setup.
-There are no application start, build, lint, or automated test scripts yet.
+There is no lint configuration yet. TypeScript strict checking and Git whitespace
+checks provide the current static checks.
+
+## Checkout service (P1.2)
+
+```powershell
+npm run build
+npm test
+npm run start:checkout
+```
+
+Build compiles TypeScript into ignored `services/checkout-service/dist` output.
+Tests build first, then use Node's test runner and real local HTTP requests on an
+automatically assigned port. The test server is closed afterward. Start runs the
+compiled JavaScript and should print:
+
+```text
+Checkout service listening at http://127.0.0.1:3001
+```
+
+In a second PowerShell terminal:
+
+```powershell
+curl.exe -i http://127.0.0.1:3001/health
+curl.exe -i http://127.0.0.1:3001/unknown
+curl.exe -i -X POST http://127.0.0.1:3001/health
+```
+
+Expected: GET /health returns 200 and
+`{"status":"ok","service":"checkout-service"}`. The other requests return 404
+and `{"error":{"code":"NOT_FOUND","message":"Route not found"}}`.
+Responses have JSON content type. Express also provides its usual HEAD behavior
+for GET routes; the tests above exercise the task's GET and unmatched contracts.
+
+Stop with Ctrl+C. Rebuild and restart after editing source. The service binds only
+to loopback at port 3001. An occupied port reports EADDRINUSE and exits with a
+nonzero code. A 200 health response confirms HTTP responsiveness only; no payment
+or database health checks are performed. Request IDs and centralized application
+error handling are planned for P1.6.
+
+The root package delegates commands to `@sentinel/checkout-service`. Express is a
+runtime dependency; TypeScript and Node/Express type declarations are development
+dependencies. The service uses ES modules. Relative `.js` import paths in `.ts`
+source refer to the JavaScript files produced by compilation.
 
 ## Foundation checks
 
@@ -79,6 +121,11 @@ remote. P1.1 does not require publishing or deploying anything.
 - If `npm ci` reports a lock mismatch, inspect intentional manifest changes;
   regenerate the lock with `npm install` only when those changes are intended.
 - If npm cannot download a future dependency, inspect registry/proxy/network errors.
+- If workspace installation reports EPERM while creating a link, check Windows
+  permissions for workspace links rather than changing application code.
+- If HTTP requests report connection refused, check startup output and port 3001.
+- If startup reports EADDRINUSE, stop the process you started on that port before
+  restarting. Do not terminate an unfamiliar process blindly.
 - If a commit reports missing identity, inspect `git config user.name` and
   `git config user.email`, then set the intended identity.
 
@@ -86,3 +133,6 @@ remote. P1.1 does not require publishing or deploying anything.
 
 Add one sentence describing Sentinel in your own words. Run `git diff -- README.md`
 and explain the added line before committing your exercise.
+
+For P1.2, add a fixed `"component":"demo"` field to the health response, update
+its expected test body, and run `npm test`. Explain why the old test would fail.
