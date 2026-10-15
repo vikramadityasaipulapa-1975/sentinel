@@ -22,30 +22,44 @@ after(async () => {
   });
 });
 
-test("GET /health returns the checkout health contract", { timeout: 5000 }, async () => {
-  const response = await fetch(`${baseUrl}/health`, {
-    signal: AbortSignal.timeout(2000),
-  });
-  assert.equal(response.status, 200);
-  assert.match(response.headers.get("content-type") ?? "", /application\/json/);
-  assert.deepEqual(await response.json(), {
-    status: "ok",
-    service: "checkout-service",
-  });
-});
+test(
+  "GET /health returns the checkout health contract",
+  { timeout: 5000 },
+  async () => {
+    const response = await fetch(`${baseUrl}/health`, {
+      signal: AbortSignal.timeout(2000),
+    });
+    assert.equal(response.status, 200);
+    assert.match(
+      response.headers.get("content-type") ?? "",
+      /application\/json/,
+    );
+    assert.deepEqual(await response.json(), {
+      status: "ok",
+      service: "checkout-service",
+    });
+  },
+);
 
-for (const [method, path] of [["GET", "/unknown"], ["POST", "/health"]]) {
+for (const [method, path] of [
+  ["GET", "/unknown"],
+  ["POST", "/health"],
+]) {
   test(`${method} ${path} returns JSON 404`, { timeout: 5000 }, async () => {
     const response = await fetch(`${baseUrl}${path}`, {
       method,
       signal: AbortSignal.timeout(2000),
     });
     assert.equal(response.status, 404);
-    assert.match(response.headers.get("content-type") ?? "", /application\/json/);
+    assert.match(
+      response.headers.get("content-type") ?? "",
+      /application\/json/,
+    );
     const body = await response.json();
     assert.equal(body.request_id, response.headers.get("x-request-id"));
     assert.deepEqual(body.error, {
-      code: "NOT_FOUND", message: "Route not found",
+      code: "NOT_FOUND",
+      message: "Route not found",
     });
   });
 }

@@ -1,8 +1,9 @@
 # Sentinel progress
 
-Current phase/task: P1.6 (P1.7 authorized next)
-Status: IMPLEMENTATION VERIFIED; learner checkpoints pending
-Last completed task: none
+Current phase/task: P1 implementation complete (P1.1-P1.7)
+Status: IMPLEMENTATION VERIFIED; learner checkpoints pending; P2 not approved
+Last completed implementation task: P1.7
+Last completed learner checkpoint: none confirmed
 
 ## P1.1 task record
 
@@ -27,7 +28,7 @@ Last completed task: none
 - Negative test result: `.env` is ignored (exit 0), while `.env.example` is not
   ignored (exit 1). In a disposable directory containing only package.json,
   `npm ci --prefix <temporary-directory> --ignore-scripts --no-audit --no-fund
-  --offline` failed with EUSAGE, correctly requiring a lockfile.
+--offline` failed with EUSAGE, correctly requiring a lockfile.
 - Test limitation: the initially planned mismatched-manifest test hit ENOTCACHED
   while npm tried to resolve the invented dependency offline. That result does
   not prove mismatch validation; the deterministic missing-lockfile check above
@@ -156,3 +157,89 @@ and run `npm test`. Explain why the unchanged test would reject the new response
 - Startup logs now use JSON; earlier P1.2 plain startup text is historical.
 - Secrets absent from targeted log/error tests; no claim of comprehensive audit.
 - Learner checkpoint/exercise pending. Commit: git log --grep="correlate requests".
+
+## P1.7 task record and final P1 verification
+
+- Authorization: user requested continuing until P1 is finished, documenting every
+  task and checking regressions. P2 remains unapproved. Learner work stays pending.
+- Complete reference: P1-LEARNING-GUIDE.md covers P1.1-P1.7 concepts, prerequisites,
+  architecture/data flow, files, implementation, walkthrough, commands, errors,
+  security/tradeoffs, positive/negative tests, debugging, questions and exercises.
+- Files: payment config.py/main.py/models.py/test_main.py; scripts/setup-k6.ps1,
+  load-checkout.js, verify-p1.py; pyproject.toml; root manifests, environment example,
+  ignore rules, README and learning/progress docs. Checkout files were formatted
+  using newly pinned Prettier; runtime behavior verified afterward.
+- Faults: startup-only normal (default), latency (1-5000 ms), error (503). Request
+  inputs cannot enable faults. Health remains responsive. No random fault sampling.
+- Payment OpenAPI now describes the sanitized error envelope, including 422/503.
+- Added developer tools: Prettier 3.9.10 (npm lock); Ruff 0.17.1 (Python requirements).
+- k6: official portable v1.8.2, commit 682f083071. Archive SHA256 verified against
+  published manifest: C763B4796147BF796F3B7890B84A87A5042A010905DB75097AF1E61857FDD0C2.
+  Binary/archive live only in ignored .tools; no machine-wide installation.
+
+### Commands actually run
+
+```powershell
+# Repository root: V:\sentinel\sentinel
+.\scripts\setup-k6.ps1
+.\.venv\Scripts\python.exe -m ruff check services/payment-service scripts/verify-p1.py --fix
+.\.venv\Scripts\python.exe -m ruff format services/payment-service scripts/verify-p1.py
+npm run format
+.\.venv\Scripts\python.exe scripts/verify-p1.py
+npm run verify:p1 -- --help
+.\.venv\Scripts\python.exe -m pip check
+npm ci --no-audit --no-fund --fetch-retries=0 --fetch-timeout=15000
+```
+
+The final verifier run began at 2026-10-15T15:45:18.261424+00:00
+(2026-10-15 21:15:18 IST). It reported PASSED, k6_skipped=false.
+The verifier executes npm test, npm format:check, pytest, Ruff check/format-check,
+real service scenarios, k6 input guards and load runs. The npm wrapper's --help
+was separately checked. Final npm ci installed 79 packages and preserved the exact
+lockfile SHA256; pip check reported no broken requirements.
+
+### Measured results
+
+- Checkout: 12 tests passed, 0 failed. Original health/404 behavior preserved;
+  validation, unavailable/timeout/malformed/oversized/mismatched dependency data,
+  request IDs, body limits and secret-marker checks passed.
+- Payment: 22 tests passed, 0 failed. Health/OpenAPI, valid/invalid payments,
+  safe errors/logs, chunked body limit, default/repeated/configured faults passed.
+- Python lint/format and Prettier checks passed; Git whitespace check required
+  before commit. No claims about unconfigured additional lint tooling.
+- Seven real Node/Uvicorn scenarios passed, three checkouts each (21 scenario
+  requests): normal-a/b=201, error-a/b=502, latency=201, timeout=504, unavailable=502.
+- Cross-service request IDs matched for all scenarios with a payment listener.
+  Targeted fake secret markers were absent from service logs and public errors.
+- Occupied checkout startup exited 1 with EADDRINUSE; invalid configuration exited
+  1 with sanitized JSON. Verifier refused an intentionally occupied port, marked
+  its current report FAILED, and left that test listener untouched. The subsequent
+  full run replaced it with the new PASSED report.
+- k6 rejected a nonlocal target and invalid expected status before traffic.
+- Three k6 runs, 20 requests each, 1 virtual user, 30-second scenario cap:
+
+| Run      | Expected status | Requests | Matching status | Measured p95 |
+| -------- | --------------- | -------- | --------------- | ------------ |
+| normal-a | 201             | 20       | 100%            | 9.74 ms      |
+| error-a  | 502             | 20       | 100%            | 7.98 ms      |
+| timeout  | 504             | 20       | 100%            | 217.02 ms    |
+
+All request-ID checks and p95 < 3000 ms thresholds passed. The 502/504 runs have
+100% HTTP failures by design; that is the observed fault, not a failed threshold.
+These small local samples demonstrate behavior, not capacity, SLOs or general
+performance claims. Timings vary with hardware/scheduling; outcome modes repeat.
+
+### Evidence, limitations, and next boundary
+
+- Generated raw evidence: .artifacts/p1-verification.json, service .log files,
+  k6 summaries. Reports/tools are ignored, not committed. This dated snapshot is
+  the durable record; reruns overwrite generated evidence with a new run status.
+- Both local ports 3001 and 3002 were confirmed released after verification.
+- TestClient's Starlette/httpx deprecation warning remains; tests currently pass.
+  Revisit the dependency/test-client combination during a deliberate tooling update.
+- No real payments, idempotency, durable state, AI, telemetry backend, containers,
+  deployment, or production-readiness claim. No secrets needed or committed.
+- All independent exercises and learner explanations remain pending. The software
+  implementation gate passed; student mastery has not been asserted.
+- Commit: git log --grep="complete deterministic P1 fault and load verification".
+- Next task: P2.1, PostgreSQL schema/migrations, requires explicit user approval.

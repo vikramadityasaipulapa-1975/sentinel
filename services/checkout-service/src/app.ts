@@ -2,9 +2,18 @@ import express from "express";
 import { readConfig, type Config } from "./config.js";
 import { isPaymentRequest } from "./contracts.js";
 import { pay } from "./payment-client.js";
-import { handleError, HttpError, requestContext, stdoutLog, type LogSink } from "./http.js";
+import {
+  handleError,
+  HttpError,
+  requestContext,
+  stdoutLog,
+  type LogSink,
+} from "./http.js";
 
-export function createApp(config: Config = readConfig(), log: LogSink = stdoutLog) {
+export function createApp(
+  config: Config = readConfig(),
+  log: LogSink = stdoutLog,
+) {
   const app = express();
   app.disable("x-powered-by");
   app.use(requestContext(log));
@@ -16,7 +25,11 @@ export function createApp(config: Config = readConfig(), log: LogSink = stdoutLo
 
   app.post("/checkout", async (request, response) => {
     if (!request.is("application/json")) {
-      throw new HttpError(415, "UNSUPPORTED_MEDIA_TYPE", "Use application/json");
+      throw new HttpError(
+        415,
+        "UNSUPPORTED_MEDIA_TYPE",
+        "Use application/json",
+      );
     }
     if (!isPaymentRequest(request.body)) {
       throw new HttpError(422, "INVALID_CHECKOUT", "Invalid checkout fields");

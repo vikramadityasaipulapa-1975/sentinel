@@ -17,3 +17,13 @@ class PaymentRequest(BaseModel):
 class PaymentResponse(PaymentRequest):
     payment_id: UUID
     status: Literal["succeeded"]
+
+
+class ErrorDetail(BaseModel):
+    code: str
+    message: str
+
+
+class ErrorResponse(BaseModel):
+    error: ErrorDetail
+    request_id: UUID

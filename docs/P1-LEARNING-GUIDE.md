@@ -11,16 +11,138 @@ documentation and regression verification. This supersedes stopping for approval
 between those tasks. It does not authorize P2. Student answers and independent
 exercises remain pending until the student performs them.
 
-## P1.1 and P1.2 reference
+## P1.1: repository and reproducible setup
 
-Git records reviewed snapshots; npm workspaces give the checkout service its own
-package while retaining one root lockfile. See README.md for the build/run commands
-and docs/PROGRESS.md for historical measured results and pending exercises.
+### Concept
 
-Checkout's app factory defines routes without opening a port. Its server entry
-point opens the local listener. TypeScript checks types, emits JavaScript into
-ignored dist output, and Node executes that JavaScript. Runtime HTTP validation
-is separate from TypeScript checking. Existing health/404 tests remain regressions.
+Git records reviewed file snapshots. Editing changes the working tree; staging
+selects changes; committing records a local snapshot; pushing publishes commits.
+A remote is a named repository connection. npm installs packages and runs commands;
+Node executes JavaScript outside the browser. TypeScript checks source types and
+compiles source to JavaScript. package.json declares dependencies and commands;
+package-lock.json records exact resolved versions and integrity metadata.
+
+### Architecture/data flow
+
+Project configuration -> npm install (intentional dependency update) -> lockfile ->
+npm ci (reproduce locked installation) -> ignored node_modules. Reviewed files ->
+Git staging -> local commit. No runtime API or database existed at P1.1.
+
+### File plan and approval checkpoint
+
+The user approved using the already initialized V:\sentinel\sentinel repository.
+AGENTS.md and the master plan were copied inside it, preserving their text except
+trailing blank lines. README.md explains setup; .gitignore excludes generated and
+secret files; docs/PROGRESS.md records evidence; package.json/package-lock.json
+establish the npm package. Existing origin was retained. No GitHub push occurred.
+
+### Implementation and walkthrough
+
+private: true prevents accidental npm publication. engines documents Node 24/npm
+11 support, but npm can warn rather than enforce these versions. .gitignore permits
+.env.example and excludes .env files; it cannot erase secrets already committed.
+There were no runtime/development packages at P1.1; later phases add them deliberately.
+
+### Run/test
+
+```powershell
+git rev-parse --show-toplevel
+git remote -v
+npm ci
+git check-ignore --no-index .env
+git check-ignore --no-index .env.example
+git status --short
+```
+
+Expected: correct root/remote, successful install, .env ignored (exit 0), example
+not ignored (exit 1). A committed unchanged checkout has empty status. Negative:
+in a disposable folder containing package.json but no lockfile, npm ci rejects
+installation with EUSAGE. Never remove the real lockfile for that exercise.
+
+### Debug
+
+Wrong folder causes "not a git repository". Lock mismatch calls for reviewing the
+intentional manifest change, not blindly regenerating the lock. Missing Git identity
+requires setting the intended user.name/user.email. npm ci may recreate workspace
+links; Windows permissions must permit them. Keep generated tools/reports ignored.
+
+### Understanding check
+
+1. What is staging compared with committing?
+2. Why commit a lockfile but ignore installed packages?
+3. Why does .gitignore fail to protect a secret already committed?
+
+Exercise: add a README sentence in your own words; explain git diff -- README.md.
+
+### Commit summary
+
+P1.1 foundation: d5f368c. Measured installation/ignore results are in PROGRESS.md.
+
+## P1.2: checkout health server
+
+### Concept
+
+HTTP requests have a method and path; responses have status, headers and body.
+A host identifies a machine; a port identifies a listener; a route matches a
+method/path. Express dispatches routes and ordered middleware. A GET reads state;
+200 signals success; 404 means no handler matched. JSON is a data interchange format.
+
+### Architecture/data flow
+
+Client -> loopback port 3001 -> Node/Express -> GET /health -> fixed JSON 200.
+Unknown routes go to final 404 middleware. Health proves responsiveness only.
+
+### File plan and approval checkpoint
+
+The user approved app.ts, server.ts, TypeScript configuration, checkout tests,
+workspace manifests and documentation. No later service or infrastructure was
+created prematurely. P1.2 implementation was approved separately.
+
+### Implementation and walkthrough
+
+createApp() constructs routes without binding a port; server.ts starts listening.
+The health handler receives request/response objects and sends status plus JSON.
+Middleware order determines whether the route or fallback responds. TypeScript
+strict checks catch source errors; noEmitOnError prevents new broken build output.
+ES module imports use .js extensions corresponding to emitted output. A workspace
+isolates service dependencies while the root lockfile locks the whole npm tree.
+
+The tests await server readiness, fetch HTTP responses, then close connections in
+teardown. Tests select temporary ports, not the regular development port. In P1.6,
+the simple fallback is upgraded to an error boundary and startup logs become JSON.
+Original health response stays unchanged.
+
+### Run/test
+
+```powershell
+npm ci
+npm run build
+npm test
+npm run start:checkout
+```
+
+In another terminal, GET http://127.0.0.1:3001/health returns
+`{"status":"ok","service":"checkout-service"}` with 200 and JSON content type.
+GET /unknown and POST /health return 404. Starting a second copy while the first
+owns port 3001 must fail with EADDRINUSE and exit 1. Stop with Ctrl+C.
+
+### Debug
+
+Connection refused means inspect startup/port. Unexpected 404 means inspect the
+method and path. Old behavior after editing means rebuild and restart. TypeScript
+does not validate HTTP input at runtime; P1.5 explicitly adds that boundary.
+
+### Understanding check
+
+1. How does a port differ from a route?
+2. Why separate app construction from listening?
+3. Why can health pass even when a dependency is down?
+
+Exercise: add a component field to health and update the exact-body test.
+
+### Commit summary
+
+P1.2 health server: 61eed70. Three initial HTTP tests and occupied-port checks passed.
 
 ## P1.3: Python payment health server
 
@@ -123,7 +245,11 @@ Run `.\.venv\Scripts\python.exe -m pytest services/payment-service -q`.
 Positive: POST /payments with the following body returns 201 and a payment UUID:
 
 ```json
-{"order_id":"11111111-1111-4111-8111-111111111111","amount_minor":12500,"currency":"INR"}
+{
+  "order_id": "11111111-1111-4111-8111-111111111111",
+  "amount_minor": 12500,
+  "currency": "INR"
+}
 ```
 
 From PowerShell while payment is running:
@@ -269,7 +395,7 @@ Covered by the approved P1 scope. These are local demo logs, not centralized Lok
 - payment-client.ts: pay now receives requestId and forwards it, without forwarding
   credentials or arbitrary client headers. server.ts emits JSON startup records
   and reports invalid configuration without echoing environment values.
-- payment observability.py: RequestContext is ASGI middleware. __call__ takes
+- payment observability.py: RequestContext is ASGI middleware. **call** takes
   scope (request metadata), receive (input messages), send (output messages).
   It buffers at most 8 KiB of request body, then replays it to FastAPI; oversized
   input returns 413, including chunked requests. Lifespan messages pass through.
@@ -315,3 +441,143 @@ Exercise: supply a valid UUID, then a malformed ID, and compare response headers
 ### Commit summary
 
 P1.6 adds safe correlated logs and consistent error envelopes with regression tests.
+
+## P1.7: deterministic faults and load generation
+
+### Concept
+
+Fault injection deliberately creates a known failure so we can compare expected
+behavior with observations. Deterministic means the same configured mode produces
+the same kind of outcome, not identical timestamps/UUIDs/latencies. We use no random
+fault selection. A latency fault yields while sleeping, so it does not block all
+requests. A status fault returns a fixed 503. Health remains responsive.
+
+k6 generates HTTP traffic and measures response durations/failure counts. A virtual
+user executes the script; one user and 20 iterations keep this educational run
+small. p95 is the 95th percentile of measured durations: roughly 95% are no slower
+than that value. With only 20 requests it is noisy, not a production benchmark.
+Thresholds turn expected observations into an executable pass/fail condition.
+
+### Architecture/data flow
+
+Startup environment -> immutable validated Settings -> payment route -> normal
+result, fixed async delay, or fixed 503 -> checkout's normal dependency boundary
+-> 201, 502, or 504. A fault_injected JSON record marks deliberate faults.
+k6 -> real checkout -> real payment -> measured summary. No Prometheus/Loki/traces
+exist yet: these observations are HTTP timings/statuses and local application logs.
+
+### Approval checkpoint
+
+Authorized to finish P1, including small local fault/load demonstrations. No P2
+schema/container work, external deployment, or production remediation is included.
+
+### File plan, implementation, walkthrough
+
+- payment config.py: Settings is an immutable dataclass. Constructor defaults to
+  normal and a 500 ms delay. **post_init** rejects unknown mode/out-of-range delay.
+  from_env reads process settings once at app creation. Request inputs never set it.
+- main.py: create_app accepts optional settings for tests. create_payment records
+  explicit fault metadata, returns sanitized 503 in error mode, or awaits
+  asyncio.sleep in latency mode before generating the usual simulated response.
+  Health is separate. No real payment or database work exists after the delay.
+- test_main.py: verifies normal default, repeated errors, delay lower bound, invalid
+  settings, and attempts to enable faults through requests. Existing tests remain.
+- scripts/load-checkout.js: k6-specific imports (not Node). Validates local target,
+  expected status and p95 bound, then posts the same documented demo contract.
+  Rate records agreement with the expected status; checks also require an ID header.
+  Per-request timeout is 5 seconds, redirects disabled, scenario capped at 30 seconds.
+- scripts/setup-k6.ps1: downloads a pinned official portable release, verifies the
+  publisher's SHA256 manifest, extracts under ignored .tools, and checks version.
+  This is a local tool, not a system service. No PATH changes. The matching
+  checksum is integrity evidence, not independent authentication of the publisher.
+- scripts/verify-p1.py: first marks its report RUNNING and refuses occupied ports.
+  It runs npm/Python regressions and formatting checks with bounded subprocesses.
+  run_scenario(name, mode, expected, delay, timeout, k6) starts real Uvicorn and Node
+  processes with isolated child environments, waits for health, submits three
+  checkouts and validates statuses/IDs. Selected scenarios also run k6. ExitStack
+  owns log files, while finally terminates only owned children, with a bounded kill
+  fallback if needed. Logs are parsed after process exit; shared IDs and absence
+  of fake secret markers are verified. Failure marks the current report FAILED,
+  never leaving an old successful report current. An explicit skip is recorded.
+- pyproject.toml: project-local Python lint/format and test-path settings.
+  Prettier is pinned in the root npm package for consistent TS/JS/JSON/Markdown;
+  it changes formatting, not HTTP behavior. npm format:check verifies it.
+- .env.example and .gitignore: document fault configuration; keep .tools and
+  .artifacts generated output out of history. README is the quick-start index.
+
+### Run/test
+
+Complete setup from README, then stop manual services and run:
+
+```powershell
+.\scripts\setup-k6.ps1
+npm run verify:p1
+```
+
+Expected: checkout/payment regression suites pass, Ruff/Prettier pass, seven
+integration scenarios pass, and three 20-request loads meet thresholds. Report:
+.artifacts/p1-verification.json; service logs and raw k6 summaries sit alongside it.
+Checks exercise real Node/Python TCP calls, unlike payment's in-process unit tests.
+
+| Scenario            | Configuration                  | Expected checkout            |
+| ------------------- | ------------------------------ | ---------------------------- |
+| normal-a / normal-b | normal; 2000 ms deadline       | 201 in both independent runs |
+| error-a / error-b   | payment 503; 2000 ms deadline  | controlled 502 in both runs  |
+| latency             | 100 ms sleep; 2000 ms deadline | 201 with observable delay    |
+| timeout             | 600 ms sleep; 200 ms deadline  | controlled 504               |
+| unavailable         | no payment listener            | controlled 502               |
+
+Positive: default normal payments, delayed-but-successful payments, shared IDs.
+Negative: configured 503/timeout/unavailable dependency, invalid fault settings,
+request attempts to activate faults, nonlocal load target and invalid expected
+status rejected before load traffic. Details/measured results: PROGRESS.md.
+
+For a manual load while normal services run:
+
+```powershell
+.\.tools\k6\k6-v1.8.2-windows-amd64\k6.exe run --no-usage-report scripts/load-checkout.js
+```
+
+For an injected error run, restart payment with PAYMENT_FAULT_MODE=error and use
+`--env EXPECT_STATUS=502`. For timeout, set payment delay above the checkout deadline
+and use EXPECT_STATUS=504. Do not enable faults by editing application source.
+
+### Debug, interpretation, and risks
+
+An expected fault can have k6 http_req_failed=100% while the fault test passes:
+HTTP failures are the intended observation; expected_status and checks must be
+100%. A normal run unexpectedly returning 502 fails those thresholds. The p95
+threshold is deliberately loose (3000 ms) for functionality, not a latency SLO.
+Timing evidence differs across hardware, process startup and scheduling.
+
+If ports are occupied, stop your own manual services before verification. Do not
+run concurrent verifier copies. Restore fault mode normal and restart after manual
+experiments. A 504 may occur before payment finishes; the log can later show 201.
+This is why P2 needs idempotency and durable records. The fault-injected service
+remains responsive, so a green health endpoint is not proof of working checkout.
+
+The report is generated evidence, not committed source. The progress log contains
+a dated human-readable snapshot with sample counts and limitations. Test results
+do not substitute for the learner completing the explanation/exercise.
+
+### Understanding check
+
+1. Why does an async delay preserve health responsiveness?
+2. Why can a correct fault test show 100% HTTP request failures?
+3. What does p95 from 20 local requests tell you, and what does it not tell you?
+
+Exercise: choose latency below the checkout deadline, verify 201, then choose a
+delay above it, verify 504. Explain both logs using one request ID; restore normal.
+
+### Commit summary
+
+P1.7 adds bounded deterministic faults, k6, real-service regression orchestration,
+and complete P1 reference documentation. P2 remains outside the approved scope.
+
+## Final learner checklist (all phases)
+
+- Draw input -> validation -> dependency -> response -> log, including error paths.
+- Explain which checks run in-process, with a test double, and against real services.
+- Run the documented setup and checks without Codex.
+- Complete each small exercise and explain the observed diff/test result.
+- Review PROGRESS.md; pending learner work is not automatically marked complete.

@@ -1,24 +1,41 @@
-import { isPaymentResponse, type PaymentRequest, type PaymentResponse } from "./contracts.js";
+import {
+  isPaymentResponse,
+  type PaymentRequest,
+  type PaymentResponse,
+} from "./contracts.js";
 import type { Config } from "./config.js";
 import { HttpError } from "./http.js";
 
 export class PaymentError extends HttpError {
-  constructor(public readonly status: number, public readonly code: string) {
+  constructor(
+    public readonly status: number,
+    public readonly code: string,
+  ) {
     super(status, code, "Payment could not be confirmed");
   }
 }
 
-export async function pay(request: PaymentRequest, config: Config, requestId: string): Promise<PaymentResponse> {
+export async function pay(
+  request: PaymentRequest,
+  config: Config,
+  requestId: string,
+): Promise<PaymentResponse> {
   const signal = AbortSignal.timeout(config.paymentTimeoutMs);
   try {
     const response = await fetch(`${config.paymentUrl}/payments`, {
       method: "POST",
-      headers: { "content-type": "application/json", "x-request-id": requestId },
+      headers: {
+        "content-type": "application/json",
+        "x-request-id": requestId,
+      },
       body: JSON.stringify(request),
       signal,
       redirect: "error",
     });
-    if (response.status !== 201 || !response.headers.get("content-type")?.includes("application/json")) {
+    if (
+      response.status !== 201 ||
+      !response.headers.get("content-type")?.includes("application/json")
+    ) {
       await response.body?.cancel();
       throw new PaymentError(502, "PAYMENT_BAD_RESPONSE");
     }
@@ -46,7 +63,8 @@ export async function pay(request: PaymentRequest, config: Config, requestId: st
     } catch {
       throw new PaymentError(502, "PAYMENT_BAD_RESPONSE");
     }
-    if (!isPaymentResponse(result, request)) throw new PaymentError(502, "PAYMENT_BAD_RESPONSE");
+    if (!isPaymentResponse(result, request))
+      throw new PaymentError(502, "PAYMENT_BAD_RESPONSE");
     return result;
   } catch (error) {
     if (signal.aborted) throw new PaymentError(504, "PAYMENT_TIMEOUT");

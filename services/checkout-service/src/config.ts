@@ -6,8 +6,15 @@ export interface Config {
 export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const url = new URL(env.PAYMENT_URL ?? "http://127.0.0.1:3002");
   // This phase permits only local demo services, never request-supplied targets.
-  if (url.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(url.hostname) ||
-      url.username || url.password || url.pathname !== "/" || url.search || url.hash) {
+  if (
+    url.protocol !== "http:" ||
+    !["127.0.0.1", "localhost"].includes(url.hostname) ||
+    url.username ||
+    url.password ||
+    url.pathname !== "/" ||
+    url.search ||
+    url.hash
+  ) {
     throw new Error("PAYMENT_URL must be a local HTTP origin");
   }
   const timeout = Number(env.PAYMENT_TIMEOUT_MS ?? "2000");

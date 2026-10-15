@@ -1,138 +1,174 @@
 # Sentinel
 
 Sentinel is a learning-first AI-assisted incident response and reliability project.
-The planned system will observe demo checkout/payment services, gather telemetry,
-rank evidence-linked incident hypotheses, retrieve runbooks, and support explicitly
-approved sandbox remediation. These capabilities are not implemented yet.
+**P1 implementation is complete:** two local demo services, validated simulated
+payments, bounded checkout calls, request IDs, safe JSON logs, deterministic faults,
+and reproducible local tests/load checks. AI, persistence, containers, telemetry
+backends, authentication, and remediation are future phases, not implemented claims.
 
-## Current scope
+## Learn and track progress
 
-P1.1 establishes Git, documentation, ignore rules, and npm configuration.
-P1.2 adds a local Express + TypeScript checkout service with a health endpoint.
-There is no payment service, database, AI integration, or deployment yet.
+- [Complete P1 learning guide](docs/P1-LEARNING-GUIDE.md): concepts, architecture,
+  file walkthroughs, commands, positive/negative tests, debugging, and exercises for
+  every task P1.1-P1.7.
+- [Measured progress and results](docs/PROGRESS.md): commands, outcomes, limitations,
+  commit references, and pending student checkpoints.
+- [Agent contract](AGENTS.md) and [master roadmap](SENTINEL_CODEX_MASTER_PLAN.md).
 
-## Prerequisites
+P1 implementation verification is separate from student mastery. Questions and
+independent exercises remain pending until the student completes them. P2 requires
+explicit approval. No real payments, database records, deployments, or pushes occur.
 
-- Git (verified locally with 2.51.0.windows.1)
-- Node.js 24.x (verified locally with 24.11.1)
-- npm 11.x (verified locally with 11.6.2)
-- PowerShell and a text editor
+## Prerequisites and setup (Windows PowerShell)
 
-The engines field documents the supported tool versions; npm may warn rather
-than reject other versions. Python and Docker are introduced in later tasks.
-
-## Local setup
-
-The existing local repository root is `V:\sentinel\sentinel`.
+Use Git, Node.js 24.x with npm 11.x, and Python 3.11+. Tested versions are recorded
+in the progress log. A virtual environment isolates Python packages; explicit paths
+avoid activation-policy issues. The engines field documents supported npm tooling
+but does not strictly enforce it. Requirements pin the measured Python environment.
 
 ```powershell
 Set-Location 'V:\sentinel\sentinel'
-git --version
-node --version
-npm --version
 npm ci
-git status --short
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r services/payment-service/requirements.txt
+npm run build
 ```
 
-`npm ci` installs the dependency tree described by `package-lock.json`, including
-the checkout npm workspace. It should exit successfully without
-changing the manifest or lockfile. A committed, unchanged checkout should produce
-no output from `git status --short`.
-
-When intentionally changing dependencies, use `npm install`, review the manifest
-and lockfile changes, and commit both. Use `npm ci` to reproduce an existing setup.
-There is no lint configuration yet. TypeScript strict checking and Git whitespace
-checks provide the current static checks.
-
-## Checkout service (P1.2)
+For k6, use an existing installation or download the pinned portable v1.8.2:
 
 ```powershell
-npm run build
-npm test
+.\scripts\setup-k6.ps1
+```
+
+The setup script downloads Grafana's official GitHub release, verifies the archive
+against its published SHA256, and extracts into ignored .tools. It does not modify
+system PATH or install a machine-wide service. Checksum matching detects corruption;
+it is not an independent publisher identity verification.
+
+## Run the two services
+
+Terminal 1, from the repository root:
+
+```powershell
+$env:PAYMENT_FAULT_MODE = 'normal'
+.\.venv\Scripts\python.exe -m uvicorn main:app --app-dir services/payment-service --host 127.0.0.1 --port 3002 --no-access-log
+```
+
+Terminal 2:
+
+```powershell
+$env:PAYMENT_URL = 'http://127.0.0.1:3002'
+$env:PAYMENT_TIMEOUT_MS = '2000'
 npm run start:checkout
 ```
 
-Build compiles TypeScript into ignored `services/checkout-service/dist` output.
-Tests build first, then use Node's test runner and real local HTTP requests on an
-automatically assigned port. The test server is closed afterward. Start runs the
-compiled JavaScript and should print:
-
-```text
-Checkout service listening at http://127.0.0.1:3001
-```
-
-In a second PowerShell terminal:
+Terminal 3:
 
 ```powershell
 curl.exe -i http://127.0.0.1:3001/health
-curl.exe -i http://127.0.0.1:3001/unknown
-curl.exe -i -X POST http://127.0.0.1:3001/health
+curl.exe -i http://127.0.0.1:3002/health
+$body = '{"order_id":"11111111-1111-4111-8111-111111111111","amount_minor":12500,"currency":"INR"}'
+Invoke-RestMethod http://127.0.0.1:3001/checkout -Method Post -ContentType 'application/json' -Body $body
 ```
 
-Expected: GET /health returns 200 and
-`{"status":"ok","service":"checkout-service"}`. The other requests return 404
-and `{"error":{"code":"NOT_FOUND","message":"Route not found"}}`.
-Responses have JSON content type. Express also provides its usual HEAD behavior
-for GET routes; the tests above exercise the task's GET and unmatched contracts.
+Expected: both health endpoints return 200; checkout returns a simulated succeeded
+payment with a UUID. Payment docs: http://127.0.0.1:3002/docs and /openapi.json.
+Stop with Ctrl+C. Rebuild/restart checkout after source changes. Restart payment
+when changing its fault settings. Startup/completion logs include service context.
 
-Stop with Ctrl+C. Rebuild and restart after editing source. The service binds only
-to loopback at port 3001. An occupied port reports EADDRINUSE and exits with a
-nonzero code. A 200 health response confirms HTTP responsiveness only; no payment
-or database health checks are performed. Request IDs and centralized application
-error handling are planned for P1.6.
+## Architecture and API contracts
 
-The root package delegates commands to `@sentinel/checkout-service`. Express is a
-runtime dependency; TypeScript and Node/Express type declarations are development
-dependencies. The service uses ES modules. Relative `.js` import paths in `.ts`
-source refer to the JavaScript files produced by compilation.
+```text
+Client -> checkout (Node/Express, 127.0.0.1:3001)
+           -> bounded HTTP POST -> payment (Python/FastAPI, 127.0.0.1:3002)
+           <- validated simulated payment result
+Both services -> JSON completion logs with a shared X-Request-ID
+```
 
-## Foundation checks
+| Route                         | Success                         | Invalid/failure behavior                                                                                            |
+| ----------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| GET /health on either service | 200, status ok and service name | Responsiveness only; no dependency readiness claim                                                                  |
+| POST /payments on payment     | 201, simulated payment result   | 422 invalid contract; 413 oversized body; 503 injected error                                                        |
+| POST /checkout on checkout    | 201, validated payment result   | 422 invalid contract; 415 wrong media; 400 malformed JSON; 413 oversized body; 502 dependency failure; 504 deadline |
+| Unknown checkout route        | Not applicable                  | 404 JSON error                                                                                                      |
+| GET /openapi.json on payment  | 200, API schema                 | No application authentication in this local demo                                                                    |
+
+Request: UUID order_id, integer amount_minor from 1 to 100,000,000, currency INR or
+USD. Extra fields are rejected. Response adds payment_id and status succeeded.
+Amount 12500 means 125.00 currency units. No cards, real charges, retries, persistence,
+or idempotency guarantees. Successful bodies stay small; errors use
+`{error:{code,message},request_id}`. Response headers include X-Request-ID. Invalid
+incoming IDs are replaced with UUIDs. IDs provide correlation, not authorization.
+
+JSON bodies are bounded at 8 KiB; checkout's downstream response is bounded at
+16 KiB with a configurable 50-10000 ms deadline. Redirects are rejected. Only local
+HTTP payment origins are accepted. Logs exclude bodies, credentials, raw URLs,
+query strings and raw exception messages. Uvicorn lifecycle diagnostics may be
+plain text; --no-access-log avoids URL access logging.
+
+## Deterministic fault demonstration
+
+Faults are disabled by default. .env.example documents settings but is **not loaded
+automatically**. Only the payment process's startup environment enables faults;
+request headers/query/body cannot enable them.
+
+Stop payment, then restart it with one mode:
 
 ```powershell
-git rev-parse --show-toplevel
-git remote -v
-npm ci
-git diff --exit-code -- package.json package-lock.json
-git check-ignore --no-index .env
-git check-ignore --no-index .env.example
-git diff --check
+$env:PAYMENT_FAULT_MODE = 'error'
+# Run the same Uvicorn command: direct payment gives 503, checkout gives 502.
 ```
 
-Expected: the repository root and configured GitHub origin are shown; installation
-and diff checks succeed; `.env` is ignored. The `.env.example` check deliberately
-returns exit code 1 with no output, meaning an example file would not be ignored.
-These ignore checks do not create files. Never put real secrets in examples.
-Ignore rules do not remove files already tracked by Git.
+Or simulate a deadline breach (checkout default deadline is 2000 ms):
 
-## Learning workflow
+```powershell
+$env:PAYMENT_FAULT_MODE = 'latency'
+$env:PAYMENT_FAULT_DELAY_MS = '3000'
+# Restart payment: checkout gives 504; payment may finish after checkout times out.
+```
 
-Read [AGENTS.md](AGENTS.md) and the [master plan](SENTINEL_CODEX_MASTER_PLAN.md).
-Each task requires explanation and approval before implementation, followed by
-verification, a walkthrough, understanding questions, and an independent exercise.
-Measured results and pending learning checkpoints live in
-[docs/PROGRESS.md](docs/PROGRESS.md).
+Normal/latency/error are the only modes; delay is 1-5000 ms. Health remains 200
+during an injected payment fault. Restore mode normal and restart when finished.
+Random fault selection is not used; IDs and measured timings naturally vary.
 
-Git commits record local snapshots; pushing publishes commits to the configured
-remote. P1.1 does not require publishing or deploying anything.
+## Verification and formatting
 
-## Troubleshooting
+Stop manual servers before the combined suite. It refuses occupied ports and
+stops only child processes it creates.
 
-- If Git reports no repository, verify the current directory with `Get-Location`.
-- If `npm ci` reports a lock mismatch, inspect intentional manifest changes;
-  regenerate the lock with `npm install` only when those changes are intended.
-- If npm cannot download a future dependency, inspect registry/proxy/network errors.
-- If workspace installation reports EPERM while creating a link, check Windows
-  permissions for workspace links rather than changing application code.
-- If HTTP requests report connection refused, check startup output and port 3001.
-- If startup reports EADDRINUSE, stop the process you started on that port before
-  restarting. Do not terminate an unfamiliar process blindly.
-- If a commit reports missing identity, inspect `git config user.name` and
-  `git config user.email`, then set the intended identity.
+```powershell
+npm test
+npm run test:payment
+npm run format:check
+.\.venv\Scripts\python.exe -m ruff check services/payment-service scripts/verify-p1.py
+npm run verify:p1
+```
 
-## Independent exercise
+The combined suite runs unit/HTTP regressions, formatting/lint, seven real-service
+scenarios, shared-ID/redaction checks, and three 20-request k6 loads. It writes
+ignored .artifacts/p1-verification.json with RUNNING/FAILED/PASSED status and per-run
+logs/metrics. A failed run cannot leave the previous success report marked current.
+For an explicit partial check without k6:
 
-Add one sentence describing Sentinel in your own words. Run `git diff -- README.md`
-and explain the added line before committing your exercise.
+```powershell
+.\.venv\Scripts\python.exe scripts/verify-p1.py --skip-k6
+```
 
-For P1.2, add a fixed `"component":"demo"` field to the health response, update
-its expected test body, and run `npm test`. Explain why the old test would fail.
+This reports PASSED_WITH_LIMITATIONS, not a full load verification. Prettier is a
+pinned developer formatter; `npm run format` fixes its supported source/docs files.
+Python formatting uses `python -m ruff format` through the virtual environment.
+
+## Debugging and limitations
+
+- Connection refused: inspect service startup output and ports 3001/3002.
+- EADDRINUSE: stop your previous server, never an unfamiliar process blindly.
+- 422: check names/types/bounds; payment deliberately does not echo rejected input.
+- 502: inspect payment availability and contract; 504: compare delay with deadline.
+- A timeout does not prove payment did not run. Automatic retries await P2 idempotency.
+- Search both service outputs for the same request_id to follow one call.
+- Sandbox EACCES/EPERM can block local sockets/workspace links; use an environment
+  with those permissions. Do not weaken application validation to fix tool limits.
+- FastAPI TestClient currently emits a Starlette httpx deprecation warning; tests
+  pass. This compatibility warning is recorded for a future dependency update.
+- Tiny local k6 runs verify behavior, not production capacity or stable SLOs.
+- .gitignore cannot protect already tracked secrets. Commit examples only.

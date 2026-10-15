@@ -8,10 +8,19 @@
     "npm": "11.x"
   },
   "packageManager": "npm@11.6.2",
-  "workspaces": ["services/checkout-service"],
+  "workspaces": [
+    "services/checkout-service"
+  ],
   "scripts": {
     "build": "npm run build --workspace=@sentinel/checkout-service",
     "test": "npm run test --workspace=@sentinel/checkout-service",
-    "start:checkout": "npm run start --workspace=@sentinel/checkout-service"
+    "start:checkout": "npm run start --workspace=@sentinel/checkout-service",
+    "test:payment": ".venv\\Scripts\\python.exe -m pytest services/payment-service -q",
+    "verify:p1": ".venv\\Scripts\\python.exe scripts/verify-p1.py",
+    "format": "prettier --write package.json \"services/checkout-service/**/*.ts\" \"services/checkout-service/*.json\" scripts/load-checkout.js README.md docs/P1-LEARNING-GUIDE.md docs/PROGRESS.md",
+    "format:check": "prettier --check package.json \"services/checkout-service/**/*.ts\" \"services/checkout-service/*.json\" scripts/load-checkout.js README.md docs/P1-LEARNING-GUIDE.md docs/PROGRESS.md"
+  },
+  "devDependencies": {
+    "prettier": "3.9.10"
   }
 }
