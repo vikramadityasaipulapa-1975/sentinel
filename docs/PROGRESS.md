@@ -1,6 +1,6 @@
 # Sentinel progress
 
-Current phase/task: P1.4 (P1.5-P1.7 authorized next)
+Current phase/task: P1.5 (P1.6-P1.7 authorized next)
 Status: IMPLEMENTATION VERIFIED; learner checkpoints pending
 Last completed task: none
 
@@ -129,3 +129,16 @@ and run `npm test`. Explain why the unchanged test would reject the new response
   extra/missing fields return 422. No gateway called; no real charges or storage.
 - Ruff import fixes and formatting applied. Learner checkpoint/exercise pending.
 - Commit: find with git log --grep="validate demo payment contracts".
+
+## P1.5 task record
+
+- Concepts/flow/files/walkthrough/commands/questions: P1-LEARNING-GUIDE.md, P1.5.
+- Checkout now validates POST /checkout and calls payment over bounded HTTP.
+- `npm test`: 11 passed, 0 failed, including P1.2 regressions. Payment source
+  unchanged since its 14 passing tests. Real two-runtime integration follows in
+  the final P1 suite; these downstream scenarios use an explicit HTTP test double.
+- Positive: payment contract returned 201. Negative: unavailable, timeout,
+  malformed/oversized/mismatched upstream, invalid checkout, bad media/config.
+- Timeout 504; other dependency failures 502; no retries or persistence.
+- Documentation/environment example added; learner exercise/answers pending.
+- Commit: find with git log --grep="connect checkout to payment over bounded HTTP".

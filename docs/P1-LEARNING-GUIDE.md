@@ -154,3 +154,84 @@ Exercise: try amount_minor as a quoted string, then an integer; explain the resu
 ### Commit summary
 
 P1.4 adds request/response models, POST /payments, and validation regressions.
+
+## P1.5: checkout calls payment over HTTP
+
+### Concept
+
+Service discovery means knowing the downstream address. In P1 it is a configured
+local origin, not a registry. A timeout bounds waiting; it does not prove the
+remote action never happened. async/await pauses a function while I/O completes
+without blocking the Node event loop. No automatic retries are safe yet.
+
+### Architecture/data flow
+
+POST /checkout -> JSON parser (8 KiB) -> runtime contract check -> POST /payments
+with a 2-second deadline -> validate downstream status/body -> 201 payment result.
+An unavailable dependency yields 502; expiration yields 504. Invalid checkout is
+422; unsupported content type 415. No database schema, stored order, or real money.
+
+### Approval checkpoint
+
+Covered by approval through P1.7. Ports/targets are local demo services only.
+
+### File plan, implementation, walkthrough
+
+- contracts.ts: interfaces document request/response types. isPaymentRequest takes
+  unknown and returns a type predicate after checking required fields, types,
+  UUID syntax, integer amount bounds and currency. It rejects extra fields.
+  isPaymentResponse also checks that payment echoes the requested amount, currency,
+  and order (UUID comparison ignores letter case).
+- config.ts: readConfig(env) defaults to process.env; returns validated origin and
+  bounded timeout. Invalid configuration fails before listening. PAYMENT_URL may
+  only be a local HTTP origin; request bodies cannot change it (SSRF boundary).
+- payment-client.ts: pay(request, config) returns a Promise of validated payment.
+  It sends one POST, rejects redirects, caps response data at 16 KiB, and applies
+  a deadline to headers and body. PaymentError carries safe status/code, never raw
+  downstream text. Reader cleanup happens in finally, including validation errors.
+- app.ts: JSON middleware precedes checkout. The handler checks media/input, awaits
+  pay, and converts expected dependency failures into controlled errors.
+- checkout.test.ts: real local HTTP against a clearly labeled payment test double;
+  covers success, unavailable dependency, timeout, malformed JSON, mismatched order
+  fields, oversized upstream response, invalid inputs/configuration.
+- .env.example: documents nonsecret values; neither app automatically loads it.
+  The root npm test command now discovers both test files.
+
+### Run/test
+
+Start payment as in P1.3; in a second terminal run `npm run build` then
+`npm run start:checkout`. In a third:
+
+```powershell
+$body = '{"order_id":"11111111-1111-4111-8111-111111111111","amount_minor":12500,"currency":"INR"}'
+Invoke-RestMethod http://127.0.0.1:3001/checkout -Method Post -ContentType 'application/json' -Body $body
+```
+
+Expected: succeeded status, payment UUID, echoed request fields. Stop payment and
+repeat: controlled 502. `npm test` builds and runs positive/negative regressions.
+For configuration, before starting checkout:
+
+```powershell
+$env:PAYMENT_URL = 'http://127.0.0.1:3002'
+$env:PAYMENT_TIMEOUT_MS = '2000'
+```
+
+### Debug and risks
+
+502: confirm payment is listening and speaks the expected contract. 504: inspect
+dependency delay and client deadline. A timeout is an uncertain outcome, not proof
+of no payment; idempotency belongs to P2. Changing an environment variable affects
+new processes only. .env.example is reference, not an automatic configuration loader.
+
+### Understanding check
+
+1. Why validate a response from our own payment service?
+2. Why do we bound both response bytes and elapsed time?
+3. Why is retrying a timeout different from retrying a health GET?
+
+Exercise: change PAYMENT_TIMEOUT_MS within its allowed range and observe a delayed
+test payment. Restore it afterward; never infer an actual charge from this demo.
+
+### Commit summary
+
+P1.5 adds a bounded HTTP dependency call and controlled failure responses.
