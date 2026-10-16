@@ -6,8 +6,8 @@ payments, bounded checkout calls, request IDs, safe JSON logs, deterministic fau
 and reproducible local tests/load checks. P2 adds PostgreSQL persistence,
 idempotency/retries, container definitions, and local deployment version tooling.
 See the progress log for separately measured native and Docker verification.
-**Current gate:** native PostgreSQL checks pass; Docker/Compose verification is
-blocked until Docker Desktop is installed/running. P2 is not fully accepted yet.
+**P2 implementation is verified:** native PostgreSQL and Docker/Compose checks
+passed, including restart persistence and container version switching/rollback.
 AI, centralized telemetry, authentication, and remediation remain future phases.
 
 ## Learn and track progress
@@ -24,7 +24,8 @@ AI, centralized telemetry, authentication, and remediation remain future phases.
 Implementation verification is separate from student mastery. Questions and
 independent exercises remain pending until the student completes them. P2 was
 approved; P3 requires new approval. Payments remain simulated. Local database and
-deployment records are real in PostgreSQL mode. No external deployments or pushes.
+deployment records are real in PostgreSQL mode. Project commits are published to
+the configured GitHub remote; no external application deployment has occurred.
 
 ## P2: persistent local demo with Docker
 

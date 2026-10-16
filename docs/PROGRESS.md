@@ -1,8 +1,8 @@
 # Sentinel progress
 
-Current phase/task: P2, awaiting Docker/Compose acceptance
-Status: DATABASE/NATIVE VERIFIED; CONTAINER VERIFICATION BLOCKED; P3 not approved
-Last fully accepted software phase: P1; P2 native checks passed, container gate open
+Current phase/task: P2, implementation verification complete
+Status: DATABASE/NATIVE AND CONTAINER VERIFICATION PASSED; P3 not approved
+Last fully accepted software phase: P2; learner checkpoints remain open
 Last completed learner checkpoint: none confirmed
 
 ## P1.1 task record
@@ -382,3 +382,36 @@ The configured identity is pvasB0-baymax <vsai3890@gmail.com>. Existing P1/P2
 commits through 1191e1f were pushed successfully to origin/main. Future completed
 parts should be committed and pushed individually after their relevant checks.
 This supersedes the earlier local-only publishing status; P3 still requires approval.
+
+### P2 Docker acceptance completed (2026-10-16)
+
+The earlier Docker blocker is resolved. Docker Engine 29.8.2 reports Linux containers;
+Compose v5.6.0 is available. Ran the actual command from the repository root:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/verify-p2.py --backend compose
+```
+
+- Report run_at: 2026-10-16T10:46:00.977551+00:00; status PASSED,
+  compose_verified true; artifact .artifacts/p2-compose-verification.json.
+- Isolated project: sentinel-p2-verify-a6813821. Both application images built
+  successfully from pinned base images; database and application health gates passed.
+- Real PostgreSQL: 16 concurrent requests created one payment; constraints,
+  transaction rollback, migration replay and checksum rejection checks passed.
+- Eight concurrent HTTP replays and conflicting-request checks passed. Restarting
+  the database/payment containers preserved the original payment identity.
+- Container versions payment-v1 -> payment-v2-timeout -> payment-v3-error ->
+  payment-v1 produced checkout HTTP 201 -> 504 -> 502 -> 201. Four deployment
+  records were created, with exactly one ACTIVE at the end.
+- The verifier removed only its test project's containers/network with compose
+  down, without -v. Its database volume remains preserved. No containers remained
+  running at the post-run check. No real charges or external deployment occurred.
+- Native-only uncertainty/reconciliation and identity-negative checks remain
+  separately evidenced by the earlier native report; this does not imply every
+  native assertion is duplicated in the Compose verifier.
+
+P2's software acceptance gates are now satisfied. Historical blocked results above
+describe earlier attempts, not the current status. Student comprehension answers
+and independent exercises remain pending. P3 requires explicit user approval.
+Documentation-only follow-up: Prettier validation; application source unchanged.
+Commit: find with git log --grep="record successful P2 container acceptance".

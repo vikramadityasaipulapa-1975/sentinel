@@ -4,8 +4,8 @@
 
 The user approved P2.1-P2.4 together, following the P1 workflow. This authorizes
 local demo database/container/version work, not production data changes or P3.
-Docker Desktop installation/startup is being handled by the user. Tests below are
-planned until their actual outcomes are recorded in PROGRESS.md.
+Docker Desktop is running. Native and Compose verification have both passed;
+measured results and historical troubleshooting are recorded in PROGRESS.md.
 
 ## P2.1: PostgreSQL orders and payments
 
@@ -232,9 +232,9 @@ The migration container runs the same single migration owner once, then exits 0.
 
 ### Approval checkpoint
 
-Local P2 container work is authorized. The user is installing/starting Docker
-Desktop. Container acceptance cannot be claimed from Dockerfile syntax or native
-PostgreSQL tests; inspect PROGRESS.md for whether an engine-backed run occurred.
+Local P2 container work is authorized. The engine-backed Compose run passed on
+2026-10-16, including actual builds, health, persistence and version rollback.
+Inspect PROGRESS.md for the measured results and the earlier Docker blocker.
 
 ### Run/test
 
@@ -414,7 +414,7 @@ Explain transaction boundaries, a timeout-after-commit timeline, key conflicts,
 container networking/volumes, and source/image/deployment identities. Run the
 documented commands yourself and complete each exercise. Software verification is
 separate from student mastery; no learner completion is assumed. See PROGRESS.md
-for measured results and pending Docker checks. P3 requires a new explicit approval.
+for measured native and Docker results. P3 requires a new explicit approval.
 
 ## Primary references
 
