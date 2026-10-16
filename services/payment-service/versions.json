@@ -1,0 +1,5 @@
+{
+  "payment-v1": { "fault_mode": "normal", "fault_delay_ms": 500 },
+  "payment-v2-timeout": { "fault_mode": "latency", "fault_delay_ms": 3000 },
+  "payment-v3-error": { "fault_mode": "error", "fault_delay_ms": 500 }
+}

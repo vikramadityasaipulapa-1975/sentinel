@@ -1,6 +1,6 @@
 import { createApp } from "./app.js";
 
-const host = "127.0.0.1";
+const host = process.env.CONTAINER_MODE === "1" ? "0.0.0.0" : "127.0.0.1";
 const port = 3001;
 function startupFailure(code: string) {
   console.error(

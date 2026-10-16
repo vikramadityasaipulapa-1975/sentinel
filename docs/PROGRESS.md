@@ -1,8 +1,8 @@
 # Sentinel progress
 
-Current phase/task: P1 implementation complete (P1.1-P1.7)
-Status: IMPLEMENTATION VERIFIED; learner checkpoints pending; P2 not approved
-Last completed implementation task: P1.7
+Current phase/task: P2, awaiting Docker/Compose acceptance
+Status: DATABASE/NATIVE VERIFIED; CONTAINER VERIFICATION BLOCKED; P3 not approved
+Last fully accepted software phase: P1; P2 native checks passed, container gate open
 Last completed learner checkpoint: none confirmed
 
 ## P1.1 task record
@@ -243,3 +243,132 @@ performance claims. Timings vary with hardware/scheduling; outcome modes repeat.
   implementation gate passed; student mastery has not been asserted.
 - Commit: git log --grep="complete deterministic P1 fault and load verification".
 - Next task: P2.1, PostgreSQL schema/migrations, requires explicit user approval.
+
+## P2 task records (P2.1-P2.4)
+
+### Authorization and current boundary
+
+The user requested proceeding with P2 similarly to P1, authorizing local P2.1-P2.4
+implementation, documentation and verification. The user chose to install/start
+Docker Desktop. No system-wide Docker/PostgreSQL installation was performed by
+Codex. Docker remains unavailable at the latest check; container acceptance is
+explicitly pending, not waived. P3 has not been started or approved.
+
+P2-LEARNING-GUIDE.md provides concepts, prerequisites, architecture/data flow,
+file/function walkthroughs, schema/API changes, commands, positive/negative tests,
+debugging, security/tradeoffs, questions and independent exercises for each task.
+README is the operational quick start. Student exercises/answers remain pending.
+
+### P2.1: PostgreSQL schema and migration owner
+
+- Added database/migrations/001_demo_payments.sql and scripts/migrate.py.
+- Payment owns demo_orders/demo_payments in a single transaction; checkout remains
+  an HTTP client with no database writer. PK/FK, amount/currency/status checks,
+  unique order/key, UTC timestamps and parameterized SQL protect the demo contract.
+- store.py supplies explicit MemoryStore and PostgresStore. PostgreSQL mode never
+  silently falls back. /ready checks storage/schema; /health remains liveness.
+- psycopg 3.3.6 + binary driver/tzdata pinned in Python requirements.
+- Migration ownership: explicit CLI/one-shot container only; advisory serialization,
+  filenames/checksums, transactional application. Repeated migration is a no-op;
+  a changed fixture is rejected without editing applied source/history.
+- Real PostgreSQL 17.11 verified constraints/rollback and persisted payment/order
+  state across service AND database restart. Memory tests are not that evidence.
+
+### P2.2: idempotency and bounded retries
+
+- Added optional UUID Idempotency-Key to checkout/payment; omitted key defaults to
+  order_id to preserve P1 callers. Repeated identical key/payload returns original
+  result. Changed payload or another key for a paid order returns 409.
+- Postgres transaction-scoped key/order locks plus uniqueness prevent duplicates.
+- Checkout retries only transient network/timeout/502/503/504 failures, at most
+  twice, same key/body, fixed 50 ms pause, bounded per-attempt deadlines. No retry
+  for conflicts, malformed or mismatched responses. PAYMENT_MAX_ATTEMPTS is 1 or 2.
+- Real database: 16 concurrent saves produced exactly one payment. Eight concurrent
+  real HTTP replays returned the original result. A 50 ms caller timeout followed
+  by eventual commit was reconciled with the same key/payment UUID.
+- Added test_store.py and idempotency.test.ts; original tests remain regressions.
+
+### P2.3: containers prepared, engine acceptance blocked
+
+- Added both Dockerfiles, .dockerignore and infrastructure/compose.yaml.
+- Compose defines database, one-shot migration, payment and checkout; explicit
+  health/readiness ordering; named data volume; loopback host ports 3001/3002/55432;
+  non-root app users; reduced app-container privileges/read-only filesystems.
+- Base versions and manifest digests were checked against Docker Hub and pinned:
+  Node 24.11.1-bookworm-slim, Python 3.11.14-slim-bookworm, PostgreSQL 17.11-bookworm.
+- scripts/init-local.py generates ignored random local credentials once; examples
+  contain fake placeholders. No credentials are printed or passed in command text.
+- Optional scripts/setup-postgres.ps1 downloads/extracts only the portable EDB
+  runtime into ignored .tools; no Windows service/PATH changes. Archive SHA256
+  matches the measured official HTTPS download (not a signed publisher manifest):
+  6EABDF00D2893713B75DB4336A23C3FDF505F056E217EC6E2E95D901750CFEA3.
+- Dockerfile/YAML source prepared and YAML formatting parsed successfully. This is
+  NOT evidence of image builds, docker compose up, health checks or volume behavior.
+- Compose verifier was actually attempted on 2026-10-16T06:00:25.053621+00:00:
+  BLOCKED / DockerUnavailable. Docker not on PATH or in the standard per-machine
+  or per-user installation locations. No containers were started by that attempt.
+- Next required command after Desktop/Linux engine is ready: npm run verify:p2:compose.
+
+### P2.4: local versions and registry
+
+- Added versions.json profiles: payment-v1 normal, payment-v2-timeout 3000 ms,
+  payment-v3-error 503. These are immutable demo configuration profiles of the same
+  code, not falsely claimed independent source releases. /version exposes safe
+  source/commit/deployment metadata. Named profiles override ad-hoc P1 fault flags.
+- Added 002_demo_deployments.sql: version bindings and PENDING/ACTIVE/SUPERSEDED/
+  FAILED history, unique active/pending deployment and service/time index.
+- deployment_registry.py checks source/config/image identity before activation.
+  local_support.py supplies safe config/source/CLI helpers. switch-payment.py
+  defaults to a plan; --apply is fixed to local payment and validated projects.
+  Cached Docker image IDs support rollback; arbitrary commands are not accepted.
+- Native real-process sequence verified: healthy -> timeout -> error -> healthy.
+  Seven deployment records, exactly one final ACTIVE; mismatched identity and
+  changed source under an existing version name were rejected.
+- Actual Docker image switch/rollback remains unverified with the missing engine.
+  Native evidence is labeled native and does not close P2.3's container gate.
+
+### Commands and measured verification
+
+```powershell
+# From V:\sentinel\sentinel
+.\scripts\setup-postgres.ps1
+.\.venv\Scripts\python.exe scripts/verify-p2.py --backend native
+.\.venv\Scripts\python.exe scripts/verify-p2.py --backend compose
+.\.venv\Scripts\python.exe scripts/verify-p1.py
+.\.venv\Scripts\python.exe scripts/switch-payment.py payment-v1
+.\.venv\Scripts\python.exe -m ruff check services/payment-service scripts
+.\.venv\Scripts\python.exe -m ruff format --check services/payment-service scripts
+.\.venv\Scripts\python.exe -m compileall -q services/payment-service scripts
+.\.venv\Scripts\python.exe -m pip check
+npm run format:check
+```
+
+- Native P2 run: started 2026-10-16T05:51:58.265071+00:00, PASSED. Last runtime
+  registry verification: 2026-10-16T05:53:17.920550+00:00. Report includes restart
+  persistence, constraints/rollback, migration replay/checksum guard, concurrency,
+  timeout reconciliation and version negatives. No real charges were made.
+- Runtime source SHA256:
+  89d1c40ef02c7db2b3043d3424f32012d9cb47f33f2f490dc26a3b2e59f8c4cf.
+  Commit was honestly unknown during the uncommitted test run, not mislabeled HEAD.
+- Post-P2 fast regressions: 14 checkout tests and 27 payment tests passed, 0 failed.
+- Full P1 baseline rerun passed all seven scenarios and three 20-request k6 loads,
+  with matching status/ID thresholds. It explicitly isolates memory, unversioned
+  mode and one attempt to preserve the P1 baseline independently of P2 settings.
+- Ruff lint/format, Prettier, Python compile and pip consistency checks passed.
+  The previously documented Starlette/httpx TestClient deprecation warning remains.
+- Initial native verifier attempt hit inherited Windows stdout-pipe handles in
+  pg_ctl startup; the owned cluster was explicitly stopped. Fixed to file-based
+  control output and guaranteed cleanup; subsequent full native runs passed.
+- Reports remain separate: .artifacts/p2-native-verification.json (PASSED),
+  .artifacts/p2-compose-verification.json (BLOCKED). Tooling/test data are ignored.
+  Native clusters retain data but are stopped; no user volume/database was deleted.
+
+### Remaining gate, learning work, commit
+
+Docker Desktop/Linux engine must become available for actual builds, Compose health,
+container restart/volume and container version-switch checks. P2 is not marked fully
+complete until those pass. The user is handling that prerequisite; no approval is
+being inferred from elapsed time. All student answers/exercises remain pending.
+No production work, external deployment, pushes or P3 changes were performed.
+
+Commit: find with git log --grep="persist idempotent demo payments".

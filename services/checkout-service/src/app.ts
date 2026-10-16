@@ -1,6 +1,6 @@
 import express from "express";
 import { readConfig, type Config } from "./config.js";
-import { isPaymentRequest } from "./contracts.js";
+import { isPaymentRequest, uuidPattern } from "./contracts.js";
 import { pay } from "./payment-client.js";
 import {
   handleError,
@@ -34,7 +34,19 @@ export function createApp(
     if (!isPaymentRequest(request.body)) {
       throw new HttpError(422, "INVALID_CHECKOUT", "Invalid checkout fields");
     }
-    const payment = await pay(request.body, config, response.locals.requestId);
+    const key = request.get("idempotency-key") ?? request.body.order_id;
+    if (!uuidPattern.test(key))
+      throw new HttpError(
+        422,
+        "INVALID_IDEMPOTENCY_KEY",
+        "Idempotency-Key must be a UUID",
+      );
+    const payment = await pay(
+      request.body,
+      config,
+      response.locals.requestId,
+      key.toLowerCase(),
+    );
     response.status(201).json(payment);
   });
 

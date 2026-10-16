@@ -1,0 +1,101 @@
+name: sentinel-demo
+
+services:
+  db:
+    image: postgres:17.11-bookworm@sha256:3645570cccdfa447589da9f57dd740faa29b30938e861289a5574b6ca6b03826
+    environment:
+      POSTGRES_DB: sentinel
+      POSTGRES_USER: sentinel
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run scripts/init-local.py first}
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentinel -d sentinel"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    image: sentinel-payment:${PAYMENT_VERSION:-payment-v1}
+    build:
+      context: ..
+      dockerfile: services/payment-service/Dockerfile
+      args:
+        PAYMENT_VERSION: ${PAYMENT_VERSION:-payment-v1}
+        SOURCE_SHA256: ${SOURCE_SHA256:-unknown}
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+    environment:
+      DATABASE_URL: postgresql://sentinel:${POSTGRES_PASSWORD:?Run scripts/init-local.py first}@db:5432/sentinel
+    command: ["python", "scripts/migrate.py"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  payment:
+    image: sentinel-payment:${PAYMENT_VERSION:-payment-v1}
+    build:
+      context: ..
+      dockerfile: services/payment-service/Dockerfile
+      args:
+        PAYMENT_VERSION: ${PAYMENT_VERSION:-payment-v1}
+        SOURCE_SHA256: ${SOURCE_SHA256:-unknown}
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+    environment:
+      STORAGE_MODE: postgres
+      DATABASE_URL: postgresql://sentinel:${POSTGRES_PASSWORD:?Run scripts/init-local.py first}@db:5432/sentinel
+      DEPLOYMENT_ID: ${DEPLOYMENT_ID:-unregistered}
+    ports:
+      - "127.0.0.1:3002:3002"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3002/ready', timeout=2)",
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+
+  checkout:
+    image: sentinel-checkout:local-p2
+    build:
+      context: ..
+      dockerfile: services/checkout-service/Dockerfile
+    environment:
+      PAYMENT_URL: http://payment:3002
+      PAYMENT_TIMEOUT_MS: "1000"
+      PAYMENT_MAX_ATTEMPTS: "2"
+    ports:
+      - "127.0.0.1:3001:3001"
+    depends_on:
+      payment:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+
+volumes:
+  postgres-data:

@@ -94,6 +94,12 @@ def run_scenario(name, mode, expected, delay, timeout, k6):
                 **os.environ,
                 "PAYMENT_FAULT_MODE": mode,
                 "PAYMENT_FAULT_DELAY_MS": str(delay),
+                "STORAGE_MODE": "memory",
+                "PAYMENT_VERSION": "unversioned",
+                "SOURCE_SHA256": "unknown",
+                "GIT_COMMIT": "unknown",
+                "DEPLOYMENT_ID": "unregistered",
+                "PAYMENT_MAX_ATTEMPTS": "1",
             }
             flags = (
                 {"creationflags": subprocess.CREATE_NO_WINDOW}
@@ -282,6 +288,13 @@ def main():
         "PAYMENT_TIMEOUT_MS",
         "PAYMENT_FAULT_MODE",
         "PAYMENT_FAULT_DELAY_MS",
+        "STORAGE_MODE",
+        "DATABASE_URL",
+        "PAYMENT_VERSION",
+        "SOURCE_SHA256",
+        "GIT_COMMIT",
+        "DEPLOYMENT_ID",
+        "PAYMENT_MAX_ATTEMPTS",
     ):
         test_env.pop(key, None)
     npm_command = (

@@ -1,6 +1,7 @@
 export interface Config {
   paymentUrl: string;
   paymentTimeoutMs: number;
+  paymentMaxAttempts?: number;
 }
 
 export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -8,7 +9,11 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
   // This phase permits only local demo services, never request-supplied targets.
   if (
     url.protocol !== "http:" ||
-    !["127.0.0.1", "localhost"].includes(url.hostname) ||
+    !(
+      env.CONTAINER_MODE === "1"
+        ? ["127.0.0.1", "localhost", "payment"]
+        : ["127.0.0.1", "localhost"]
+    ).includes(url.hostname) ||
     url.username ||
     url.password ||
     url.pathname !== "/" ||
@@ -21,5 +26,13 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
   if (!Number.isInteger(timeout) || timeout < 50 || timeout > 10_000) {
     throw new Error("PAYMENT_TIMEOUT_MS must be an integer from 50 to 10000");
   }
-  return { paymentUrl: url.origin, paymentTimeoutMs: timeout };
+  const attempts = Number(env.PAYMENT_MAX_ATTEMPTS ?? "2");
+  if (!Number.isInteger(attempts) || attempts < 1 || attempts > 2) {
+    throw new Error("PAYMENT_MAX_ATTEMPTS must be 1 or 2");
+  }
+  return {
+    paymentUrl: url.origin,
+    paymentTimeoutMs: timeout,
+    paymentMaxAttempts: attempts,
+  };
 }

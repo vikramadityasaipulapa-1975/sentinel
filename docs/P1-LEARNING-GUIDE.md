@@ -1,5 +1,10 @@
 # P1 learning guide: demo services and HTTP foundations
 
+This records the P1 learning increment. P2 adds durable storage, idempotency, retries,
+containers and version metadata; see P2-LEARNING-GUIDE.md and README for current
+operation. The P1 verifier deliberately selects memory/unversioned/single-attempt
+behavior to preserve the original baseline independently of terminal settings.
+
 Repository root: `V:\sentinel\sentinel`. All PowerShell commands start there unless
 stated otherwise. This is a local educational system: payments are simulated,
 not real charges. There is no persistence, authentication, or production deployment.

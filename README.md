@@ -3,8 +3,12 @@
 Sentinel is a learning-first AI-assisted incident response and reliability project.
 **P1 implementation is complete:** two local demo services, validated simulated
 payments, bounded checkout calls, request IDs, safe JSON logs, deterministic faults,
-and reproducible local tests/load checks. AI, persistence, containers, telemetry
-backends, authentication, and remediation are future phases, not implemented claims.
+and reproducible local tests/load checks. P2 adds PostgreSQL persistence,
+idempotency/retries, container definitions, and local deployment version tooling.
+See the progress log for separately measured native and Docker verification.
+**Current gate:** native PostgreSQL checks pass; Docker/Compose verification is
+blocked until Docker Desktop is installed/running. P2 is not fully accepted yet.
+AI, centralized telemetry, authentication, and remediation remain future phases.
 
 ## Learn and track progress
 
@@ -13,11 +17,75 @@ backends, authentication, and remediation are future phases, not implemented cla
   every task P1.1-P1.7.
 - [Measured progress and results](docs/PROGRESS.md): commands, outcomes, limitations,
   commit references, and pending student checkpoints.
+- [Complete P2 learning guide](docs/P2-LEARNING-GUIDE.md): SQL/transactions,
+  idempotency, containers, version switching, file walkthroughs and exercises.
 - [Agent contract](AGENTS.md) and [master roadmap](SENTINEL_CODEX_MASTER_PLAN.md).
 
-P1 implementation verification is separate from student mastery. Questions and
-independent exercises remain pending until the student completes them. P2 requires
-explicit approval. No real payments, database records, deployments, or pushes occur.
+Implementation verification is separate from student mastery. Questions and
+independent exercises remain pending until the student completes them. P2 was
+approved; P3 requires new approval. Payments remain simulated. Local database and
+deployment records are real in PostgreSQL mode. No external deployments or pushes.
+
+## P2: persistent local demo with Docker
+
+Install/start Docker Desktop with Linux containers. With dependencies installed:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/init-local.py
+docker compose --env-file .env -f infrastructure/compose.yaml config --quiet
+docker compose --env-file .env -f infrastructure/compose.yaml up -d --build --wait
+```
+
+Expected: database/payment/checkout healthy and migration service exited 0.
+`init-local.py` creates ignored random credentials once and preserves an existing
+.env. Do not print rendered Compose secrets; `config --quiet` checks without them.
+Database port is 55432 on host loopback, 5432 inside Compose. A named volume retains
+data. App-container listeners are only published to host loopback.
+
+```powershell
+$body = @{ order_id=[guid]::NewGuid().ToString(); amount_minor=12500; currency='INR' } | ConvertTo-Json
+$headers = @{ 'Idempotency-Key'=[guid]::NewGuid().ToString() }
+Invoke-RestMethod http://127.0.0.1:3001/checkout -Method Post -ContentType 'application/json' -Headers $headers -Body $body
+# Repeat the exact body/key: same payment_id, no additional simulated charge.
+```
+
+Same key with a different payload, or a new key for a paid order, returns 409.
+Missing keys default to order_id for P1 compatibility. Requests may retry transient
+dependency failures once with the same body/key and a 50 ms pause. No retries on
+conflicts or invalid responses. Per-attempt deadlines remain bounded.
+
+Version switching (default is a plan; --apply changes only local payment):
+
+```powershell
+.\.venv\Scripts\python.exe scripts/switch-payment.py payment-v1
+.\.venv\Scripts\python.exe scripts/switch-payment.py payment-v1 --apply
+.\.venv\Scripts\python.exe scripts/switch-payment.py payment-v2-timeout --apply
+.\.venv\Scripts\python.exe scripts/switch-payment.py payment-v1 --apply
+```
+
+Prefer clean committed source. Explicit --allow-working-tree labels uncommitted
+source with its content hash and unknown commit. Registered versions are bound to
+source/configuration/image ID; old cached images support rollback. /version and
+the database registry expose version/time/identity, not credentials. A successful
+readiness check does not imply successful checkout under an intentionally bad profile.
+
+For native PostgreSQL verification independent of Docker:
+
+```powershell
+.\scripts\setup-postgres.ps1
+npm run verify:p2
+```
+
+For actual image/container/volume/version verification, with manual servers stopped:
+
+```powershell
+npm run verify:p2:compose
+```
+
+Reports are separate: .artifacts/p2-native-verification.json and
+.artifacts/p2-compose-verification.json. Native success is not container evidence.
+Verifier projects/data are isolated; volumes are retained. Do not use down -v or
+prune volumes to fix a test. See the learning guide for constraints and debugging.
 
 ## Prerequisites and setup (Windows PowerShell)
 
@@ -51,6 +119,8 @@ Terminal 1, from the repository root:
 
 ```powershell
 $env:PAYMENT_FAULT_MODE = 'normal'
+$env:STORAGE_MODE = 'memory'
+$env:PAYMENT_VERSION = 'unversioned'
 .\.venv\Scripts\python.exe -m uvicorn main:app --app-dir services/payment-service --host 127.0.0.1 --port 3002 --no-access-log
 ```
 
@@ -95,8 +165,9 @@ Both services -> JSON completion logs with a shared X-Request-ID
 
 Request: UUID order_id, integer amount_minor from 1 to 100,000,000, currency INR or
 USD. Extra fields are rejected. Response adds payment_id and status succeeded.
-Amount 12500 means 125.00 currency units. No cards, real charges, retries, persistence,
-or idempotency guarantees. Successful bodies stay small; errors use
+Amount 12500 means 125.00 currency units. No cards or real charges. P2 persists and
+deduplicates simulated payments in PostgreSQL mode; explicit memory mode is
+non-durable. Successful bodies stay small; errors use
 `{error:{code,message},request_id}`. Response headers include X-Request-ID. Invalid
 incoming IDs are replaced with UUIDs. IDs provide correlation, not authorization.
 
@@ -108,8 +179,9 @@ plain text; --no-access-log avoids URL access logging.
 
 ## Deterministic fault demonstration
 
-Faults are disabled by default. .env.example documents settings but is **not loaded
-automatically**. Only the payment process's startup environment enables faults;
+Faults are disabled by default. Service processes do not automatically load
+.env.example; Compose and operator CLI helpers explicitly load ignored .env.
+Only the payment process's startup environment enables faults;
 request headers/query/body cannot enable them.
 
 Stop payment, then restart it with one mode:
@@ -127,7 +199,8 @@ $env:PAYMENT_FAULT_DELAY_MS = '3000'
 # Restart payment: checkout gives 504; payment may finish after checkout times out.
 ```
 
-Normal/latency/error are the only modes; delay is 1-5000 ms. Health remains 200
+For ad-hoc P1 faults, use PAYMENT_VERSION=unversioned; named P2 versions select
+their fixed profile instead. Normal/latency/error are the only modes; delay is 1-5000 ms. Health remains 200
 during an injected payment fault. Restore mode normal and restart when finished.
 Random fault selection is not used; IDs and measured timings naturally vary.
 
@@ -164,7 +237,8 @@ Python formatting uses `python -m ruff format` through the virtual environment.
 - EADDRINUSE: stop your previous server, never an unfamiliar process blindly.
 - 422: check names/types/bounds; payment deliberately does not echo rejected input.
 - 502: inspect payment availability and contract; 504: compare delay with deadline.
-- A timeout does not prove payment did not run. Automatic retries await P2 idempotency.
+- A timeout does not prove payment did not run. Reconcile by replaying the same
+  body/key; P2 retries are bounded and rely on payment's durable deduplication.
 - Search both service outputs for the same request_id to follow one call.
 - Sandbox EACCES/EPERM can block local sockets/workspace links; use an environment
   with those permissions. Do not weaken application validation to fix tool limits.

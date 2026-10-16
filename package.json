@@ -17,8 +17,10 @@
     "start:checkout": "npm run start --workspace=@sentinel/checkout-service",
     "test:payment": ".venv\\Scripts\\python.exe -m pytest services/payment-service -q",
     "verify:p1": ".venv\\Scripts\\python.exe scripts/verify-p1.py",
-    "format": "prettier --write package.json \"services/checkout-service/**/*.ts\" \"services/checkout-service/*.json\" scripts/load-checkout.js README.md docs/P1-LEARNING-GUIDE.md docs/PROGRESS.md",
-    "format:check": "prettier --check package.json \"services/checkout-service/**/*.ts\" \"services/checkout-service/*.json\" scripts/load-checkout.js README.md docs/P1-LEARNING-GUIDE.md docs/PROGRESS.md"
+    "verify:p2": ".venv\\Scripts\\python.exe scripts/verify-p2.py --backend native",
+    "verify:p2:compose": ".venv\\Scripts\\python.exe scripts/verify-p2.py --backend compose",
+    "format": "prettier --write package.json \"services/checkout-service/**/*.ts\" \"services/checkout-service/*.json\" \"services/payment-service/*.json\" scripts/load-checkout.js README.md \"docs/*.md\" infrastructure/compose.yaml",
+    "format:check": "prettier --check package.json \"services/checkout-service/**/*.ts\" \"services/checkout-service/*.json\" \"services/payment-service/*.json\" scripts/load-checkout.js README.md \"docs/*.md\" infrastructure/compose.yaml"
   },
   "devDependencies": {
     "prettier": "3.9.10"

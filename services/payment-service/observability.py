@@ -103,7 +103,15 @@ class RequestContext:
                     "event": "request_completed",
                     "request_id": request_id,
                     "route": route
-                    if route in {"/health", "/payments", "/docs", "/openapi.json"}
+                    if route
+                    in {
+                        "/health",
+                        "/ready",
+                        "/version",
+                        "/payments",
+                        "/docs",
+                        "/openapi.json",
+                    }
                     else "unmatched",
                     "status": status,
                     "duration_ms": round((time.perf_counter() - start) * 1000, 2),
