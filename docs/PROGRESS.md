@@ -1,8 +1,8 @@
 # Sentinel progress
 
-Current phase/task: P3.1, implementation verification complete
-Status: P3.1 API/DATABASE VERIFIED; P3.2 not approved
-Last fully accepted software phase: P2; P3.1 task verified; learner checkpoints remain open
+Current phase/task: P3.2, implementation verification complete
+Status: P3.2 INCIDENT/EVENT API AND DATABASE VERIFIED; P3.3 not approved
+Last fully accepted software phase: P2; P3.1/P3.2 tasks verified; learner checkpoints remain open
 Last completed learner checkpoint: none confirmed
 
 ## P1.1 task record
@@ -543,3 +543,119 @@ independent third-service exercise. Student answers/exercise remain pending.
 Commit: find with git log --grep="feat(P3.1): bootstrap Sentinel API and service registry".
 Use the configured account as sole author, with no co-author trailers; push to origin.
 P3.2 has not been implemented or implicitly approved by completion of this task.
+
+## P3.2: incidents, transactional events and state transitions
+
+### Concept and architecture/data flow
+
+An incident is a report associated with a registered service, not proof of a detected
+outage. It has severity and a controlled status lifecycle. Creation/status changes
+flow through input validation, an incident repository, one PostgreSQL transaction
+and event insertion. PATCH locks the row before validating its latest status.
+Reads return validated records, bounded cursor pages and ordered durable history.
+
+### File plan and approval checkpoint
+
+The proposed schema, routes, state rules, concurrency behavior, tests and manual
+setup implications were explained before implementation. User approved P3.2 with
+"proceed" on 2026-10-16. Scope excludes P3.3 authentication and P3.5 streaming.
+
+### Implementation and walkthrough
+
+- Added migration 002_incidents.sql with incident/service and event/incident foreign
+  keys, status/severity/resolution checks and pagination/filter indexes. Existing
+  migration 001 and P2 schema/source were not changed.
+- incidents.ts defines request/response contracts, strict parsers, the approved
+  transition table, bigint cursor validation scoped to filters/incident, safe row
+  readers and controlled error types.
+- incident-repository.ts implements create/list/detail/status/events. Creation and
+  status changes commit the incident and event together. SELECT FOR UPDATE under
+  explicit READ COMMITTED serializes changes to the same incident. Repeating its
+  current status is a successful no-op with no new event.
+- incident-routes.ts adds POST/GET collection, GET/PATCH detail and GET event history.
+  app.ts mounts 8 KiB JSON parsing, maps safe JSON/domain errors and extends readiness
+  and allowlisted route logs. server.ts supplies the real database-backed store.
+- Incidents page newest allocation first; events page oldest sequence first. Limits
+  default to 20, maximum 100. Bigint positions avoid timestamp precision loss; gaps
+  are permitted. Cursors do not provide snapshot isolation or authorization.
+- Added unit/HTTP tests and sequential real-database incident checks. Extended the
+  migration suite to upgrade an actual P3.1 schema with existing service records.
+- Extended verify-p3.py with explicit P3.1/P3.2 selection, task-specific artifact
+  reports and incident/event restart/outage verification. Added verify:p3.2 npm
+  command; verify:p3.1 remains an explicit compatibility command. No dependencies added.
+- Updated README and P3 learning guide with all functions/files, state rules,
+  commands, positive/negative examples, limitations, hosting and learner exercises.
+
+### Run/test: measured evidence (2026-10-16, UTC timestamps)
+
+```powershell
+.\.venv\Scripts\python.exe scripts/verify-p3.py --task P3.2
+.\.venv\Scripts\python.exe scripts/verify-p1.py
+```
+
+- P3.2 full verifier started 2026-10-16T11:35:05.333767+00:00 and PASSED: 41 API
+  tests passed, 0 failed, 0 skipped. Report .artifacts/p3-2-verification.json;
+  isolated project sentinel-p3-2-bc7838d8.
+- Verified schema upgrade preserving services, migration replay/checksum protection,
+  incident creation/event pair, missing references, and a deliberately forced event
+  insertion failure rolling back both creation and status changes.
+- Eight concurrent requests for the same transition produced exactly one status
+  event. A separate test observed a real lock wait in pg_stat_activity, committed a
+  resolution in the lock-owning transaction, then verified the waiting MITIGATING
+  request was rejected against the new RESOLVED status.
+- Covered all 25 status pairs in unit tests, resolution/reopen/close timestamps,
+  no-op repeats, constraints, incident filters and full incident/event page traversal,
+  real HTTP endpoints, malformed JSON, extra/invalid fields, 8 KiB body limit,
+  unsupported media and sanitized logs/errors.
+- Runtime checks additionally confirmed a created incident and both events survive
+  API termination/restart and real PostgreSQL stop/start. During the outage, health
+  stayed 200, readiness/services/incidents/events/status writes returned 503, and
+  recovery preserved the exact incident/history without a failed-write event.
+- Runtime source SHA256:
+  39dcc2d7de8ccbdcbe78d20854bb81cf65c94f58471d55785b4625bac8764433.
+  Test-owned containers/network removed; volume preserved. Development DB untouched.
+- P1 full regression started 2026-10-16T11:36:40.725996+00:00 and PASSED: 14 checkout
+  tests, 27 payment tests, seven real-service scenarios, three 20-request k6 loads.
+  Root npm test additionally ran 23 API fast tests successfully with the dedicated
+  database suite explicitly skipped there; real DB evidence is the 41-test run above.
+- Existing Starlette/httpx deprecation warning remains. P2 runtime/containers and
+  lockfile dependencies were unchanged in this task; its prior container evidence
+  is separate from the P1 regression and current API integration checks.
+- Final Prettier, Ruff lint/format, Python compilation and whitespace checks passed.
+  Final runtime source hash matched the successful P3.2 report before committing.
+
+### Localhost preview, manual setup and hosting
+
+Identified the existing API process and checked its api-local.py parent before
+stopping only that owned process. Restarted using scripts/api-local.py: migration
+002 applied to the existing development volume and existing service names preserved.
+Created one labelled demo incident, not an automatically detected real outage:
+
+- ID: 0d64432e-dc0d-4224-8743-557e204fbb2d
+- Title: DEMO: checkout error investigation
+- Status: INVESTIGATING; two events (creation and OPEN -> INVESTIGATING).
+- Creation time: 2026-10-16T11:36:29.435Z; local preview recorded in ignored
+  .artifacts/p3-2-local-preview.json.
+
+Verified localhost incident list HTTP 200 and readiness ready, then opened
+http://localhost:3000/api/v1/incidents in the existing in-app browser tab and
+confirmed the demo record was visible. API and development DB remain running for
+user testing. See the guide for restart/stop commands that preserve the volume.
+
+No manual setup required for this local upgrade. For a future hosted release,
+run migration 002 using the approved migration identity before API rollout, then
+verify readiness and persistent data. No hosted database/account was provisioned;
+no public deployment or new configuration secrets were needed. The API remains
+loopback-only until authentication/authorization and hosting are addressed.
+
+### Debug, understanding check and commit summary
+
+See docs/P3-LEARNING-GUIDE.md, P3.2 sections, for exact commands, expected positive
+and negative results, stale-process/migration/status/cursor debugging, three
+comprehension questions and the independent resolve/reopen/history exercise.
+Student mastery remains pending. Events are not yet a user-attributed audit trail
+or live browser stream. POST creation retry deduplication is not implemented.
+
+Commit: find with git log --grep="feat(P3.2): add incidents and transactional event history".
+Commit/push uses the configured account as sole author without co-author trailers.
+P3.3 remains unimplemented and requires its own explanation and approval.

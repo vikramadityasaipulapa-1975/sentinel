@@ -11,6 +11,8 @@ import { createPool } from "../src/db.js";
 import { migrate, migrationDirectory } from "../src/migrate.js";
 import { seedDemoServices } from "../src/seed.js";
 import { listServices, postgresRegistry } from "../src/services.js";
+import { incidentDatabaseChecks } from "./incident-database-checks.js";
+import { postgresIncidents } from "../src/incident-repository.js";
 
 test(
   "real PostgreSQL migration, constraints, API and failure boundaries",
@@ -35,9 +37,22 @@ test(
         assert.equal(await registry.ready(), false),
       );
       await t.test("migration applies once and replay is a no-op", async () => {
-        assert.deepEqual(await migrate(pool), ["001_services.sql"]);
+        // Exercise a real P3.1 -> P3.2 upgrade without resetting existing data.
+        const oldDirectory = await mkdtemp(join(tmpdir(), "sentinel-api-v1-"));
+        await writeFile(
+          join(oldDirectory, "001_services.sql"),
+          await readFile(join(migrationDirectory, "001_services.sql")),
+        );
+        assert.deepEqual(await migrate(pool, oldDirectory), [
+          "001_services.sql",
+        ]);
+        await seedDemoServices(pool);
+        assert.equal(await postgresIncidents(pool).ready(), false);
+        assert.deepEqual(await migrate(pool), ["002_incidents.sql"]);
         assert.deepEqual(await migrate(pool), []);
         assert.equal(await registry.ready(), true);
+        assert.equal(await postgresIncidents(pool).ready(), true);
+        assert.equal((await listServices(registry)).length, 2);
       });
       await t.test(
         "changed or missing applied migration is rejected",
@@ -46,6 +61,10 @@ test(
             join(tmpdir(), "sentinel-api-migrations-"),
           );
           await assert.rejects(migrate(pool, directory), /missing/);
+          await writeFile(
+            join(directory, "002_incidents.sql"),
+            await readFile(join(migrationDirectory, "002_incidents.sql")),
+          );
           await writeFile(join(directory, "001_services.sql"), "SELECT 1;");
           await assert.rejects(migrate(pool, directory), /checksum/);
           await writeFile(
@@ -53,7 +72,7 @@ test(
             await readFile(join(migrationDirectory, "001_services.sql")),
           );
           await writeFile(
-            join(directory, "002_invalid.sql"),
+            join(directory, "003_invalid.sql"),
             "CREATE TABLE sentinel_api.must_rollback (id integer); SELECT * FROM sentinel_api.does_not_exist;",
           );
           await assert.rejects(migrate(pool, directory));
@@ -71,7 +90,7 @@ test(
                 "SELECT count(*)::int AS n FROM sentinel_api.schema_migrations",
               )
             ).rows[0].n,
-            1,
+            2,
           );
         },
       );
@@ -146,6 +165,7 @@ test(
           }
         },
       );
+      await incidentDatabaseChecks(t, pool);
     } finally {
       await pool.end();
     }

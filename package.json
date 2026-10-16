@@ -24,7 +24,8 @@
     "format:check": "prettier --check package.json \"services/checkout-service/**/*.ts\" \"services/checkout-service/*.json\" \"services/payment-service/*.json\" scripts/load-checkout.js README.md \"docs/*.md\" infrastructure/compose.yaml \"apps/api/**/*.ts\" \"apps/api/*.json\" infrastructure/compose.api.yaml",
     "test:api": "npm run test --workspace=@sentinel/api",
     "start:api": "node --env-file=.env.api apps/api/dist/src/server.js",
-    "verify:p3.1": ".venv\\Scripts\\python.exe scripts/verify-p3.py"
+    "verify:p3.1": ".venv\\Scripts\\python.exe scripts/verify-p3.py --task P3.1",
+    "verify:p3.2": ".venv\\Scripts\\python.exe scripts/verify-p3.py --task P3.2"
   },
   "devDependencies": {
     "prettier": "3.9.10"

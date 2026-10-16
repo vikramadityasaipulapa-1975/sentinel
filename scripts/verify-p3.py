@@ -1,5 +1,6 @@
-"""P3.1: isolated real PostgreSQL tests, process/database restart and outage checks."""
+"""Cumulative API/database tests and task-specific P3.1/P3.2 runtime checks."""
 
+import argparse
 import hashlib
 import json
 import os
@@ -9,6 +10,8 @@ import socket
 import subprocess
 import time
 from datetime import UTC, datetime
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
 from uuid import uuid4
 
 from local_support import ROOT, docker_executable, http
@@ -48,20 +51,42 @@ def stop(child):
             child.wait(timeout=5)
 
 
+def incident_request(port, path, method="GET", body=None):
+    request = Request(
+        f"http://127.0.0.1:{port}/api/v1/incidents{path}",
+        data=json.dumps(body).encode() if body is not None else None,
+        headers={"content-type": "application/json"},
+        method=method,
+    )
+    try:
+        response = urlopen(request, timeout=10)
+    except HTTPError as error:
+        response = error
+    with response:
+        payload = response.read(65537)
+        if len(payload) > 65536:
+            raise ValueError("Incident response exceeded verifier limit")
+        return response.status, json.loads(payload)
+
+
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--task", choices=["P3.1", "P3.2"], default="P3.2")
+    task = parser.parse_args().task
     artifacts = ROOT / ".artifacts"
     artifacts.mkdir(exist_ok=True)
-    directory = artifacts / f"p3-1-{uuid4().hex[:8]}"
+    task_slug = task.lower().replace(".", "-")
+    directory = artifacts / f"{task_slug}-{uuid4().hex[:8]}"
     directory.mkdir()
     project = "sentinel-" + directory.name
     report = {
-        "task": "P3.1",
+        "task": task,
         "run_at": datetime.now(UTC).isoformat(),
         "status": "RUNNING",
         "project": project,
         "artifact_directory": directory.name,
     }
-    report_path = artifacts / "p3-1-verification.json"
+    report_path = artifacts / f"{task_slug}-verification.json"
     report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
     child = None
     started = False
@@ -100,7 +125,10 @@ def main():
         run(
             command + ["up", "-d", "--wait", "--wait-timeout", "60", "api-db"], env, 300
         )
-        print("P3.1: running unit and real-database integration tests", flush=True)
+        print(
+            f"{task}: running cumulative unit and real-database integration tests",
+            flush=True,
+        )
         run([npm, "run", "test:api"], env)
         report["unit_and_database_tests"] = True
         digest = hashlib.sha256()
@@ -132,10 +160,49 @@ def main():
             ready(api_port, child)
             status, original = http(api_port, "/api/v1/services")
             assert status == 200 and len(original["services"]) == 2
+            incident = history = None
+            if task == "P3.2":
+                status, incident = incident_request(
+                    api_port,
+                    "",
+                    "POST",
+                    {
+                        "service_id": original["services"][0]["id"],
+                        "title": "Verifier demo: restart persistence",
+                        "severity": "HIGH",
+                    },
+                )
+                assert status == 201 and incident["status"] == "OPEN"
+                status, incident = incident_request(
+                    api_port, f"/{incident['id']}", "PATCH", {"status": "INVESTIGATING"}
+                )
+                assert status == 200 and incident["status"] == "INVESTIGATING"
+                status, history = incident_request(
+                    api_port, f"/{incident['id']}/events"
+                )
+                assert status == 200 and len(history["events"]) == 2
+                assert (
+                    incident_request(
+                        api_port, f"/{incident['id']}", "PATCH", {"status": "CLOSED"}
+                    )[0]
+                    == 409
+                )
+                assert (
+                    incident_request(api_port, f"/{incident['id']}/events")[1]
+                    == history
+                )
+                report["incident_http_contracts"] = True
             stop(child)
             child = launch()
             ready(api_port, child)
             assert http(api_port, "/api/v1/services")[1] == original
+            if incident:
+                assert incident_request(api_port, f"/{incident['id']}")[1] == incident
+                assert (
+                    incident_request(api_port, f"/{incident['id']}/events")[1]
+                    == history
+                )
+                report["incident_api_restart_persistence"] = True
             report["api_restart_persistence"] = True
             run(command + ["stop", "api-db"], env)
             assert http(api_port, "/health")[0] == 200
@@ -143,6 +210,18 @@ def main():
             status, body = http(api_port, "/api/v1/services")
             assert status == 503 and body["error"]["code"] == "DATABASE_UNAVAILABLE"
             assert password not in json.dumps(body)
+            if incident:
+                assert incident_request(api_port, "")[0] == 503
+                assert incident_request(api_port, f"/{incident['id']}/events")[0] == 503
+                assert (
+                    incident_request(
+                        api_port,
+                        f"/{incident['id']}",
+                        "PATCH",
+                        {"status": "MITIGATING"},
+                    )[0]
+                    == 503
+                )
             report["live_database_outage"] = True
             run(
                 command + ["up", "-d", "--wait", "--wait-timeout", "60", "api-db"],
@@ -151,6 +230,14 @@ def main():
             )
             ready(api_port, child)
             assert http(api_port, "/api/v1/services")[1] == original
+            if incident:
+                assert incident_request(api_port, f"/{incident['id']}")[1] == incident
+                assert (
+                    incident_request(api_port, f"/{incident['id']}/events")[1]
+                    == history
+                )
+                report["incident_database_restart_persistence"] = True
+                report["event_history_replay"] = True
             report["database_restart_persistence"] = True
             assert http(api_port, "/unknown")[0] == 404
             report["status"] = "PASSED"
@@ -169,8 +256,8 @@ def main():
                 report["cleanup_failed"] = True
         report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     if report["status"] != "PASSED":
-        raise RuntimeError("P3.1 cleanup failed")
-    print("PASS: P3.1 verification; see .artifacts/p3-1-verification.json", flush=True)
+        raise RuntimeError(f"{task} cleanup failed")
+    print(f"PASS: {task} verification; see {report_path.relative_to(ROOT)}", flush=True)
 
 
 if __name__ == "__main__":

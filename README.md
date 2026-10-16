@@ -14,7 +14,11 @@ AI, centralized telemetry, authentication, and remediation remain future phases.
 explicit migrations, readiness checks and a reproducible local workflow. See the
 [P3 learning guide](docs/P3-LEARNING-GUIDE.md) for the full walkthrough and hosted setup requirements.
 
-## Run the Sentinel API locally (P3.1)
+**P3.2:** incidents now support creation, filtering, cursor pagination, detail,
+validated status transitions and transactional event history. A rejected transition
+does not change the incident or add an event.
+
+## Run the Sentinel API locally (P3.1-P3.2)
 
 From `V:\sentinel\sentinel`, with Node/npm dependencies installed and Docker Desktop running:
 
@@ -24,14 +28,15 @@ From `V:\sentinel\sentinel`, with Node/npm dependencies installed and Docker Des
 
 This creates ignored `.env.api` credentials, starts a separate database on loopback
 port 55434, builds/migrates/seeds the API and listens on port 3000. Keep the terminal
-open. Visit [registered services](http://localhost:3000/api/v1/services) or
+open. Visit [incidents](http://localhost:3000/api/v1/incidents),
+[registered services](http://localhost:3000/api/v1/services) or
 [readiness](http://localhost:3000/ready). This is API JSON; the dashboard and live
 event stream are later tasks. No manual setup required beyond existing prerequisites.
 The API is local and unauthenticated; public hosting is not yet configured.
 
 ```powershell
 # Isolated real-database verification, including outage and restart checks:
-.\.venv\Scripts\python.exe scripts/verify-p3.py
+.\.venv\Scripts\python.exe scripts/verify-p3.py --task P3.2
 ```
 
 Ctrl+C stops the API. To stop its database without deleting the volume:
@@ -52,8 +57,8 @@ docker compose --env-file .env.api -f infrastructure/compose.api.yaml down
 - [Agent contract](AGENTS.md) and [master roadmap](SENTINEL_CODEX_MASTER_PLAN.md).
 
 Implementation verification is separate from student mastery. Questions and
-independent exercises remain pending until the student completes them. P3.1 was
-approved; P3.2 requires new approval. Payments remain simulated. Local database and
+independent exercises remain pending until the student completes them. P3.1/P3.2 were
+approved; P3.3 requires new approval. Payments remain simulated. Local database and
 deployment records are real in PostgreSQL mode. Project commits are published to
 the configured GitHub remote; no external application deployment has occurred.
 

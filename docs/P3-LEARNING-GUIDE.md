@@ -3,7 +3,8 @@
 ## Scope and approval checkpoint
 
 P3.1 was explained and approved by the user with "proceed" on 2026-10-16.
-This guide documents P3.1 only. P3.2-P3.5 remain future tasks requiring approval.
+P3.2 was separately explained and approved with "proceed" on 2026-10-16.
+This guide documents P3.1 and P3.2. P3.3-P3.5 remain future tasks requiring approval.
 Commits identify the exact task, starting with
 `feat(P3.1): bootstrap Sentinel API and service registry`.
 
@@ -186,7 +187,10 @@ Full isolated positive and negative verification:
 .\.venv\Scripts\python.exe scripts/verify-p3.py
 ```
 
-Expected: 24 tests pass, zero skipped, then `PASS: P3.1 verification`.
+At the original P3.1 milestone, 24 tests passed with zero skipped. The verifier is
+now cumulative: its default task is P3.2, with 41 tests and incident restart checks.
+Use `--task P3.1` for registry-only runtime checks (the cumulative database tests
+still run). `npm run verify:p3.1` preserves that explicit selection.
 It tests migration apply/replay, changed/missing history rejection, atomic rollback
 of a failing migration, idempotent seed, unique/check constraints, actual SQL
 statement cancellation, HTTP responses from real PostgreSQL, API/database restarts,
@@ -307,8 +311,292 @@ constraint result. Do not edit an already-applied migration to add seed data.
 constrained schema, explicit migration/seed lifecycle, verified local workflow and
 tests. Existing demo behavior is retained and checked by regression suites.
 See PROGRESS.md for exact measured runs. Student mastery remains unconfirmed.
-P3.2 implementation requires the next approval checkpoint.
+P3.2 is documented below. P3.3 requires the next approval checkpoint.
 
 References: [pg pooling](https://node-postgres.com/features/pooling),
 [pool options](https://node-postgres.com/apis/pool),
 [TLS configuration](https://node-postgres.com/features/ssl).
+
+## P3.2 Concept
+
+An incident is a record describing a problem affecting a registered service. It
+has a title, severity, status and timestamps. Creating one manually does not prove
+that an outage exists: it records a report. Automatic detection and AI investigation
+are later phases. The localhost example is explicitly labelled DEMO.
+
+Severity describes impact (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`); status describes
+progress. Changing one is not equivalent to changing the other. P3.2 allows status
+updates only; title, service and severity are fixed after creation in this task.
+
+A state machine is a set of allowed moves. Here it prevents jumping straight from
+a newly opened incident to closed. An event is a durable record of creation or a
+status change, providing ordered history that survives page/process restarts.
+It is not yet a user-attributed audit trail; authentication arrives in P3.3.
+
+### State rules
+
+| Current status | Allowed different next statuses |
+| -------------- | ------------------------------- |
+| OPEN           | INVESTIGATING                   |
+| INVESTIGATING  | MITIGATING, RESOLVED            |
+| MITIGATING     | INVESTIGATING, RESOLVED         |
+| RESOLVED       | INVESTIGATING, CLOSED           |
+| CLOSED         | None                            |
+
+Requesting the current status is a successful no-op: HTTP 200, no timestamp change
+and no extra event. A forbidden move returns HTTP 409. Resolving sets `resolved_at`;
+reopening clears it; closing preserves the latest resolution timestamp. An incident
+can resolve directly from investigation when no mitigation step was needed.
+
+## P3.2 Architecture/data flow
+
+```mermaid
+flowchart TD
+  R[POST or PATCH request] --> V[Validate body and UUID]
+  V --> T[BEGIN on one database client]
+  T --> L[For PATCH: lock incident row and read latest status]
+  L --> S[Check transition rules]
+  S --> W[Insert or update incident]
+  W --> E[Append incident event]
+  E --> C[COMMIT both writes]
+  C --> J[Return JSON]
+  W -. failure .-> B[ROLLBACK both writes]
+  E -. failure .-> B
+```
+
+Creation inserts the incident and its `CREATED` event in one transaction. A status
+change uses `SELECT ... FOR UPDATE` before applying rules. Another request targeting
+the same row waits, then sees the latest committed status. Eight concurrent requests
+for INVESTIGATING therefore produce one change event, followed by seven no-ops.
+Requests for different incidents do not need to share that row lock.
+
+The pool supplies a dedicated client for each transaction. Each `await` pauses that
+operation until PostgreSQL responds without blocking Node's event loop. The client
+is released in `finally`. If event insertion fails, `ROLLBACK` restores the incident
+as well. No success response is sent before commit.
+
+Reads use parameterized SQL and the existing bounded pool. SQL errors return a
+sanitized storage-unavailable response; client mistakes and missing resources retain
+their specific status codes. Runtime row readers allowlist fields and validate IDs,
+status, severity, event payload and timestamps before returning them.
+
+### Schema changes
+
+`002_incidents.sql` adds two tables without changing `001_services.sql`:
+
+- `incidents`: UUID primary key; service foreign key; title; severity/status;
+  start, resolution and creation timestamps; internal bigint `list_position`.
+- `incident_events`: UUID event identity; incident foreign key; bigint `sequence`;
+  type; server-generated JSON payload; occurrence and storage timestamps.
+
+Status/severity checks reject unknown values. Resolution constraints require a
+timestamp exactly when status is RESOLVED/CLOSED and forbid resolution before start.
+Foreign keys prevent orphan records. Indexes cover status/position, service/position
+and incident/event sequence. No delete endpoint or cascading deletion was added.
+
+The API repository enforces transitions and paired incident/event writes. Database
+owner credentials can bypass those application rules with direct SQL; enum/check
+constraints alone do not implement a state machine. Hosted runtime credentials and
+authorized API access must be scoped before public deployment.
+
+### Pagination and ordering
+
+The incident list uses descending `list_position`; event history uses ascending
+`sequence`. PostgreSQL allocates these integers, avoiding timestamp ties and loss
+of microsecond precision when timestamps become JavaScript Dates. Bigints remain
+strings in JSON rather than risking JavaScript number rounding. Rollbacks can leave
+sequence gaps; a gap is not proof of a missing event.
+
+Each page returns `next_cursor` or null. The opaque base64url cursor contains a
+version, position and query scope. Changing incident filters or using another
+incident's event cursor is rejected. Cursors are validated navigation state, not
+encrypted data, authentication tokens or access grants.
+
+Pages default to 20 records, with limits 1-100. The repository fetches one extra
+row to decide whether another page exists. Incident pages use positions below the
+last returned one; event pages use sequences above it. Event history is ordered per
+incident, not by a guarantee about global commit order across different incidents.
+Pagination is not a frozen database snapshot: concurrent creations or status-filter
+membership changes may require refreshing the list. SSE/live refresh arrives in P3.5.
+
+## P3.2 File plan and approval checkpoint
+
+The user approved the described routes, schema, state rules, tests and localhost
+preview. No new npm or Python dependencies were needed. Changes are limited to:
+
+| File                                             | Implementation and walkthrough                                                                                                                                                              |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api/database/migrations/002_incidents.sql` | Tables, foreign keys, checks and indexes; executed by the existing migration owner                                                                                                          |
+| `apps/api/src/incidents.ts`                      | Types and `IncidentStore` contract; `parseCreate`, `parseTransition`, `parseId`, `parseList`; transition table; cursor encoding/validation; `readIncident` and `readEvent` response readers |
+| `apps/api/src/incident-repository.ts`            | `postgresIncidents(pool)` returns create/list/get/transition/events/ready functions; private database wrapper sanitizes failures, transaction helper owns commit/rollback/release           |
+| `apps/api/src/incident-routes.ts`                | Express router translates validated HTTP requests to store calls; creation returns 201 and Location header                                                                                  |
+| `apps/api/src/app.ts`                            | Optional injected incident store keeps existing registry tests independent; mounts router with 8 KiB JSON limit, extends readiness and safe error/log handling                              |
+| `apps/api/src/server.ts`                         | Supplies the real PostgreSQL incident store to the running application                                                                                                                      |
+| `apps/api/test/incidents.test.ts`                | Boundary validation, all 25 status pairs, cursor rules and HTTP contracts with a fake dependency                                                                                            |
+| `apps/api/test/incident-database-checks.ts`      | Real incident transactions, forced event-write failure, eight-way concurrency, observed lock wait, pagination, constraints and HTTP checks                                                  |
+| `apps/api/test/database.test.ts`                 | Migrates an actual P3.1 schema with existing services to P3.2, preserves checksum/replay checks and invokes incident integration tests sequentially on its isolated database                |
+| `scripts/verify-p3.py`                           | Task selector and separate reports; P3.2 creates an incident/event pair and confirms it survives API/database restarts and real database outage                                             |
+| `package.json`                                   | Adds `verify:p3.2`; existing `verify:p3.1` selects its task explicitly                                                                                                                      |
+| README, learning guide, progress log             | Commands, explanation, measured results, hosting/manual setup and pending learner work                                                                                                      |
+
+`parseCreate` accepts exactly service_id/title/severity, trims title, rejects empty
+or over-200-character titles and control characters, and requires a UUID service ID.
+`parseTransition` accepts only `{status}`. IDs are normalized to lowercase.
+`parseList` rejects extra/repeated query fields, invalid filters and unbounded limits.
+
+`create` returns an incident after both writes commit; a missing service returns 404.
+`transition(id, status)` locks, reads, validates, changes resolution time if needed,
+appends a status event and returns the committed incident. A repeated status returns
+the existing row. `list(options)` returns `{incidents,next_cursor}`; `events(id,options)`
+returns `{events,next_cursor}` and rejects a missing incident. SQL parameter arrays
+hold request values; only source-owned SQL column names/operators are interpolated.
+
+## P3.2 Run/test
+
+API contracts:
+
+| Request                          | Success                       | Main negative cases                                 |
+| -------------------------------- | ----------------------------- | --------------------------------------------------- |
+| POST /api/v1/incidents           | 201 incident, Location header | 422 invalid fields; 404 SERVICE_NOT_FOUND           |
+| GET /api/v1/incidents            | 200 incidents + next_cursor   | 422 invalid filter/limit; 400 INVALID_CURSOR        |
+| GET /api/v1/incidents/:id        | 200 incident                  | 422 invalid UUID; 404 INCIDENT_NOT_FOUND            |
+| PATCH /api/v1/incidents/:id      | 200 incident                  | 409 INVALID_STATUS_TRANSITION; 404 missing incident |
+| GET /api/v1/incidents/:id/events | 200 events + next_cursor      | 400 wrong cursor; 404 missing incident              |
+
+Write endpoints require application/json (415 otherwise). Malformed JSON returns
+400; JSON bodies over 8 KiB return 413. Database failures return 503 without SQL,
+connection strings, passwords or request body contents. Existing health/services
+contracts are preserved; readiness now also requires the incident tables.
+
+After stopping your existing API process, run from `V:\sentinel\sentinel`:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/api-local.py
+```
+
+Expected first upgrade: `API migrations applied: 002_incidents.sql`, then listening
+on port 3000. Existing services and volume remain intact. Subsequent runs report
+migrations already current. Open http://localhost:3000/api/v1/incidents.
+
+Positive manual example in a second PowerShell terminal:
+
+```powershell
+$body = @{service_id='11111111-1111-4111-8111-111111111111'; title='DEMO: my learning incident'; severity='HIGH'} | ConvertTo-Json
+$incident = Invoke-RestMethod http://localhost:3000/api/v1/incidents -Method Post -ContentType application/json -Body $body
+$incident.status
+# Expected OPEN; HTTP creation status is 201.
+
+$incident = Invoke-RestMethod "http://localhost:3000/api/v1/incidents/$($incident.id)" -Method Patch -ContentType application/json -Body '{"status":"INVESTIGATING"}'
+$incident.status
+# Expected INVESTIGATING.
+
+(Invoke-RestMethod "http://localhost:3000/api/v1/incidents/$($incident.id)/events").events | Format-Table
+# Expected CREATED and STATUS_CHANGED, in sequence order.
+```
+
+Negative test: INVESTIGATING cannot jump straight to CLOSED:
+
+```powershell
+try {
+    Invoke-RestMethod "http://localhost:3000/api/v1/incidents/$($incident.id)" -Method Patch -ContentType application/json -Body '{"status":"CLOSED"}'
+} catch {
+    $_.Exception.Response.StatusCode.value__
+}
+# Expected 409. Status stays INVESTIGATING and no event is added.
+```
+
+Listing/filtering/pagination:
+
+```powershell
+Invoke-RestMethod 'http://localhost:3000/api/v1/incidents?status=INVESTIGATING&limit=1'
+$page = Invoke-RestMethod 'http://localhost:3000/api/v1/incidents?limit=1'
+if ($page.next_cursor) {
+    $cursor = [uri]::EscapeDataString($page.next_cursor)
+    Invoke-RestMethod "http://localhost:3000/api/v1/incidents?limit=1&cursor=$cursor"
+}
+```
+
+The creation endpoint does not deduplicate POST retries in this task. Each successful
+POST creates a new UUID incident. After a lost response, inspect the list before
+manually repeating creation. Same-status PATCH is a no-op, but it is not an optimistic
+version check against an earlier client snapshot; rules apply to current database status.
+
+Full cumulative verification with real PostgreSQL:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/verify-p3.py --task P3.2
+# Or: npm run verify:p3.2
+```
+
+Expected at this milestone: 41 tests pass, zero failed/skipped, then PASS: P3.2.
+Report: `.artifacts/p3-2-verification.json`. Each run has a new isolated project,
+dedicated database and available ports. Test containers/network are removed without
+deleting their data volume. The development localhost database is not stopped.
+
+Tests include upgrade/replay/checksum protection, missing references, forced failure
+of the second transaction write, eight concurrent repeated transitions, an observed
+row-lock wait followed by validation against the changed status, resolution/reopen
+rules, terminal CLOSED, filters, complete incident/event pagination, database checks,
+JSON limits and redaction. The verifier additionally kills/restarts its own API and
+stops/restarts its own database, comparing incident/event records after recovery.
+
+`npm test` runs fast HTTP/config/state-machine tests and skips the dedicated DB suite
+unless TEST_API_DATABASE_URL is supplied. The 41-test result comes from the full
+verifier, not that skipped invocation. No live hosted database was tested.
+
+## P3.2 Debug
+
+- 404 on every incident endpoint while services works: stop the old P3.1 process,
+  build and start the updated API. Refreshing a tab does not reload Node code.
+- Readiness 503 after upgrade: check the database and apply migrations; having only
+  the services table is no longer enough. Do not alter applied migration 001.
+- 422: confirm the exact field names, uppercase enum values, UUID and title length.
+  Do not send client-generated status/id/timestamps during creation.
+- 409: read current incident status and the transition table. A concurrent request
+  may have changed status while yours waited. The rejected request adds no event.
+- 400 INVALID_CURSOR: reuse the same filters and incident ID that produced the
+  cursor. Restart at the first page after changing filters.
+- 503 during a write: the response intentionally omits driver details. Check local
+  database health and migration history. An uncertain network/commit outcome must
+  be reconciled by reading records; do not assume every failed response means rollback.
+- Sequence gaps: expected after rolled-back transactions and across different
+  incidents. Follow next_cursor instead of incrementing sequence numbers yourself.
+
+## P3.2 Manual setup and hosting
+
+**No manual setup required for this local upgrade.** The existing helper explicitly
+runs migration 002 before starting Node, using the existing ignored credentials and
+volume. There are no new accounts, environment variables, database services or fees.
+
+For a future hosted release, run reviewed migration 002 through the approved
+migration job before rolling out the new API. Keep the database durable, preserve
+backups, and verify readiness after rollout. Existing verified-TLS database settings
+remain applicable. Hosted provisioning/deployment has not occurred.
+
+The API remains loopback-only and unauthenticated. P3.3 adds login/roles before public
+exposure. P3.5 adds real-time progress streaming backed by persisted events; the
+current browser displays JSON snapshots and requires refresh to fetch changes.
+
+## P3.2 Understanding check
+
+1. Why must changing status and appending the event use one client and transaction?
+   What should you see after the test deliberately rejects the event insert?
+2. Why does the transition check happen after SELECT FOR UPDATE? Explain what the
+   waiting request sees when another transaction resolves the incident first.
+3. Why use a bigint position for pagination instead of a JavaScript timestamp?
+   Why can valid event sequences contain gaps?
+
+Independent exercise (not completed by Codex on the student's behalf): create your
+own labelled learning incident, progress it through investigation and resolution,
+reopen it, and inspect resolved_at and event history after each step. Attempt one
+forbidden transition and explain why it left history unchanged.
+
+## P3.2 Commit summary
+
+`feat(P3.2): add incidents and transactional event history` implements the approved
+REST contracts, state machine, durable history and pagination with positive/negative
+tests. The localhost demo is separate from isolated test data. See PROGRESS.md for
+measured evidence. Student comprehension/exercise remains pending. P3.3 requires
+a separate explanation and approval before implementation.
+
+Reference: [PostgreSQL row locking](https://www.postgresql.org/docs/17/explicit-locking.html).
