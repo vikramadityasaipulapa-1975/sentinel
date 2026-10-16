@@ -415,3 +415,27 @@ describe earlier attempts, not the current status. Student comprehension answers
 and independent exercises remain pending. P3 requires explicit user approval.
 Documentation-only follow-up: Prettier validation; application source unchanged.
 Commit: find with git log --grep="record successful P2 container acceptance".
+
+### Task commits and hosted application requirements (2026-10-16)
+
+The user requests separate task commits identified as P3.1, P3.2, and so on, with
+descriptive subjects and the existing sole-author/push policy. These preferences
+are recorded in AGENTS.md for future sessions.
+
+The target is a publicly reachable application with a hosted backend, durable
+hosted database and real-time updates. The current P2 runtime is local only;
+GitHub publishing does not host the running application or database. Provider
+selection, provisioning and public deployment are not yet completed or approved.
+Local PostgreSQL and Compose remain useful reproducible development/test options.
+P2's database URL guard currently permits demo hosts only; supporting a hosted
+database will require an explicitly planned configuration change with TLS and
+appropriate validation, not merely replacing the URL in an environment file.
+
+Each phase must explain hosted integration and list manual setup steps, required
+environment variable names, verification and blockers, or explicitly state that
+no manual setup is required. Hosting choices and costs must be discussed before
+provisioning. Shared updates will use the planned persisted events/SSE flow in
+P3.5, with authentication and suitable hosting support assessed before exposure.
+No infrastructure provisioning or application deployment occurred in this update.
+Manual setup required now: none; provider selection belongs in the deployment
+architecture discussion before dependent implementation. P3 remains unstarted.
