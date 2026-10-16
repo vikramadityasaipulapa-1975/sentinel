@@ -372,3 +372,13 @@ being inferred from elapsed time. All student answers/exercises remain pending.
 No production work, external deployment, pushes or P3 changes were performed.
 
 Commit: find with git log --grep="persist idempotent demo payments".
+
+### Repository publishing and authorship preference (2026-10-16)
+
+The user authorized pushing project commits to the configured GitHub remote and
+requested focused commits with descriptive messages and clear documentation.
+Use the configured account as the sole author; do not add co-author trailers.
+The configured identity is pvasB0-baymax <vsai3890@gmail.com>. Existing P1/P2
+commits through 1191e1f were pushed successfully to origin/main. Future completed
+parts should be committed and pushed individually after their relevant checks.
+This supersedes the earlier local-only publishing status; P3 still requires approval.
