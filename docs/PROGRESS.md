@@ -1,8 +1,8 @@
 # Sentinel progress
 
-Current phase/task: P2, implementation verification complete
-Status: DATABASE/NATIVE AND CONTAINER VERIFICATION PASSED; P3 not approved
-Last fully accepted software phase: P2; learner checkpoints remain open
+Current phase/task: P3.1, implementation verification complete
+Status: P3.1 API/DATABASE VERIFIED; P3.2 not approved
+Last fully accepted software phase: P2; P3.1 task verified; learner checkpoints remain open
 Last completed learner checkpoint: none confirmed
 
 ## P1.1 task record
@@ -439,3 +439,107 @@ P3.5, with authentication and suitable hosting support assessed before exposure.
 No infrastructure provisioning or application deployment occurred in this update.
 Manual setup required now: none; provider selection belongs in the deployment
 architecture discussion before dependent implementation. P3 remains unstarted.
+
+## P3.1: main API, migrations and service registry
+
+### Concept and architecture/data flow
+
+The main API owns Sentinel's monitored-service directory, separate from the demo
+payment application's data. Browser -> Express controller -> response-validation
+service -> PostgreSQL repository/pool -> dedicated database. All runtime records
+come from PostgreSQL; no in-memory fallback or hardcoded HTTP result is used.
+The two explicitly seeded records describe demo services, not discovered live health.
+
+### Approval checkpoint and file plan
+
+The user requested P3 and localhost previews. After the P3.1 concept/architecture,
+file plan, test plan and hosting implications were explained, the user approved
+implementation with "proceed" on 2026-10-16. Scope is P3.1 only. P3.2-P3.5 remain
+unimplemented; the detailed reference is docs/P3-LEARNING-GUIDE.md.
+
+### Implementation and walkthrough
+
+- Added apps/api as an Express/TypeScript npm workspace with pg 8.23.1 and pinned
+  type dependencies. Root build/test commands cover both Node workspaces.
+- config.ts validates URL, TLS and port. Remote DB connections require verified
+  TLS, URL query overrides are rejected and an optional provider CA is supported.
+- db.ts bounds the pool to five connections, with connection/statement/lock/query
+  deadlines. Idle client errors are handled without logging connection secrets.
+- services.ts queries sorted records and validates/allowlists UUID, name, owner,
+  environment and UTC timestamp output. app.ts provides health, schema readiness,
+  GET /api/v1/services, safe errors, UUID correlation and safe completion logs.
+- server.ts listens only on loopback, handles startup errors and bounded shutdown.
+  Authentication is P3.3; no public application endpoint was deployed.
+- API-owned migration ledger/checksums and advisory transaction lock are separate
+  from P2. 001_services.sql defines primary/unique/check constraints. The explicit
+  local seed is transactional and replayable; existing names are preserved.
+- Added infrastructure/compose.api.yaml, scripts/api-local.py and scripts/verify-p3.py.
+  Dedicated development settings live in ignored .env.api. The verifier uses a
+  uniquely named database project and available ports, not the user's demo data.
+- Updated checkout Dockerfile workspace manifest/install/build selection because
+  adding a root workspace must not break the existing checkout container build.
+- Updated .env.example, README, learning guide and formatting command coverage.
+
+### Run/test: measured evidence (2026-10-16, UTC timestamps)
+
+```powershell
+.\.venv\Scripts\python.exe scripts/verify-p3.py
+.\.venv\Scripts\python.exe scripts/verify-p2.py --backend compose
+.\.venv\Scripts\python.exe scripts/verify-p1.py
+```
+
+- P3.1 verifier started 2026-10-16T11:15:28.459518+00:00 and PASSED. All 24 API
+  tests passed with zero failures/skips, including actual PostgreSQL integration.
+- Verified fresh schema readiness negative, migration apply/replay, changed/missing
+  migration rejection, transactional rollback after invalid pending SQL, replayable
+  seed, unique/check constraints, slow-statement cancellation and HTTP database output.
+- Separately verified API process restart, real PostgreSQL outage (health 200,
+  readiness/services 503), database restart and identical persisted records after
+  recovery. Test-owned containers/network were removed and volume preserved.
+- Report: .artifacts/p3-1-verification.json; test project sentinel-p3-1-96a1e409.
+  Runtime content hash is recorded there; it is not mislabeled as a committed release.
+- Final-source rerun started 2026-10-16T11:21:35.412153+00:00 and PASSED all 24
+  tests plus process/database outage/restart checks. The latest report supersedes
+  the initial run: project sentinel-p3-1-a04cc261, runtime source SHA256
+  9be3f5e8d4fbf9f0abb13023c69e23c841f1e25485b127853018c19148bfc643.
+  Source was reverified after formatting so the evidence matches final runtime files.
+- P2 Compose regression started 2026-10-16T11:15:50.759144+00:00 and PASSED:
+  rebuilt checkout image, 16 concurrent DB requests/one payment, eight HTTP replays,
+  constraint/migration negatives, restart persistence, version statuses
+  201 -> 504 -> 502 -> 201, four deployment records/one ACTIVE. Test volume retained.
+- Full P1 regression started 2026-10-16T11:17:37.422244+00:00 and PASSED: 14 checkout
+  tests, 27 payment tests, seven real-service scenarios and three 20-request k6 loads.
+  Root npm test additionally ran API fast tests: 16 passed, database suite explicitly
+  skipped in that invocation; actual DB coverage is the separate 24-test run above.
+- The existing Starlette/httpx deprecation warning remains; it did not fail tests.
+- First restricted-shell HTTP tests failed with loopback EACCES. Host-run tests
+  resolved that execution boundary and passed; the failed attempt was not counted
+  as success. Initial formatting check identified app.ts; formatting was corrected.
+- Final Prettier check, Ruff lint/format, Python compilation, pip dependency
+  consistency and git diff whitespace checks passed.
+
+### Localhost preview and manual setup
+
+Ran scripts/api-local.py, which generated ignored credentials, started the dedicated
+development database, built the API, migrated and seeded it. Verified live HTTP 200
+at http://localhost:3000/api/v1/services and readiness ready. Opened the URL in the
+in-app browser and confirmed both JSON service records were visible. API and its
+development database were left running for the user's requested testing.
+Ctrl+C stops the helper/API; documented compose down stops its DB without deleting data.
+
+No manual setup required for this local task beyond existing Node/Python/Docker
+prerequisites. No hosted provider was selected or provisioned. Future deployment
+requires managed database credentials/TLS, migration/runtime identities, backend
+hosting, HTTPS and authenticated ingress. Redis/worker and SSE are later P3 tasks.
+The guide gives required variable names and provider setup order; secrets stay out
+of chat and source control. A GitHub push is not an application deployment.
+
+### Debug, understanding check and commit summary
+
+See docs/P3-LEARNING-GUIDE.md for file-by-file functions, async/error paths, exact
+commands/expected outputs, debugging, three comprehension questions and an
+independent third-service exercise. Student answers/exercise remain pending.
+
+Commit: find with git log --grep="feat(P3.1): bootstrap Sentinel API and service registry".
+Use the configured account as sole author, with no co-author trailers; push to origin.
+P3.2 has not been implemented or implicitly approved by completion of this task.

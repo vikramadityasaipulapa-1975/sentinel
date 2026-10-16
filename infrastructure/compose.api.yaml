@@ -1,0 +1,19 @@
+name: sentinel-api
+services:
+  api-db:
+    image: postgres:17.11-bookworm@sha256:3645570cccdfa447589da9f57dd740faa29b30938e861289a5574b6ca6b03826
+    environment:
+      POSTGRES_DB: ${SENTINEL_DB_NAME:-sentinel_api}
+      POSTGRES_USER: sentinel_api
+      POSTGRES_PASSWORD: ${SENTINEL_POSTGRES_PASSWORD:?Use scripts/api-local.py}
+    ports:
+      - "127.0.0.1:${SENTINEL_DB_PORT:-55434}:5432"
+    volumes:
+      - api-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentinel_api -d sentinel_api"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+volumes:
+  api-postgres-data:
