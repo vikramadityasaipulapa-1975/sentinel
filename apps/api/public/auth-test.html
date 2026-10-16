@@ -61,6 +61,26 @@
             maxlength="200" /></label
         ><button type="submit">Create HIGH severity incident</button>
       </form>
+      <h2>Investigation workflow check</h2>
+      <p>
+        This enqueues a real background workflow check, not AI or telemetry
+        analysis. Reuse the same request key to retry an uncertain submission.
+      </p>
+      <form id="investigation">
+        <label
+          >Incident UUID
+          <input id="queue-incident" required maxlength="36" /></label
+        ><label
+          >Idempotency key
+          <input id="queue-key" required maxlength="36" /></label
+        ><button type="submit">Enqueue investigation</button
+        ><button id="new-key" type="button">New request key</button>
+      </form>
+      <label>Investigation UUID <input id="queue-id" maxlength="36" /></label>
+      <div id="actions-queue">
+        <button id="job-status" type="button">Investigation status</button
+        ><button id="job-list" type="button">Incident investigations</button>
+      </div>
       <h2>Backend response</h2>
       <pre id="result" aria-live="polite">
 Log in to inspect protected API responses.</pre>

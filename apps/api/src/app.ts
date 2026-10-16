@@ -9,6 +9,8 @@ import {
   type AuthService,
 } from "./auth.js";
 import { incidentRoutes } from "./incident-routes.js";
+import { investigationRoutes } from "./investigation-routes.js";
+import type { InvestigationStore } from "./investigations.js";
 import { IncidentError, type IncidentStore } from "./incidents.js";
 import {
   InvalidRegistryResponse,
@@ -24,6 +26,7 @@ export function createApp(
   log: LogSink = (record) => console.log(JSON.stringify(record)),
   incidents?: IncidentStore,
   auth?: AuthService,
+  investigations?: InvestigationStore,
 ) {
   const app = express();
   app.disable("x-powered-by");
@@ -79,6 +82,7 @@ export function createApp(
         (await registry.ready()) &&
         (!incidents || (await incidents.ready())) &&
         (!auth || (await auth.ready()));
+      if (ready && investigations) ready = await investigations.ready();
     } catch {
       /* Dependency details stay private. */
     }
@@ -161,6 +165,12 @@ export function createApp(
       incidentRoutes(incidents),
     );
   }
+  if (investigations)
+    app.use(
+      "/api/v1",
+      express.json({ limit: "8kb" }),
+      investigationRoutes(investigations),
+    );
   app.use((_request, response) =>
     response.status(404).json({
       error: { code: "NOT_FOUND", message: "Route not found" },

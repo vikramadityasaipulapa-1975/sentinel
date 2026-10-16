@@ -5,6 +5,7 @@ import { postgresRegistry } from "./services.js";
 import { postgresIncidents } from "./incident-repository.js";
 import { createAuth, readAuthSecret } from "./auth.js";
 import { postgresUsers } from "./auth-store.js";
+import { postgresInvestigations } from "./investigations.js";
 
 try {
   const config = readConfig();
@@ -15,6 +16,7 @@ try {
     undefined,
     postgresIncidents(pool),
     createAuth(postgresUsers(pool), secret),
+    postgresInvestigations(pool),
   ).listen(config.port, "127.0.0.1", () => {
     console.log(
       JSON.stringify({

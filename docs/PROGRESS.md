@@ -1,7 +1,7 @@
 # Sentinel progress
 
-Current phase/task: P3.3, software verification complete; personal local account setup pending
-Status: P3.3 AUTH/API/DATABASE VERIFIED; P3.4 not approved
+Current phase/task: P3.4 verified; P3.5 approved and next
+Status: P3.4 QUEUE/WORKER/RECOVERY VERIFIED; remaining P3 approved
 Last fully accepted software phase: P2; P3.1-P3.3 software tasks verified; learner checkpoints remain open
 Last completed learner checkpoint: none confirmed
 
@@ -791,3 +791,29 @@ No MFA, refresh tokens, public signup or per-token logout revocation is claimed.
 Commit: find with git log --grep="feat(P3.3): add login and role-based API authorization".
 Use configured sole author without co-author trailers; commit/push to origin.
 P3.4 requires its own explanation/approval before implementation.
+
+## P3.4 task record
+
+- Approval: user explicitly approved finishing all remaining P3 tasks. Personal
+  local account setup was confirmed complete by the user; credentials omitted.
+- Concepts, architecture, file walkthrough, commands, debugging, questions and
+  independent exercise: see the P3.4 section of P3-LEARNING-GUIDE.md.
+- Implementation: PostgreSQL investigation/outbox/event transaction, Redis/BullMQ
+  worker, three bounded attempts, fenced database leases, authenticated enqueue,
+  idempotency and safe workflow-check result explicitly marking AI as not performed.
+- Executed: `npm run verify:p3.4` equivalent Python verifier, TypeScript build,
+  66 passing API/unit/database/queue tests with no skips; Ruff and Prettier checks.
+- Actual runtime evidence: .artifacts/p3-4-verification.json, run started
+  2026-10-16 19:07:35 UTC (2026-10-17 IST), status PASSED. Enqueue took 94 ms.
+  API/database restart persistence, worker crash recovery, Redis AOF restart
+  persistence and enqueue-during-Redis-outage/outbox recovery all passed.
+- Negative checks: viewer writes rejected, invalid idempotency key rejected,
+  publication failure retained outbox, stale worker completion rejected, repeated
+  worker failure stopped after three attempts. No production commands were run.
+- Manual setup: no additional manual setup required for local verification; the
+  helper generates ignored Redis configuration. Hosted PostgreSQL, authenticated
+  TLS Redis, API and a separate long-running worker remain unprovisioned. See guide
+  for setup order and secret names. Public deployment requires separate approval.
+- Learner explanation and independent exercise: pending student responses.
+- Commit: `feat(P3.4): add durable investigation queue and worker` (this record).
+- Next: P3.5, explicitly approved; P4 is not approved.

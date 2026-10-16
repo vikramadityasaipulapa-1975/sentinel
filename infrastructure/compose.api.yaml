@@ -15,5 +15,24 @@ services:
       interval: 2s
       timeout: 3s
       retries: 20
+  api-redis:
+    image: redis:8.2.10-alpine@sha256:b51665e66f00759be7c3152ad5ac3c66fb2f619c13ef62dea7cc1f9914524635
+    user: redis
+    environment:
+      REDISCLI_AUTH: ${SENTINEL_REDIS_PASSWORD:?Use scripts/api-local.py}
+    command:
+      - sh
+      - -c
+      - "umask 077; printf 'requirepass %s\nappendonly yes\nappendfsync everysec\nmaxmemory-policy noeviction\n' \"$$REDISCLI_AUTH\" > /data/redis.conf; exec redis-server /data/redis.conf"
+    ports:
+      - "127.0.0.1:${SENTINEL_REDIS_PORT:-56379}:6379"
+    volumes:
+      - api-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
 volumes:
   api-postgres-data:
+  api-redis-data:

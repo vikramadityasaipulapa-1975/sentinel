@@ -5,7 +5,8 @@
 P3.1 was explained and approved by the user with "proceed" on 2026-10-16.
 P3.2 was separately explained and approved with "proceed" on 2026-10-16.
 P3.3 was separately explained and approved in the conversation. This guide documents
-P3.1-P3.3; P3.4/P3.5 remain future tasks requiring approval. **Current behavior:**
+P3.1-P3.4. The user explicitly approved finishing P3.4 and P3.5 together; P4 remains
+unapproved. **Current behavior:**
 protected API requests need a Bearer token. Earlier P3.1/P3.2 examples describe those
 milestones before authentication; use the P3.3 section for current login/run commands
 and add Authorization headers when reusing earlier API examples.
@@ -907,6 +908,194 @@ completion has not been claimed.
 local account lifecycle, shared login limits, safe localhost testing page and tests.
 Measured evidence is in PROGRESS.md. Local personal account setup remains pending.
 P3.4 needs a new concept/design explanation and approval.
+
+## P3.4 Concept and approval checkpoint
+
+The user approved the concrete P3.4 plan and explicitly authorized completing all
+remaining P3 tasks. The implementation keeps separate task commits and does not
+advance to P4. The user also reported successful personal account creation; no new
+account/password is needed for this phase.
+
+An HTTP request should not wait for a long investigation to execute. POST therefore
+saves a request and returns 202 (accepted), not a claim of success. Redis holds
+BullMQ transport jobs; a separate worker consumes them. PostgreSQL owns investigation
+status and recovery records. All results in P3.4 are labelled workflow-check with
+ai_performed=false. There are no LLM calls, telemetry findings or remediation actions.
+
+A database write followed by a queue call has a gap: the API can crash between the
+two. A transactional outbox saves investigation, pending enqueue record and QUEUED
+event together. The dispatcher later delivers the job. A stable BullMQ job ID
+suppresses queued duplicates; database checks still prevent duplicate effects after
+delivery, completion, Redis loss or worker restart. This is at-least-once delivery
+with idempotent writes, not a claim of exactly-once execution.
+
+## P3.4 Architecture/data flow
+
+```mermaid
+flowchart LR
+  O[Authenticated operator] --> A[POST with UUID request key]
+  A --> P[(PostgreSQL investigation + outbox + event)]
+  A --> R[HTTP 202]
+  P --> D[Dispatcher: bounded pending batch]
+  D --> Q[(Redis / BullMQ)]
+  Q --> W[Worker claims DB lease]
+  W --> C[Bounded workflow check]
+  C --> P
+```
+
+The dispatcher runs once per second, publishing at most one due record per
+transaction. It uses FOR UPDATE SKIP LOCKED so multiple dispatchers can cooperate.
+The record remains while the investigation is active, even after successful delivery.
+If Redis loses the job, a subsequent dispatch restores it. Queue failure rolls back
+dispatch bookkeeping; it does not erase the accepted request.
+
+The worker validates job name, UUID, stable job ID and its one-field payload. It
+claims a 15-second database lease with a random attempt token, then performs a
+maximum five-second workflow check. Completion must match the current unexpired
+lease token. An older worker cannot finalize a newer attempt. Terminal duplicates
+are no-ops. An expired attempt can be reclaimed, but no more than three database
+attempts are allowed; exhaustion produces FAILED, never a fabricated success.
+
+BullMQ also has bounded exponential transport retries. PostgreSQL's three-attempt
+budget remains authoritative across Redis job recreation. Retry scheduling and
+terminal cleanup are transactional with history. Worker/dispatcher operations take
+the incident row lock before an investigation row lock, so investigation and incident
+status events have a consistent committed order per incident. Sequence gaps are valid.
+
+## P3.4 Schema, files and implementation walkthrough
+
+| File                                                 | Responsibility                                                                                                                                 |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| database/migrations/004_investigations.sql           | API-owned investigations, unique actor/request key, one active investigation per incident, recovery outbox, event FK/type/index extension      |
+| src/investigations.ts                                | enqueue/get/list, validated safe results, claim/finish transactions, incident-first locking, lease fencing, attempt budget and event emission  |
+| src/investigation-queue.ts                           | Redis TLS/config validation, fail-fast publisher, bounded outbox dispatch, BullMQ worker, bounded execution and safe error logging             |
+| src/worker-main.ts                                   | Separate supervised process containing consumer and dispatcher; shutdown deadline and sanitized lifecycle logs                                 |
+| src/investigation-routes.ts                          | Enqueue/list/detail contracts and backend write/read permissions                                                                               |
+| src/app.ts, server.ts, incidents.ts                  | Route/store wiring, schema readiness, validated INVESTIGATION timeline events                                                                  |
+| infrastructure/compose.api.yaml                      | Redis 8.2.10-alpine pinned digest, password config file, AOF every-second persistence, noeviction, dedicated named volume and loopback publish |
+| scripts/api-local.py                                 | Preserves existing account/secret; generates missing local Redis settings, starts both containers and supervises API/worker children           |
+| scripts/verify-p3.py                                 | Isolated PostgreSQL/Redis ports, real queue tests, worker process crash and Redis outage/restart checks                                        |
+| test/investigation-database-checks.ts, queue.test.ts | Real transactions, deduplication, fencing, failure budget, recovery, permissions, paging and Redis config negatives                            |
+| public/auth-test.html/.js                            | Authenticated enqueue, idempotency-key reuse, investigation status/list controls                                                               |
+| manifests/lockfile, .env.example, docs               | Pinned BullMQ 6.3.15/ioredis 6.0.0, commands, fake config and reference material                                                               |
+
+Source/test/database paths in this table are relative to apps/api. Migration 001-003
+are preserved. `enqueue(incidentId,userId,key)` commits a request and returns a safe
+record without contacting Redis. Same actor/key/incident returns the original record,
+including after completion; a reused key for another incident or a second active run
+returns 409. New requests for CLOSED incidents are rejected. Accepted work does not
+automatically change/resolve its incident or execute as an arbitrary user command.
+
+`claim(id)` returns a lease token and record, or null for a terminal/leased duplicate.
+`finish(id,token,success)` returns whether that attempt's result was applied. Failure
+requeues below the budget, otherwise marks FAILED. Lease validity uses PostgreSQL
+time. Result/error responses are allowlisted; raw exceptions, credentials and arbitrary
+job payloads are not returned. The queue contains an investigation ID, not a password,
+JWT, prompt or shell command.
+
+`dispatchOnce` holds only a bounded outbox record while publishing. Redis producer
+connections have finite connect/command/retry limits and do not accumulate an offline
+command queue. Worker connections reconnect for long-lived consumption. Worker
+concurrency is two; API and worker each have their own bounded DB pool. A future host
+must size the combined connections and memory, rather than counting only the API.
+
+## P3.4 Run/test
+
+| Endpoint                                  | Contract                                                                                       |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| POST /api/v1/incidents/:id/investigations | Operator/admin; application/json `{}` and Idempotency-Key UUID required; 202 record + Location |
+| GET /api/v1/incidents/:id/investigations  | Any authenticated role; default 20/max 100, scoped opaque cursor                               |
+| GET /api/v1/investigations/:id            | Any authenticated role; persisted status, attempts, safe result/error                          |
+
+Start/restart the local stack after stopping its existing owned API process:
+
+```powershell
+Set-Location V:\sentinel\sentinel
+.\.venv\Scripts\python.exe scripts/api-local.py
+```
+
+Expected: database and Redis healthy, migration 004 applied once, API listening on
+3000, worker started in workflow-check mode. Existing credentials/account remain.
+Log in at http://localhost:3000/auth-test; use an existing non-CLOSED incident UUID,
+keep the generated request key and enqueue. Expect 202/QUEUED, then RUNNING and
+COMPLETED with ai_performed=false. Inspect investigation status/list. Repeating the
+same key must return the same investigation ID; a new key during active work gives 409. VIEWER enqueue gives 403. Missing/invalid keys or nonempty payloads give 422.
+
+Redis outage does not make API readiness false: durable enqueue is still available
+in PostgreSQL. QUEUED means waiting; do not interpret it as completion. Worker logs
+and persisted attempts/outbox/history distinguish delivery from actual execution.
+
+```powershell
+.\.venv\Scripts\python.exe scripts/verify-p3.py --task P3.4
+# Or npm run verify:p3.4
+```
+
+The full verifier supplies isolated DB/Redis URLs and a unique queue prefix. Fast
+`npm test` alone skips dedicated database/Redis coverage. Verification covers eight
+concurrent request replays, active/key conflict, atomic outbox failure rollback,
+expired lease fencing, terminal duplicates, missing Redis job reconstruction, actual
+BullMQ retries to FAILED, response paging and authenticated 202/403 behavior. Its
+runtime checks kill only its own RUNNING worker, recover the lease, stop/restart its
+Redis container, preserve an AOF marker and drain work accepted during the outage.
+Read PROGRESS.md for actual outcomes rather than assuming these checks passed.
+
+Separate local terminals, useful for the exercise:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/api-local.py --api-only
+# In another terminal, after preparation:
+npm run start:worker
+```
+
+The first command runs API only; the second runs dispatcher/worker. Ctrl+C stops the
+process in its terminal. The default helper supervises both and stops its owned
+children on exit. Containers/volumes remain until the documented Compose down;
+never add -v unless intentionally deleting known disposable data.
+
+## P3.4 Debug and manual setup
+
+No additional personal account setup is required: the user reported P3.3 account
+creation completed. New local Redis credentials are generated in ignored .env.api.
+After a page reload, sign in again because its token is intentionally memory-only.
+
+- QUEUED stays queued: check the worker terminal, Redis health and outbox delivery.
+  The API alone does not consume work; 202 does not promise immediate completion.
+- RUNNING after process death: allow the 15-second lease/stalled-job recovery window.
+  A fresh worker can reclaim it; token fencing prevents stale completion.
+- FAILED after three attempts: inspect safe error code/history. This phase has no
+  automatic incident resolution, external remediation or unlimited retries.
+- 409: reuse the original key only for its original incident, wait for active work,
+  or choose an appropriate open incident. Do not delete rows to bypass the rule.
+- Redis credentials mismatch after editing env: configuration must match the service.
+  Do not print rendered Compose settings or delete the volume to hide a mismatch.
+
+For hosting, manual/provider work remains: provision persistent authenticated Redis,
+use rediss:// with certificate verification, configure private network/ACL access and
+noeviction, provide SENTINEL_REDIS_URL to the worker, and run worker-main.js as an
+always-on supervised process with PostgreSQL access. The API itself needs only its
+existing DB/auth settings. The automatic local helper removes the JWT signing secret
+from its worker child's environment; a hosted worker likewise should not receive it.
+Provider cost, backups, memory, connection limits and deploy/migration order require
+explicit choices before provisioning. No hosted resources or public ingress were added.
+
+## P3.4 Understanding check and commit summary
+
+1. Which database writes must commit together before returning 202? What if the API
+   crashes immediately after commit but before sending its response?
+2. Why do a stable queue job ID and a database lease solve different duplicate cases?
+3. What distinguishes QUEUED, RUNNING, COMPLETED and FAILED? Why is COMPLETED here
+   explicitly not a successful AI investigation or resolved incident?
+
+Independent exercise: run API and worker separately, stop the worker, enqueue a
+labelled investigation, confirm QUEUED persists, restart the worker and explain the
+stored events. Do not reset personal data or secrets. Student completion is pending.
+
+Commit: `feat(P3.4): add durable investigation queue and worker`. P3.5 remains within
+the user's approved scope; P4 does not.
+
+References: [BullMQ idempotent jobs](https://docs.bullmq.io/patterns/idempotent-jobs),
+[connections](https://docs.bullmq.io/guide/connections),
+[stalled jobs](https://docs.bullmq.io/guide/workers/stalled-jobs).
 
 References: [OWASP password storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html),
 [Node crypto](https://nodejs.org/docs/latest-v24.x/api/crypto.html),

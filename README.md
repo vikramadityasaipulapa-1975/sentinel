@@ -21,7 +21,11 @@ does not change the incident or add an event.
 **P3.3:** login, salted password hashing, 15-minute signed access tokens, live user
 checks and backend role permissions protect the API. No default accounts exist.
 
-## Run the Sentinel API locally (P3.1-P3.3)
+**P3.4:** operators can enqueue durable investigation workflow checks. PostgreSQL
+outbox/leases and Redis/BullMQ recover interrupted work. Results explicitly say no
+AI or telemetry investigation has been performed.
+
+## Run the Sentinel API locally (P3.1-P3.4)
 
 From `V:\sentinel\sentinel`, with Node/npm dependencies installed and Docker Desktop running:
 
@@ -29,8 +33,9 @@ From `V:\sentinel\sentinel`, with Node/npm dependencies installed and Docker Des
 .\.venv\Scripts\python.exe scripts/api-local.py
 ```
 
-This creates ignored `.env.api` credentials, starts a separate database on loopback
-port 55434, builds/migrates/seeds the API and listens on port 3000. Keep the terminal
+This creates ignored `.env.api` credentials, starts PostgreSQL on loopback port 55434
+and Redis on 56379, builds/migrates/seeds the API, listens on 3000, and runs a separate
+dispatcher/worker process. Keep the terminal
 open. **Manual setup:** create your own local account in a second terminal, replacing
 the example email. Enter a unique 12-128 character password at the hidden prompts;
 do not send it in chat or include it in command arguments.
@@ -48,7 +53,7 @@ the application is loopback-only and public hosting is not yet configured.
 
 ```powershell
 # Isolated real-database verification, including outage and restart checks:
-.\.venv\Scripts\python.exe scripts/verify-p3.py --task P3.3
+.\.venv\Scripts\python.exe scripts/verify-p3.py --task P3.4
 ```
 
 Ctrl+C stops the API. To stop its database without deleting the volume:
@@ -70,7 +75,8 @@ docker compose --env-file .env.api -f infrastructure/compose.api.yaml down
 
 Implementation verification is separate from student mastery. Questions and
 independent exercises remain pending until the student completes them. P3.1-P3.3 were
-approved; P3.4 requires new approval. Payments remain simulated. Local database and
+approved. The user approved completing P3.4/P3.5 together; P4 requires new approval.
+Payments remain simulated. Local database and
 deployment records are real in PostgreSQL mode. Project commits are published to
 the configured GitHub remote; no external application deployment has occurred.
 
