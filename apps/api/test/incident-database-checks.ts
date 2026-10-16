@@ -1,3 +1,4 @@
+import { domainAuth } from "./auth-fixture.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { once } from "node:events";
@@ -289,10 +290,12 @@ export async function incidentDatabaseChecks(t: TestContext, pool: Pool) {
   await t.test(
     "real incident HTTP create/read/transition/filter/event/error contract",
     async () => {
-      const server = createApp(postgresRegistry(pool), () => {}, store).listen(
-        0,
-        "127.0.0.1",
-      );
+      const server = createApp(
+        postgresRegistry(pool),
+        () => {},
+        store,
+        domainAuth,
+      ).listen(0, "127.0.0.1");
       await once(server, "listening");
       const address = server.address();
       assert.ok(address && typeof address !== "string");

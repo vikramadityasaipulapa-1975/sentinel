@@ -20,12 +20,13 @@
     "verify:p1": ".venv\\Scripts\\python.exe scripts/verify-p1.py",
     "verify:p2": ".venv\\Scripts\\python.exe scripts/verify-p2.py --backend native",
     "verify:p2:compose": ".venv\\Scripts\\python.exe scripts/verify-p2.py --backend compose",
-    "format": "prettier --write package.json \"services/checkout-service/**/*.ts\" \"services/checkout-service/*.json\" \"services/payment-service/*.json\" scripts/load-checkout.js README.md \"docs/*.md\" infrastructure/compose.yaml \"apps/api/**/*.ts\" \"apps/api/*.json\" infrastructure/compose.api.yaml",
-    "format:check": "prettier --check package.json \"services/checkout-service/**/*.ts\" \"services/checkout-service/*.json\" \"services/payment-service/*.json\" scripts/load-checkout.js README.md \"docs/*.md\" infrastructure/compose.yaml \"apps/api/**/*.ts\" \"apps/api/*.json\" infrastructure/compose.api.yaml",
+    "format": "prettier --write package.json \"services/checkout-service/**/*.ts\" \"services/checkout-service/*.json\" \"services/payment-service/*.json\" scripts/load-checkout.js README.md \"docs/*.md\" infrastructure/compose.yaml \"apps/api/**/*.ts\" \"apps/api/*.json\" infrastructure/compose.api.yaml \"apps/api/public/*\"",
+    "format:check": "prettier --check package.json \"services/checkout-service/**/*.ts\" \"services/checkout-service/*.json\" \"services/payment-service/*.json\" scripts/load-checkout.js README.md \"docs/*.md\" infrastructure/compose.yaml \"apps/api/**/*.ts\" \"apps/api/*.json\" infrastructure/compose.api.yaml \"apps/api/public/*\"",
     "test:api": "npm run test --workspace=@sentinel/api",
     "start:api": "node --env-file=.env.api apps/api/dist/src/server.js",
     "verify:p3.1": ".venv\\Scripts\\python.exe scripts/verify-p3.py --task P3.1",
-    "verify:p3.2": ".venv\\Scripts\\python.exe scripts/verify-p3.py --task P3.2"
+    "verify:p3.2": ".venv\\Scripts\\python.exe scripts/verify-p3.py --task P3.2",
+    "verify:p3.3": ".venv\\Scripts\\python.exe scripts/verify-p3.py --task P3.3"
   },
   "devDependencies": {
     "prettier": "3.9.10"

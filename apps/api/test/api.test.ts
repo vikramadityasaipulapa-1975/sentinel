@@ -1,3 +1,4 @@
+import { domainAuth } from "./auth-fixture.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { test } from "node:test";
@@ -105,10 +106,12 @@ test("HTTP contracts, correlation, safe errors and safe logs", async (t) => {
     },
   };
   const logs: Record<string, unknown>[] = [];
-  const server = createApp(registry, (record) => logs.push(record)).listen(
-    0,
-    "127.0.0.1",
-  );
+  const server = createApp(
+    registry,
+    (record) => logs.push(record),
+    undefined,
+    domainAuth,
+  ).listen(0, "127.0.0.1");
   await once(server, "listening");
   const address = server.address();
   assert.ok(address && typeof address !== "string");

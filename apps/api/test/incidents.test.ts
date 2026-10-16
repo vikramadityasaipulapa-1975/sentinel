@@ -1,3 +1,4 @@
+import { domainAuth } from "./auth-fixture.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { test } from "node:test";
@@ -162,6 +163,7 @@ test("incident HTTP contracts validate bodies, errors, limits, correlation and l
     { ready: async () => true, list: async () => [] },
     (record) => logs.push(record),
     store,
+    domainAuth,
   ).listen(0, "127.0.0.1");
   await once(server, "listening");
   const address = server.address();

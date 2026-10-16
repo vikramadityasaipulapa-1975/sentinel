@@ -33,6 +33,7 @@ def local_environment(path):
                 "SENTINEL_DATABASE_TLS",
                 "SENTINEL_API_PORT",
                 "SENTINEL_DB_PORT",
+                "SENTINEL_JWT_SECRET",
             }:
                 # This dedicated file owns local demo settings, not hosted variables.
                 env[name] = value
@@ -59,6 +60,13 @@ def main():
                 f"SENTINEL_POSTGRES_PASSWORD={password}\nSENTINEL_DATABASE_URL=postgresql://sentinel_api:{password}@127.0.0.1:55434/sentinel_api\nSENTINEL_DATABASE_TLS=disable\nSENTINEL_API_PORT=3000\nSENTINEL_DB_PORT=55434\n"
             )
         print("Created ignored .env.api; credentials omitted", flush=True)
+    if not any(
+        line.startswith("SENTINEL_JWT_SECRET=")
+        for line in path.read_text(encoding="utf-8").splitlines()
+    ):
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(f"\nSENTINEL_JWT_SECRET={secrets.token_hex(32)}\n")
+        print("Added local JWT secret to ignored .env.api; value omitted", flush=True)
     env = local_environment(path)
     # Resolve first so an unavailable Docker installation cannot leave child services.
     docker = compose(env, env_file=path)

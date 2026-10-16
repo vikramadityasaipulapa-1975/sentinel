@@ -3,14 +3,18 @@ import { readConfig } from "./config.js";
 import { createPool } from "./db.js";
 import { postgresRegistry } from "./services.js";
 import { postgresIncidents } from "./incident-repository.js";
+import { createAuth, readAuthSecret } from "./auth.js";
+import { postgresUsers } from "./auth-store.js";
 
 try {
   const config = readConfig();
+  const secret = readAuthSecret();
   const pool = createPool(config);
   const server = createApp(
     postgresRegistry(pool),
     undefined,
     postgresIncidents(pool),
+    createAuth(postgresUsers(pool), secret),
   ).listen(config.port, "127.0.0.1", () => {
     console.log(
       JSON.stringify({
@@ -44,7 +48,7 @@ try {
   process.once("SIGTERM", shutdown);
 } catch {
   console.error(
-    "API configuration invalid; check SENTINEL_DATABASE_URL, TLS and port settings (values omitted)",
+    "API configuration invalid; check database, TLS, port and JWT secret settings (values omitted)",
   );
   process.exitCode = 1;
 }

@@ -1,3 +1,4 @@
+import { domainAuth } from "./auth-fixture.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { once } from "node:events";
@@ -13,6 +14,7 @@ import { seedDemoServices } from "../src/seed.js";
 import { listServices, postgresRegistry } from "../src/services.js";
 import { incidentDatabaseChecks } from "./incident-database-checks.js";
 import { postgresIncidents } from "../src/incident-repository.js";
+import { authDatabaseChecks } from "./auth-database-checks.js";
 
 test(
   "real PostgreSQL migration, constraints, API and failure boundaries",
@@ -48,7 +50,10 @@ test(
         ]);
         await seedDemoServices(pool);
         assert.equal(await postgresIncidents(pool).ready(), false);
-        assert.deepEqual(await migrate(pool), ["002_incidents.sql"]);
+        assert.deepEqual(await migrate(pool), [
+          "002_incidents.sql",
+          "003_users.sql",
+        ]);
         assert.deepEqual(await migrate(pool), []);
         assert.equal(await registry.ready(), true);
         assert.equal(await postgresIncidents(pool).ready(), true);
@@ -62,6 +67,10 @@ test(
           );
           await assert.rejects(migrate(pool, directory), /missing/);
           await writeFile(
+            join(directory, "003_users.sql"),
+            await readFile(join(migrationDirectory, "003_users.sql")),
+          );
+          await writeFile(
             join(directory, "002_incidents.sql"),
             await readFile(join(migrationDirectory, "002_incidents.sql")),
           );
@@ -72,7 +81,7 @@ test(
             await readFile(join(migrationDirectory, "001_services.sql")),
           );
           await writeFile(
-            join(directory, "003_invalid.sql"),
+            join(directory, "004_invalid.sql"),
             "CREATE TABLE sentinel_api.must_rollback (id integer); SELECT * FROM sentinel_api.does_not_exist;",
           );
           await assert.rejects(migrate(pool, directory));
@@ -90,7 +99,7 @@ test(
                 "SELECT count(*)::int AS n FROM sentinel_api.schema_migrations",
               )
             ).rows[0].n,
-            2,
+            3,
           );
         },
       );
@@ -143,7 +152,12 @@ test(
       await t.test(
         "HTTP services endpoint uses real PostgreSQL rows",
         async () => {
-          const server = createApp(registry, () => {}).listen(0, "127.0.0.1");
+          const server = createApp(
+            registry,
+            () => {},
+            undefined,
+            domainAuth,
+          ).listen(0, "127.0.0.1");
           await once(server, "listening");
           const address = server.address();
           assert.ok(address && typeof address !== "string");
@@ -166,6 +180,7 @@ test(
         },
       );
       await incidentDatabaseChecks(t, pool);
+      await authDatabaseChecks(t, pool);
     } finally {
       await pool.end();
     }

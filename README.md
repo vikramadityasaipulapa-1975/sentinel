@@ -8,7 +8,7 @@ idempotency/retries, container definitions, and local deployment version tooling
 See the progress log for separately measured native and Docker verification.
 **P2 implementation is verified:** native PostgreSQL and Docker/Compose checks
 passed, including restart persistence and container version switching/rollback.
-AI, centralized telemetry, authentication, and remediation remain future phases.
+AI, centralized telemetry and remediation remain future phases.
 
 **P3.1:** the main Sentinel API now has a PostgreSQL-backed service registry,
 explicit migrations, readiness checks and a reproducible local workflow. See the
@@ -18,7 +18,10 @@ explicit migrations, readiness checks and a reproducible local workflow. See the
 validated status transitions and transactional event history. A rejected transition
 does not change the incident or add an event.
 
-## Run the Sentinel API locally (P3.1-P3.2)
+**P3.3:** login, salted password hashing, 15-minute signed access tokens, live user
+checks and backend role permissions protect the API. No default accounts exist.
+
+## Run the Sentinel API locally (P3.1-P3.3)
 
 From `V:\sentinel\sentinel`, with Node/npm dependencies installed and Docker Desktop running:
 
@@ -28,15 +31,24 @@ From `V:\sentinel\sentinel`, with Node/npm dependencies installed and Docker Des
 
 This creates ignored `.env.api` credentials, starts a separate database on loopback
 port 55434, builds/migrates/seeds the API and listens on port 3000. Keep the terminal
-open. Visit [incidents](http://localhost:3000/api/v1/incidents),
-[registered services](http://localhost:3000/api/v1/services) or
-[readiness](http://localhost:3000/ready). This is API JSON; the dashboard and live
-event stream are later tasks. No manual setup required beyond existing prerequisites.
-The API is local and unauthenticated; public hosting is not yet configured.
+open. **Manual setup:** create your own local account in a second terminal, replacing
+the example email. Enter a unique 12-128 character password at the hidden prompts;
+do not send it in chat or include it in command arguments.
+
+```powershell
+.\.venv\Scripts\python.exe scripts/api-user.py create --email you@example.com --role ADMIN
+```
+
+Open the [login testing page](http://localhost:3000/auth-test), log in, and use its
+profile/services/incidents buttons. Direct navigation to protected JSON endpoints
+without an Authorization header now correctly returns 401. Readiness remains public
+at [localhost:3000/ready](http://localhost:3000/ready). The real dashboard and live
+stream are later tasks. Local credentials/signing secret remain in ignored .env.api;
+the application is loopback-only and public hosting is not yet configured.
 
 ```powershell
 # Isolated real-database verification, including outage and restart checks:
-.\.venv\Scripts\python.exe scripts/verify-p3.py --task P3.2
+.\.venv\Scripts\python.exe scripts/verify-p3.py --task P3.3
 ```
 
 Ctrl+C stops the API. To stop its database without deleting the volume:
@@ -57,8 +69,8 @@ docker compose --env-file .env.api -f infrastructure/compose.api.yaml down
 - [Agent contract](AGENTS.md) and [master roadmap](SENTINEL_CODEX_MASTER_PLAN.md).
 
 Implementation verification is separate from student mastery. Questions and
-independent exercises remain pending until the student completes them. P3.1/P3.2 were
-approved; P3.3 requires new approval. Payments remain simulated. Local database and
+independent exercises remain pending until the student completes them. P3.1-P3.3 were
+approved; P3.4 requires new approval. Payments remain simulated. Local database and
 deployment records are real in PostgreSQL mode. Project commits are published to
 the configured GitHub remote; no external application deployment has occurred.
 

@@ -4,7 +4,11 @@
 
 P3.1 was explained and approved by the user with "proceed" on 2026-10-16.
 P3.2 was separately explained and approved with "proceed" on 2026-10-16.
-This guide documents P3.1 and P3.2. P3.3-P3.5 remain future tasks requiring approval.
+P3.3 was separately explained and approved in the conversation. This guide documents
+P3.1-P3.3; P3.4/P3.5 remain future tasks requiring approval. **Current behavior:**
+protected API requests need a Bearer token. Earlier P3.1/P3.2 examples describe those
+milestones before authentication; use the P3.3 section for current login/run commands
+and add Authorization headers when reusing earlier API examples.
 Commits identify the exact task, starting with
 `feat(P3.1): bootstrap Sentinel API and service registry`.
 
@@ -188,7 +192,7 @@ Full isolated positive and negative verification:
 ```
 
 At the original P3.1 milestone, 24 tests passed with zero skipped. The verifier is
-now cumulative: its default task is P3.2, with 41 tests and incident restart checks.
+now cumulative: its default task is P3.3, with 58 tests and authenticated restart checks.
 Use `--task P3.1` for registry-only runtime checks (the cumulative database tests
 still run). `npm run verify:p3.1` preserves that explicit selection.
 It tests migration apply/replay, changed/missing history rejection, atomic rollback
@@ -266,8 +270,8 @@ The local helper creates random credentials in ignored `.env.api`. Never paste
 that file into chat or commit it. It owns local settings and must not be pointed
 at a hosted database. It does not replace or print P2's `.env`.
 
-The hosted system is not provisioned or publicly deployed. The API currently binds
-only to loopback and is unauthenticated. A public host/bind configuration and
+The hosted system is not provisioned or publicly deployed. At the P3.1 milestone
+the API was loopback-only and unauthenticated; P3.3 now adds authentication. A public host/bind configuration and
 authentication must be addressed before exposure; P3.3 introduces identity/roles.
 Public accessibility will not grant every user administrative permissions.
 
@@ -311,7 +315,7 @@ constraint result. Do not edit an already-applied migration to add seed data.
 constrained schema, explicit migration/seed lifecycle, verified local workflow and
 tests. Existing demo behavior is retained and checked by regression suites.
 See PROGRESS.md for exact measured runs. Student mastery remains unconfirmed.
-P3.2 is documented below. P3.3 requires the next approval checkpoint.
+P3.2 and P3.3 are documented below. P3.4 requires the next approval checkpoint.
 
 References: [pg pooling](https://node-postgres.com/features/pooling),
 [pool options](https://node-postgres.com/apis/pool),
@@ -573,8 +577,8 @@ migration job before rolling out the new API. Keep the database durable, preserv
 backups, and verify readiness after rollout. Existing verified-TLS database settings
 remain applicable. Hosted provisioning/deployment has not occurred.
 
-The API remains loopback-only and unauthenticated. P3.3 adds login/roles before public
-exposure. P3.5 adds real-time progress streaming backed by persisted events; the
+At the P3.2 milestone the API was loopback-only and unauthenticated. P3.3 below adds
+login/roles; the listener still remains loopback-only. P3.5 adds real-time progress streaming backed by persisted events; the
 current browser displays JSON snapshots and requires refresh to fetch changes.
 
 ## P3.2 Understanding check
@@ -596,7 +600,314 @@ forbidden transition and explain why it left history unchanged.
 `feat(P3.2): add incidents and transactional event history` implements the approved
 REST contracts, state machine, durable history and pagination with positive/negative
 tests. The localhost demo is separate from isolated test data. See PROGRESS.md for
-measured evidence. Student comprehension/exercise remains pending. P3.3 requires
-a separate explanation and approval before implementation.
+measured evidence. Student comprehension/exercise remains pending. P3.3 is below;
+P3.4 requires a separate explanation and approval before implementation.
 
 Reference: [PostgreSQL row locking](https://www.postgresql.org/docs/17/explicit-locking.html).
+
+## P3.3 Concept
+
+Authentication identifies the caller; authorization checks what that caller may do.
+The backend enforces both. Hiding a button is not authorization: a caller can send
+HTTP directly without using the page. A viewer must receive 403 for incident writes
+even when manually constructing the request.
+
+A password hash is a one-way derivation, not reversible encryption. Each account
+gets a random salt so equal passwords produce different stored values. Scrypt adds
+deliberate CPU and memory cost, making guessing against stolen hashes more expensive.
+We use Node's asynchronous built-in implementation: N=131072, r=8, p=1, 16-byte salt,
+32-byte derived key. The version/parameters, salt and derived key are stored together.
+Only those fixed parameters are accepted during verification; stored text cannot
+request an arbitrary amount of computation.
+
+Scrypt is a dependency-free option in our Node runtime; Argon2id is a common
+alternative. The selected scrypt parameters follow OWASP guidance. Each derivation
+needs roughly 128 MiB; the API allows at most two at once (roughly 256 MiB plus runtime
+overhead), with no unbounded waiting queue. Extra work gets controlled 503 AUTH_BUSY.
+The callback form lets the event loop serve other requests while hashing runs.
+
+A JWT is a signed, readable set of claims. The server signs it with an environment
+secret; the browser must never receive that signing secret. Our HS256 tokens identify
+a user UUID and token version, with issuer, audience, issued/expiry times and a unique
+token ID. They expire after 15 minutes, with up to five seconds of clock tolerance.
+They contain neither passwords nor password hashes; roles are read fresh from the DB.
+
+JWTs avoid per-token session records but complicate revocation. Here every protected
+request reloads the account and compares token_version. Disabling/enabling or resetting
+a password increments that version, invalidating older tokens. Role changes are seen
+on the next authentication check. Already-authorized in-flight requests may finish;
+future privileged action execution must recheck authorization when it executes.
+
+## P3.3 Architecture/data flow
+
+```mermaid
+flowchart TD
+  L[POST login: email and password] --> V[Validate bounded input]
+  V --> R[Atomic shared account/IP rate counters]
+  R --> U[Load user or dummy hash]
+  U --> H[Async scrypt and constant-time key comparison]
+  H --> C[Recheck current enabled account and token version]
+  C --> J[Sign 15-minute JWT]
+  B[Protected request with Bearer token] --> S[Verify signature, algorithm and required claims]
+  S --> D[Load current user from PostgreSQL]
+  D --> P[Check enabled/version/permission]
+  P --> F[Existing service or incident operation]
+```
+
+Unknown valid email, wrong password and disabled account return the same generic 401. Unknown accounts still perform a normal-cost dummy verification to reduce
+obvious timing differences. This is not a claim of identical end-to-end timing.
+Before issuing a token, login reloads the account after hashing to reject a password
+reset that happened while hashing was in progress.
+
+The JWT verifier accepts only HS256, JWT type, our issuer/audience, required claims
+and a bounded lifetime. It rejects malformed/oversized Authorization headers,
+incorrect signatures, expired tokens and token-version mismatches. Tokens in URL
+queries or cookies are not accepted. Database unavailability returns 503 instead of
+letting callers bypass identity checks.
+
+### Roles and API changes
+
+| Role     | Read services/incidents/events | Create/change incidents | Reserved action approval permission |
+| -------- | ------------------------------ | ----------------------- | ----------------------------------- |
+| VIEWER   | Yes                            | No                      | No                                  |
+| OPERATOR | Yes                            | Yes                     | No                                  |
+| ADMIN    | Yes                            | Yes                     | Yes                                 |
+
+Approval/remediation endpoints are not implemented. The reserved approval guard is
+tested on the backend; it is not an executable action route.
+
+| Endpoint                           | Behavior                                                                                                                                        |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| POST /api/v1/auth/login            | application/json with exactly email/password; 200 token/profile, generic 401 credentials error, 422 fields, 429 throttled, 503 unavailable/busy |
+| GET /api/v1/auth/me                | Requires Bearer token; returns id/email/current role only                                                                                       |
+| Existing services/incidents/events | Authentication required; incident POST/PATCH additionally require write permission                                                              |
+| GET /health, /ready                | Remain public with no account or database details                                                                                               |
+| GET /auth-test and its two assets  | Public local testing surface; protected fetches still require login                                                                             |
+
+`401` means valid authentication was not provided. `403` means an authenticated
+caller lacks permission. Error bodies preserve the existing request-ID contract.
+Unknown paths under the protected API prefix may return 401 before route lookup;
+an unknown public path still returns 404.
+
+### Shared login throttling
+
+PostgreSQL stores fixed-window counters: at most 10 attempts per normalized email
+and 30 per direct peer IP over 15 minutes, counting successful and failed logins.
+Account/IP keys are HMAC-SHA256 values, not plaintext emails/IPs. Counter increments
+are atomic and rows are acquired in consistent order. Different API instances using
+the same DB and signing secret share these limits; restarting Node does not clear them.
+
+Expired rows older than one day are removed in batches of at most 100 on subsequent
+logins. There is no scheduled deletion deadline while the application is idle.
+The limiter fails closed when its database is unavailable. It intentionally ignores
+X-Forwarded-For: untrusted callers must not choose their own IP bucket.
+
+These are initial controls, not complete internet abuse protection. An attacker can
+temporarily consume an email's allowance; users behind the same proxy share an IP
+allowance. Public deployment needs provider-specific trusted-proxy/edge rate-limit
+configuration, HTTPS and capacity decisions before exposure.
+
+## P3.3 File plan and approval checkpoint
+
+The concept, role policy, hashing/token choices, tests, localhost testing page and
+manual hidden-password setup were explained and approved before coding.
+
+| File                                                      | Implementation/walkthrough                                                                                                                                                                  |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api/database/migrations/003_users.sql`              | Users with normalized unique email, password hash, role, enabled flag, token version/timestamps; shared login-limit table and cleanup index                                                 |
+| `apps/api/src/passwords.ts`                               | `hashPassword(password)` returns salted encoded hash; `verifyPassword(password,encoded)` derives and compares 32-byte keys using timingSafeEqual; fixed work parameters and two-job ceiling |
+| `apps/api/src/auth.ts`                                    | Types, bounded login parsing, secret validation, safe profiles, `createAuth(store,secret)` login/token verification, permission matrix and Express authentication/authorization middleware  |
+| `apps/api/src/auth-store.ts`                              | Parameterized user lookup and atomic rate counters; explicit `createUser` and `manageUser` for create/password/role/enable/disable operations                                               |
+| `apps/api/src/user-cli.ts`                                | Bounded JSON on stdin, loopback development DB guard, no password command argument or output; calls account-management functions                                                            |
+| `apps/api/src/app.ts`                                     | Login before protected prefix, public test page/assets, authenticated profile and route guards; safe auth errors and readiness including auth tables                                        |
+| `apps/api/src/server.ts`                                  | Requires valid signing secret before listening and always supplies real PostgreSQL auth; no runtime auth-disable switch                                                                     |
+| `apps/api/public/auth-test.html`, `.js`, `.css`           | Minimal login/profile/read/write testing page, safe textContent output, memory-only token and external scripts/styles under restrictive CSP                                                 |
+| `scripts/api-user.py`                                     | Hidden password/confirmation through getpass in an interactive terminal, then JSON over child stdin; refuses noninteractive password entry rather than echoing it                           |
+| `scripts/api-local.py`                                    | Adds a missing random signing secret to ignored .env.api while preserving existing settings, then migrates before startup; does not create accounts                                         |
+| `apps/api/test/auth.test.ts`, `auth-database-checks.ts`   | Password/JWT/role/HTTP unit cases and real users, counters, permissions, resets and disable/enable integration checks                                                                       |
+| `apps/api/test/auth-fixture.ts` and existing domain tests | Explicit fake ADMIN identity isolates old registry/incident rule tests; real auth tests remain separate                                                                                     |
+| `scripts/verify-p3.py`                                    | Cumulative suite, temporary explicit CLI-created test operator, authenticated runtime/restarts/outage checks and P3.3 report                                                                |
+| manifests/lockfile, .env.example, README/progress/guide   | Pinned jose 6.2.12, scripts/asset formatting, fake secret placeholder and full operational/learning reference                                                                               |
+
+`createAuth.login(email,password,ip)` checks shared limits, obtains a stored/dummy
+hash, awaits derivation, checks enabled/version, and returns token_type/expires_in/
+access_token/user. The raw token is returned only to the login client.
+`authenticate(header)` verifies claims before any user lookup, then returns a safe
+profile. `authenticated` places that profile in response.locals; `requirePermission`
+checks it before calling existing handlers. Missing auth dependencies deny protected
+requests; the normal server has no environment bypass.
+
+Account operations are explicit administrative CLI actions, not public registration.
+Create has no default role or password. Role change keeps token_version unchanged
+because the next request reads the role; password reset/disable/enable increment it.
+Email normalization trims and lowercases. Passwords are never trimmed or normalized:
+their exact characters matter. New passwords must be 12-128 characters, at most
+512 UTF-8 bytes; there are no forced symbol/capital rules or silent truncation.
+
+The testing page holds the token only in its JS variable, clears the password field
+after login attempts, and does not display/store tokens in the response panel,
+localStorage, sessionStorage, cookies or URLs. Reload requires login again. Forget
+token clears only that page's copy; it is not server-side revocation of stolen copies.
+Both passwords and tokens must be protected by HTTPS in a hosted deployment.
+
+## P3.3 Run/test and manual account setup
+
+From `V:\sentinel\sentinel`, install locked dependencies if needed and start:
+
+```powershell
+npm ci --no-audit --no-fund
+.\.venv\Scripts\python.exe scripts/api-local.py
+```
+
+Expected first upgrade: a missing JWT secret is generated in ignored .env.api;
+migration 003 applies; existing services/incidents remain; API listens on port 3000.
+The helper creates **no default user**. Stop an existing owned API before restarting;
+the helper refuses an occupied API port rather than terminating another process.
+
+**Manual step required:** in your own second interactive PowerShell terminal, choose
+an email and password. Replace the example email; no email is sent by this local tool.
+
+```powershell
+Set-Location V:\sentinel\sentinel
+.\.venv\Scripts\python.exe scripts/api-user.py create --email you@example.com --role ADMIN
+```
+
+Enter a unique 12-128-character password twice at hidden prompts. Do not put it in
+arguments, chat, screenshots or a committed file. Expected output:
+`Local account operation completed; credentials omitted`. Repeating create for the
+same normalized email fails safely; it does not reset that account.
+
+Open http://localhost:3000/auth-test, enter your account, and log in. Use My profile,
+Services and Incidents. Expected: login HTTP 200, a safe profile, then real database
+responses. The page is a testing aid, not the P9 dashboard. Direct navigation to
+/api/v1/incidents cannot attach the page's memory token, so it still returns 401;
+use the page's button or an authenticated HTTP client.
+
+Positive/negative role exercise commands (password entry remains hidden):
+
+```powershell
+.\.venv\Scripts\python.exe scripts/api-user.py create --email viewer@example.com --role VIEWER
+.\.venv\Scripts\python.exe scripts/api-user.py create --email operator@example.com --role OPERATOR
+```
+
+Log in as viewer, read Incidents (200), then submit the page's incident form (403).
+Log in as operator and submit a labelled demo incident for an existing service UUID
+(201). This creates actual local demo data. A valid role never bypasses P3.2's
+transition/validation rules.
+
+Account maintenance commands, run only intentionally for your chosen local account:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/api-user.py password --email you@example.com
+.\.venv\Scripts\python.exe scripts/api-user.py role --email viewer@example.com --role OPERATOR
+.\.venv\Scripts\python.exe scripts/api-user.py disable --email viewer@example.com
+.\.venv\Scripts\python.exe scripts/api-user.py enable --email viewer@example.com
+```
+
+Password action prompts twice, changes the hash and revokes older tokens. Disable
+blocks login/current tokens; enable does not resurrect old tokens. User-management
+CLI is limited to explicit loopback development databases. Hosted account bootstrap
+must be a separately approved administrative procedure; this script will not target
+a remote URL silently.
+
+Full independent verification (does not require or use your personal account):
+
+```powershell
+.\.venv\Scripts\python.exe scripts/verify-p3.py --task P3.3
+# Or npm run verify:p3.3
+```
+
+Expected: 58 tests pass, none failed/skipped, then PASS: P3.3. Temporary random
+passwords, signing key and users belong only to a uniquely named verification DB;
+they are not default development credentials. The verifier also exercises the
+account CLI through stdin, signs in, checks protected HTTP, restarts its own API/DB,
+and confirms the original token and incident/history still work afterward.
+During DB outage protected reads/writes fail with AUTH_UNAVAILABLE 503; health stays
+200 and readiness 503. It removes owned test containers/network and retains the volume.
+
+`npm test` includes fast auth tests but skips the dedicated DB suite without the
+verifier's explicit TEST_API_DATABASE_URL. Fake-auth domain tests do not establish
+authentication correctness; that comes from JWT-specific and real-user integration
+tests. Actual tests include salted hashing, two-job ceiling, tampering, expiry,
+wrong issuer/audience/algorithm/type, missing claims, password reset race, invalidated
+versions, safe profiles, role guards, shared atomic counters and expiry.
+
+Browser inspection confirmed the form and a real unauthenticated Services fetch
+returning 401. Your personal account and successful browser login are pending manual
+setup; automated real login/role checks passed on the isolated backend. The hidden
+interactive prompt itself was not populated by Codex.
+
+## P3.3 Debug
+
+- API will not start: check valid database/TLS settings and a 64-hex-character
+  SENTINEL_JWT_SECRET. api-local.py creates a missing local secret; it does not
+  silently replace an invalid existing one. Never print the file to debug it.
+- Login 401: check normalized email, exact password, enabled state and that the
+  account was created in this local database. The generic message intentionally
+  does not distinguish an unknown email from a wrong password.
+- Protected 401 after reload: the token was memory-only. Log in again. For API
+  tools, send Authorization: Bearer token; never put it in the URL.
+- 403: authentication succeeded, but the database role lacks the required permission.
+  Inspect My profile instead of changing UI code or trusting a claimed JWT role.
+- 429: wait for the 15-minute counter window; restarting Node does not reset it.
+  Account/IP limits include successful attempts. Do not delete counters to claim a
+  production control works; tests expire only isolated test records intentionally.
+- AUTH_BUSY 503: two memory-intensive derivations are already active; retry shortly.
+  AUTH_UNAVAILABLE 503: check DB/schema health. Neither case authorizes a fallback.
+- Password prompt refuses automation: run api-user.py in your own interactive
+  terminal. It refuses to fall back to visible password input.
+- Existing token stops working after password reset/disable/key rotation: expected.
+  Sign in again after the account is enabled and valid credentials are available.
+
+## P3.3 Hosted integration and remaining manual work
+
+Local manual account creation is still required; there is no default account or
+public signup. The existing helper handles local secret generation and schema
+upgrade. No hosted resource was provisioned or externally deployed.
+
+Before public hosting, the user/provider setup must include:
+
+1. Run migration 003 using the approved migration identity, preserving prior data.
+2. Generate one cryptographically random 32-byte secret encoded as 64 hex characters;
+   configure SENTINEL_JWT_SECRET in the provider's secret manager for every API
+   instance. Do not expose it to the browser/AI engine or commit it. Planned rotation
+   changes the secret on all instances and invalidates older tokens.
+3. Use the existing verified-TLS PostgreSQL configuration. Runtime identity needs
+   scoped user reads and rate-counter access in addition to application tables;
+   user creation/reset should remain administrative, not publicly exposed.
+4. Bootstrap the initial administrator through an explicitly approved hosted admin
+   procedure. The provided local CLI deliberately refuses remote databases.
+5. Configure HTTPS, a deliberate public bind/ingress, trusted proxy handling and
+   edge abuse controls. The current API still binds only to loopback.
+6. Choose host memory/connection capacity for up to two roughly 128 MiB scrypt jobs
+   per API process plus runtime overhead. Cost/provider choice remains unselected.
+
+There is no MFA, email verification, self-service password recovery, refresh-token
+flow or per-token logout revocation in P3.3. API access checks do not make this a
+finished public deployment. P3.4 introduces the queue/worker; P3.5 must account for
+authentication and expiry on long-lived event streams.
+
+## P3.3 Understanding check
+
+1. What is stored with a password hash, and why do equal passwords have different
+   stored hashes? Why does the API limit simultaneous derivations?
+2. Why does verifying a signed JWT still require a database lookup and permission
+   check? Explain password reset versus a role change for an existing token.
+3. Explain 401, 403, 429 and 503 using the login/testing page. Why does forgetting
+   the token in one tab not revoke a copy held elsewhere?
+
+Independent exercise: create a VIEWER, confirm read success and write refusal, then
+change its role intentionally and inspect how its existing token behaves. Record
+the results without saving passwords/tokens in your learning notes. Student
+completion has not been claimed.
+
+## P3.3 Commit summary
+
+`feat(P3.3): add login and role-based API authorization` adds the approved auth layer,
+local account lifecycle, shared login limits, safe localhost testing page and tests.
+Measured evidence is in PROGRESS.md. Local personal account setup remains pending.
+P3.4 needs a new concept/design explanation and approval.
+
+References: [OWASP password storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html),
+[Node crypto](https://nodejs.org/docs/latest-v24.x/api/crypto.html),
+[jose documentation](https://github.com/panva/jose).

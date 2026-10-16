@@ -1,4 +1,4 @@
-"""Cumulative API/database tests and task-specific P3.1/P3.2 runtime checks."""
+"""Cumulative API/database tests and task-specific P3.1/P3.2/P3.3 runtime checks."""
 
 import argparse
 import hashlib
@@ -51,27 +51,38 @@ def stop(child):
             child.wait(timeout=5)
 
 
-def incident_request(port, path, method="GET", body=None):
-    request = Request(
-        f"http://127.0.0.1:{port}/api/v1/incidents{path}",
-        data=json.dumps(body).encode() if body is not None else None,
-        headers={"content-type": "application/json"},
-        method=method,
-    )
-    try:
-        response = urlopen(request, timeout=10)
-    except HTTPError as error:
-        response = error
-    with response:
-        payload = response.read(65537)
-        if len(payload) > 65536:
-            raise ValueError("Incident response exceeded verifier limit")
-        return response.status, json.loads(payload)
+class ApiClient:
+    def __init__(self, port):
+        self.port = port
+        self.token = None
+
+    def request(self, path, method="GET", body=None):
+        headers = {"content-type": "application/json"}
+        if self.token:
+            headers["authorization"] = "Bearer " + self.token
+        request = Request(
+            f"http://127.0.0.1:{self.port}{path}",
+            data=json.dumps(body).encode() if body is not None else None,
+            headers=headers,
+            method=method,
+        )
+        try:
+            response = urlopen(request, timeout=10)
+        except HTTPError as error:
+            response = error
+        with response:
+            payload = response.read(65537)
+            if len(payload) > 65536:
+                raise ValueError("API response exceeded verifier limit")
+            return response.status, json.loads(payload)
+
+    def incident(self, path, method="GET", body=None):
+        return self.request("/api/v1/incidents" + path, method, body)
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--task", choices=["P3.1", "P3.2"], default="P3.2")
+    parser.add_argument("--task", choices=["P3.1", "P3.2", "P3.3"], default="P3.3")
     task = parser.parse_args().task
     artifacts = ROOT / ".artifacts"
     artifacts.mkdir(exist_ok=True)
@@ -109,6 +120,7 @@ def main():
             SENTINEL_DATABASE_URL=url,
             SENTINEL_DATABASE_TLS="disable",
             SENTINEL_API_PORT=str(api_port),
+            SENTINEL_JWT_SECRET=secrets.token_hex(32),
             TEST_API_DATABASE_URL=url,
         )
         env.pop("SENTINEL_DATABASE_CA", None)
@@ -135,6 +147,7 @@ def main():
         paths = (
             list((ROOT / "apps/api/src").glob("*.ts"))
             + list((ROOT / "apps/api/database").rglob("*.sql"))
+            + list((ROOT / "apps/api/public").glob("*"))
             + [ROOT / "package-lock.json"]
         )
         for path in sorted(paths):
@@ -145,6 +158,24 @@ def main():
                 + b"\0"
             )
         report["runtime_source_sha256"] = digest.hexdigest()
+        account_password = secrets.token_urlsafe(24)
+        subprocess.run(
+            [node, "apps/api/dist/src/user-cli.js"],
+            cwd=ROOT,
+            env=env,
+            input=json.dumps(
+                {
+                    "action": "create",
+                    "email": "runtime-operator@example.test",
+                    "password": account_password,
+                    "role": "OPERATOR",
+                }
+            ),
+            text=True,
+            check=True,
+            timeout=30,
+        )
+        report["explicit_cli_test_account"] = True
         with (directory / "api.log").open("w", encoding="utf-8") as log:
 
             def launch():
@@ -158,12 +189,24 @@ def main():
 
             child = launch()
             ready(api_port, child)
-            status, original = http(api_port, "/api/v1/services")
+            client = ApiClient(api_port)
+            assert client.request("/api/v1/services")[0] == 401
+            status, login = client.request(
+                "/api/v1/auth/login",
+                "POST",
+                {
+                    "email": "runtime-operator@example.test",
+                    "password": account_password,
+                },
+            )
+            assert status == 200 and login["user"]["role"] == "OPERATOR"
+            client.token = login["access_token"]
+            report["authenticated_runtime"] = True
+            status, original = client.request("/api/v1/services")
             assert status == 200 and len(original["services"]) == 2
             incident = history = None
-            if task == "P3.2":
-                status, incident = incident_request(
-                    api_port,
+            if task in {"P3.2", "P3.3"}:
+                status, incident = client.incident(
                     "",
                     "POST",
                     {
@@ -173,49 +216,40 @@ def main():
                     },
                 )
                 assert status == 201 and incident["status"] == "OPEN"
-                status, incident = incident_request(
-                    api_port, f"/{incident['id']}", "PATCH", {"status": "INVESTIGATING"}
+                status, incident = client.incident(
+                    f"/{incident['id']}", "PATCH", {"status": "INVESTIGATING"}
                 )
                 assert status == 200 and incident["status"] == "INVESTIGATING"
-                status, history = incident_request(
-                    api_port, f"/{incident['id']}/events"
-                )
+                status, history = client.incident(f"/{incident['id']}/events")
                 assert status == 200 and len(history["events"]) == 2
                 assert (
-                    incident_request(
-                        api_port, f"/{incident['id']}", "PATCH", {"status": "CLOSED"}
+                    client.incident(
+                        f"/{incident['id']}", "PATCH", {"status": "CLOSED"}
                     )[0]
                     == 409
                 )
-                assert (
-                    incident_request(api_port, f"/{incident['id']}/events")[1]
-                    == history
-                )
+                assert client.incident(f"/{incident['id']}/events")[1] == history
                 report["incident_http_contracts"] = True
             stop(child)
             child = launch()
             ready(api_port, child)
-            assert http(api_port, "/api/v1/services")[1] == original
+            assert client.request("/api/v1/services")[1] == original
             if incident:
-                assert incident_request(api_port, f"/{incident['id']}")[1] == incident
-                assert (
-                    incident_request(api_port, f"/{incident['id']}/events")[1]
-                    == history
-                )
+                assert client.incident(f"/{incident['id']}")[1] == incident
+                assert client.incident(f"/{incident['id']}/events")[1] == history
                 report["incident_api_restart_persistence"] = True
             report["api_restart_persistence"] = True
             run(command + ["stop", "api-db"], env)
             assert http(api_port, "/health")[0] == 200
             assert http(api_port, "/ready")[0] == 503
-            status, body = http(api_port, "/api/v1/services")
-            assert status == 503 and body["error"]["code"] == "DATABASE_UNAVAILABLE"
+            status, body = client.request("/api/v1/services")
+            assert status == 503 and body["error"]["code"] == "AUTH_UNAVAILABLE"
             assert password not in json.dumps(body)
             if incident:
-                assert incident_request(api_port, "")[0] == 503
-                assert incident_request(api_port, f"/{incident['id']}/events")[0] == 503
+                assert client.incident("")[0] == 503
+                assert client.incident(f"/{incident['id']}/events")[0] == 503
                 assert (
-                    incident_request(
-                        api_port,
+                    client.incident(
                         f"/{incident['id']}",
                         "PATCH",
                         {"status": "MITIGATING"},
@@ -229,17 +263,19 @@ def main():
                 120,
             )
             ready(api_port, child)
-            assert http(api_port, "/api/v1/services")[1] == original
+            assert client.request("/api/v1/services")[1] == original
             if incident:
-                assert incident_request(api_port, f"/{incident['id']}")[1] == incident
-                assert (
-                    incident_request(api_port, f"/{incident['id']}/events")[1]
-                    == history
-                )
+                assert client.incident(f"/{incident['id']}")[1] == incident
+                assert client.incident(f"/{incident['id']}/events")[1] == history
                 report["incident_database_restart_persistence"] = True
                 report["event_history_replay"] = True
             report["database_restart_persistence"] = True
             assert http(api_port, "/unknown")[0] == 404
+            if task == "P3.3":
+                report["token_survived_restart"] = (
+                    client.request("/api/v1/auth/me")[0] == 200
+                )
+                assert report["token_survived_restart"]
             report["status"] = "PASSED"
     except Exception as error:
         report.update(status="FAILED", error_type=type(error).__name__)

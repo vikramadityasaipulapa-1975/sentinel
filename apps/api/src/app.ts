@@ -1,5 +1,13 @@
 import express from "express";
 import { randomUUID } from "node:crypto";
+import { fileURLToPath } from "node:url";
+import {
+  authenticated,
+  AuthError,
+  parseLogin,
+  requirePermission,
+  type AuthService,
+} from "./auth.js";
 import { incidentRoutes } from "./incident-routes.js";
 import { IncidentError, type IncidentStore } from "./incidents.js";
 import {
@@ -15,6 +23,7 @@ export function createApp(
   registry: Registry,
   log: LogSink = (record) => console.log(JSON.stringify(record)),
   incidents?: IncidentStore,
+  auth?: AuthService,
 ) {
   const app = express();
   app.disable("x-powered-by");
@@ -46,7 +55,15 @@ export function createApp(
                   request.route?.path,
                 )
               ? request.route.path
-              : "unmatched",
+              : [
+                    "/api/v1/auth/login",
+                    "/api/v1/auth/me",
+                    "/auth-test",
+                    "/auth-test.js",
+                    "/auth-test.css",
+                  ].includes(request.route?.path)
+                ? request.route.path
+                : "unmatched",
         duration_ms: Math.round((performance.now() - started) * 100) / 100,
       }),
     );
@@ -59,7 +76,9 @@ export function createApp(
     let ready = false;
     try {
       ready =
-        (await registry.ready()) && (!incidents || (await incidents.ready()));
+        (await registry.ready()) &&
+        (!incidents || (await incidents.ready())) &&
+        (!auth || (await auth.ready()));
     } catch {
       /* Dependency details stay private. */
     }
@@ -75,12 +94,69 @@ export function createApp(
     }
     response.json({ status: "ready", service: "sentinel-api" });
   });
-  app.get("/api/v1/services", async (_request, response) => {
-    response.json({ services: await listServices(registry) });
-  });
+  const publicDirectory = fileURLToPath(
+    new URL("../../public/", import.meta.url),
+  );
+  for (const [route, filename] of [
+    ["/auth-test", "auth-test.html"],
+    ["/auth-test.js", "auth-test.js"],
+    ["/auth-test.css", "auth-test.css"],
+  ]) {
+    app.get(route, (_request, response) => {
+      response.set(
+        "content-security-policy",
+        "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+      );
+      response.set("referrer-policy", "no-referrer");
+      response.sendFile(filename, { root: publicDirectory });
+    });
+  }
+  app.post(
+    "/api/v1/auth/login",
+    express.json({ limit: "8kb" }),
+    async (request, response) => {
+      if (!request.is("application/json"))
+        throw new AuthError(
+          415,
+          "UNSUPPORTED_MEDIA_TYPE",
+          "Use application/json",
+        );
+      const input = parseLogin(request.body);
+      if (!auth)
+        throw new AuthError(
+          503,
+          "AUTH_UNAVAILABLE",
+          "Authentication unavailable",
+        );
+      response.json(
+        await auth.login(
+          input.email,
+          input.password,
+          request.socket.remoteAddress ?? "unknown",
+        ),
+      );
+    },
+  );
+  app.use("/api/v1", authenticated(auth));
+  app.get("/api/v1/auth/me", (_request, response) =>
+    response.json({ user: response.locals.user }),
+  );
+  app.get(
+    "/api/v1/services",
+    requirePermission("READ"),
+    async (_request, response) => {
+      response.json({ services: await listServices(registry) });
+    },
+  );
   if (incidents) {
     app.use(
       "/api/v1/incidents",
+      (request, response, next) =>
+        requirePermission(
+          ["POST", "PATCH"].includes(request.method)
+            ? "WRITE_INCIDENT"
+            : "READ",
+        )(request, response, next),
       express.json({ limit: "8kb" }),
       incidentRoutes(incidents),
     );
@@ -100,7 +176,8 @@ export function createApp(
     let status: number | undefined;
     let code: string | undefined;
     let message: string | undefined;
-    if (error instanceof IncidentError) ({ status, code, message } = error);
+    if (error instanceof IncidentError || error instanceof AuthError)
+      ({ status, code, message } = error);
     else if (error && typeof error === "object" && "type" in error) {
       if (error.type === "entity.parse.failed") {
         status = 400;
@@ -114,6 +191,8 @@ export function createApp(
       }
     }
     if (status) {
+      if (status === 401) response.set("www-authenticate", "Bearer");
+      if (code === "AUTH_BUSY") response.set("retry-after", "1");
       response.status(status).json({
         error: { code, message },
         request_id: response.locals.requestId,

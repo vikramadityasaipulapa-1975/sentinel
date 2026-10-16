@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sentinel API login test</title>
+    <link rel="stylesheet" href="/auth-test.css" />
+    <script src="/auth-test.js" defer></script>
+  </head>
+  <body>
+    <main>
+      <h1>Sentinel API login test</h1>
+      <p>
+        This local testing page connects to the real backend. Create your
+        account through the documented terminal command first. There are no
+        default credentials.
+      </p>
+      <form id="login">
+        <label
+          >Email
+          <input
+            id="email"
+            type="email"
+            autocomplete="username"
+            required
+            maxlength="254" /></label
+        ><label
+          >Password
+          <input
+            id="password"
+            type="password"
+            autocomplete="current-password"
+            required
+            maxlength="128" /></label
+        ><button type="submit">Log in</button>
+      </form>
+      <p id="session" role="status">
+        Not signed in. Tokens stay in this page's memory and disappear on
+        reload.
+      </p>
+      <div id="actions">
+        <button type="button" data-path="/api/v1/auth/me">My profile</button
+        ><button type="button" data-path="/api/v1/services">Services</button
+        ><button type="button" data-path="/api/v1/incidents">Incidents</button
+        ><button id="logout" type="button">Forget token</button>
+      </div>
+      <h2>Test incident write permission</h2>
+      <p>
+        A successful submission creates real demo data. A viewer should receive
+        403.
+      </p>
+      <form id="incident">
+        <label
+          >Service UUID <input id="service" required maxlength="36" /></label
+        ><label
+          >Demo incident title
+          <input
+            id="title"
+            value="DEMO: permission check"
+            required
+            maxlength="200" /></label
+        ><button type="submit">Create HIGH severity incident</button>
+      </form>
+      <h2>Backend response</h2>
+      <pre id="result" aria-live="polite">
+Log in to inspect protected API responses.</pre>
+      <p>
+        The dashboard and live streaming are later phases. This page does not
+        save tokens in cookies or browser storage. Forgetting the token here
+        does not revoke copies elsewhere; password reset or account disable
+        invalidates them.
+      </p>
+    </main>
+  </body>
+</html>

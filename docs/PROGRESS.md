@@ -1,8 +1,8 @@
 # Sentinel progress
 
-Current phase/task: P3.2, implementation verification complete
-Status: P3.2 INCIDENT/EVENT API AND DATABASE VERIFIED; P3.3 not approved
-Last fully accepted software phase: P2; P3.1/P3.2 tasks verified; learner checkpoints remain open
+Current phase/task: P3.3, software verification complete; personal local account setup pending
+Status: P3.3 AUTH/API/DATABASE VERIFIED; P3.4 not approved
+Last fully accepted software phase: P2; P3.1-P3.3 software tasks verified; learner checkpoints remain open
 Last completed learner checkpoint: none confirmed
 
 ## P1.1 task record
@@ -659,3 +659,135 @@ or live browser stream. POST creation retry deduplication is not implemented.
 Commit: find with git log --grep="feat(P3.2): add incidents and transactional event history".
 Commit/push uses the configured account as sole author without co-author trailers.
 P3.3 remains unimplemented and requires its own explanation and approval.
+
+## P3.3: login, password hashing, JWT and role permissions
+
+### Concept, architecture/data flow and approval checkpoint
+
+The task-specific concept/design was explained before coding and approved by the
+user's "continue". Work continued across 2026-10-16/17 (Asia/Calcutta). Scope includes
+an explicit local account lifecycle and testing surface, not public signup, hosted
+deployment or remediation. P3.4 remains unapproved.
+
+Login -> bounded validation -> shared PostgreSQL rate counters -> stored/dummy
+password verification -> current-user recheck -> signed token. Protected request
+-> signature/claim validation -> current account lookup -> backend permission check
+-> existing service/incident operation. No UI-only authorization or runtime bypass.
+
+### File plan, implementation and walkthrough
+
+- Added migration 003_users.sql: unique normalized email, salted password hash,
+  VIEWER/OPERATOR/ADMIN role, enabled flag, token version and timestamps. Login-limit
+  rows use HMAC keys and indexed time windows. Prior applied migrations were unchanged.
+- passwords.ts uses async Node scrypt N=131072/r=8/p=1, random 16-byte salt and
+  32-byte derived key. Two concurrent derivations maximum, no unbounded queue,
+  constant-time equal-length comparison and bounded password/encoded-hash inputs.
+- auth.ts provides exact login parsing, required 32-byte hex environment secret,
+  HS256 JWT signing/verification, safe profiles, current-user/token-version checks,
+  permission matrix and Express guards. Tokens last 900 seconds with five-second
+  tolerance; password/disable/enable invalidate older versions. Roles are reloaded.
+- auth-store.ts owns parameterized user lookups and atomic 15-minute counters
+  (10 attempts/email, 30/direct peer IP), shared across instances. It supports
+  explicit user creation, password reset, role change and disable/enable operations.
+- app.ts mounts login before the authenticated API prefix, protects reads and
+  incident writes, adds /auth/me and public static testing page with restrictive
+  CSP. server.ts requires a valid signing secret before listening and supplies real
+  PostgreSQL auth. Protected requests fail closed when authentication is unavailable.
+- user-cli.ts accepts bounded JSON on stdin and targets only explicit local demo
+  databases. api-user.py prompts for passwords twice without echo, never through
+  arguments/chat. No default account/password or public registration endpoint exists.
+- api-local.py adds a missing random secret to ignored .env.api without replacing
+  existing credentials, applies migration 003, and starts the loopback API.
+- auth-test.html/.js/.css provide login/profile/services/incidents and permission
+  testing. Tokens stay in memory and are omitted from the display panel; password
+  input clears after attempts. No token is stored in URLs, cookies or browser storage.
+- Added auth unit/integration tests and an explicitly named fake auth fixture for
+  earlier domain tests. These fixtures do not enter the running server.
+- Extended verify-p3.py with explicit test-account bootstrap, authenticated requests,
+  P3.3 reports and authenticated restart/outage checks. Added jose 6.2.12 with a
+  pinned lockfile, verify:p3.3 and public asset formatting coverage.
+- Updated .env.example, README and the full learning guide with local/manual and
+  future hosted setup, exact commands, limitations, debug and understanding work.
+
+### Run/test: measured evidence
+
+Runs occurred on 2026-10-17 in Asia/Calcutta; raw report times below are UTC.
+
+```powershell
+.\.venv\Scripts\python.exe scripts/verify-p3.py --task P3.3
+.\.venv\Scripts\python.exe scripts/verify-p1.py
+.\.venv\Scripts\python.exe scripts/verify-p2.py --backend compose
+```
+
+- P3.3 run_at 2026-10-16T18:36:45.088662+00:00: PASSED. 58 API tests passed,
+  zero failed/skipped, including real PostgreSQL user/login/role/reset/disable and
+  atomic shared-counter tests. Project sentinel-p3-3-8cc23b93; report
+  .artifacts/p3-3-verification.json.
+- Covered salted password hashes, fixed parameter/input bounds, two-job work ceiling,
+  unknown/wrong/disabled generic login errors and the password-reset race. JWT
+  negatives include wrong secret, algorithm/type, issuer/audience, expiry, missing
+  claims, malformed headers and stale token versions. JWT roles do not grant access.
+- Real viewer reads returned 200 and incident writes 403; operator writes/transitions
+  succeeded. Role changes affected existing tokens; reset/disable invalidated them;
+  enable did not resurrect old tokens. Reserved action-approval guard rejects viewer.
+- Runtime verifier created only its isolated random-password test operator through
+  the stdin CLI, logged in and used its token. That same token, incidents and history
+  survived API/database restarts. During DB outage, protected operations returned
+  AUTH_UNAVAILABLE 503, health 200 and readiness 503. Test containers/network removed,
+  volume preserved; no development user was created by verification.
+- Runtime source hash including API public assets:
+  bc4b467210f9ddc591635e10bea66f3c97c3f10920ad1c0596138c1b9fa80db0.
+- Full P1 run_at 2026-10-16T18:38:21.178445+00:00: PASSED. 14 checkout and 27 payment
+  tests, seven real-service scenarios and three 20-request k6 loads passed. Root npm
+  test also ran 33 API fast tests; its DB suite was explicitly skipped there, separate
+  from the 58-test real-DB run above. Existing Starlette/httpx warning remains.
+- P2 Compose run_at 2026-10-16T18:41:01.015364+00:00: PASSED after rebuilding with
+  the new workspace dependency/lockfile. 16 concurrent DB requests/one payment,
+  eight HTTP replays, constraints/rollback/migration checks, restart persistence,
+  version sequence 201 -> 504 -> 502 -> 201, four deployments/one ACTIVE. Report
+  .artifacts/p2-compose-verification.json; test volume preserved.
+- Final Prettier, Ruff lint/format, Python compilation, pip consistency and whitespace
+  checks passed. Final runtime source matched the successful P3.3 report hash.
+
+### Localhost preview and manual setup
+
+No old Node API process was running at activation. Started scripts/api-local.py,
+which preserved the existing development volume, added an ignored random JWT secret
+and applied 003_users.sql. Verified login page HTTP 200 with CSP, readiness ready,
+and protected incidents HTTP 401 without credentials. Development users count was
+measured as zero: there is no automatic personal/default administrator.
+
+Opened http://localhost:3000/auth-test in the in-app browser; confirmed the email and
+hidden password fields, role-testing form and a real Services-button response of
+401 before login. API/database remain running for the user. Successful personal
+browser login is not claimed: the user's account setup is intentionally still pending.
+
+Required manual step in the user's own interactive PowerShell terminal:
+
+```powershell
+Set-Location V:\sentinel\sentinel
+.\.venv\Scripts\python.exe scripts/api-user.py create --email you@example.com --role ADMIN
+```
+
+Replace the example email; choose a unique 12-128 character password at the hidden
+confirmation prompts. Do not send it in chat or pass it in command arguments.
+Then log in on /auth-test. The Node stdin account tool was exercised by the verifier;
+Codex did not populate the personal interactive password prompt.
+
+Hosted manual work remains unperformed: approved provider/database provisioning,
+migration 003 with a migration identity, shared secret-manager signing key, verified
+DB TLS, initial admin bootstrap, HTTPS/ingress, trusted proxies/edge limits and host
+memory sizing. The local CLI refuses remote DBs; no public route was exposed or fee
+incurred. See the guide's ordered hosting steps and remaining feature limitations.
+
+### Debug, understanding check and commit summary
+
+The P3 guide explains 401/403/429/503, missing secrets/accounts, token expiry/reset,
+hidden prompt requirements, file-by-file functions, async/error/control flow and
+dependencies. It provides three comprehension questions and a viewer/read/write/
+role-change exercise. Student mastery and local personal setup remain pending.
+No MFA, refresh tokens, public signup or per-token logout revocation is claimed.
+
+Commit: find with git log --grep="feat(P3.3): add login and role-based API authorization".
+Use configured sole author without co-author trailers; commit/push to origin.
+P3.4 requires its own explanation/approval before implementation.
