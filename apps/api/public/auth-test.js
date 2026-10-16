@@ -23,6 +23,7 @@ document.querySelector("#login").addEventListener("submit", async (event) => {
   event.preventDefault();
   const button = event.submitter;
   button.disabled = true;
+  stopWatching();
   token = null;
   const password = document.querySelector("#password");
   try {
@@ -73,6 +74,7 @@ document.querySelectorAll("[data-path]").forEach((button) =>
   }),
 );
 document.querySelector("#logout").addEventListener("click", () => {
+  stopWatching();
   token = null;
   session.textContent = "Token forgotten in this page.";
   result.textContent = "Not signed in.";
@@ -168,4 +170,129 @@ document.querySelector("#job-list").addEventListener("click", async () => {
   } catch {
     result.textContent = "List request failed.";
   }
+});
+
+let watching;
+const streamStatus = document.querySelector("#stream-status");
+function stopWatching() {
+  watching?.abort();
+  watching = undefined;
+  streamStatus.textContent = "Stopped.";
+}
+document.querySelector("#stop-watch").addEventListener("click", stopWatching);
+document
+  .querySelector("#queue-incident")
+  .addEventListener("input", stopWatching);
+document.querySelector("#history").addEventListener("click", async () => {
+  try {
+    const { response, data } = await request(
+      `/api/v1/incidents/${encodeURIComponent(document.querySelector("#queue-incident").value)}/events`,
+    );
+    result.textContent = JSON.stringify(
+      { status: response.status, ...data },
+      null,
+      2,
+    );
+  } catch {
+    result.textContent = "History request failed.";
+  }
+});
+document.querySelector("#watch").addEventListener("click", async () => {
+  stopWatching();
+  if (!token) {
+    streamStatus.textContent = "Log in before watching.";
+    return;
+  }
+  const controller = new AbortController();
+  watching = controller;
+  const incident = document.querySelector("#queue-incident").value;
+  const timeline = document.querySelector("#timeline");
+  const lines = [];
+  let lastId;
+  timeline.textContent = "";
+  for (let attempt = 0; attempt < 5 && !controller.signal.aborted; attempt++) {
+    try {
+      streamStatus.textContent = "Connecting�";
+      const response = await fetch(
+        `/api/v1/incidents/${encodeURIComponent(incident)}/stream`,
+        {
+          headers: {
+            authorization: `Bearer ${token}`,
+            ...(lastId ? { "last-event-id": lastId } : {}),
+          },
+          signal: controller.signal,
+          cache: "no-store",
+        },
+      );
+      if (!response.ok) {
+        if (response.status === 401) {
+          token = null;
+          session.textContent = "Session expired. Log in again.";
+        }
+        streamStatus.textContent = `Stream rejected (${response.status}).`;
+        return;
+      }
+      streamStatus.textContent = "Watching saved and live events.";
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      try {
+        while (!controller.signal.aborted) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let end;
+          while ((end = buffer.indexOf("\n\n")) >= 0) {
+            const frame = buffer.slice(0, end);
+            buffer = buffer.slice(end + 2);
+            const fields = Object.fromEntries(
+              frame
+                .split("\n")
+                .filter((line) => !line.startsWith(":"))
+                .map((line) => {
+                  const i = line.indexOf(":");
+                  return [line.slice(0, i), line.slice(i + 1).trimStart()];
+                }),
+            );
+            if (fields.event === "auth_expired") {
+              token = null;
+              session.textContent = "Session changed. Log in again.";
+              stopWatching();
+              return;
+            }
+            if (fields.event === "stream_error")
+              throw new Error("Stream interrupted");
+            if (fields.event === "incident_event" && fields.id !== lastId) {
+              const event = JSON.parse(fields.data);
+              lines.push(JSON.stringify(event));
+              if (lines.length > 100) lines.shift();
+              timeline.textContent = lines.join("\n");
+              lastId = fields.id;
+            }
+          }
+        }
+      } finally {
+        await reader.cancel().catch(() => {});
+      }
+    } catch {
+      if (controller.signal.aborted) return;
+    }
+    if (!controller.signal.aborted) {
+      streamStatus.textContent = "Reconnecting from the last saved event ID�";
+      await new Promise((resolve) => {
+        const timer = setTimeout(resolve, (attempt + 1) * 1000);
+        controller.signal.addEventListener(
+          "abort",
+          () => {
+            clearTimeout(timer);
+            resolve();
+          },
+          { once: true },
+        );
+      });
+    }
+  }
+  if (!controller.signal.aborted)
+    streamStatus.textContent =
+      "Reconnect budget exhausted. Click Watch to reload history.";
 });

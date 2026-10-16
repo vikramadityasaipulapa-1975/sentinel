@@ -1,8 +1,8 @@
 # Sentinel progress
 
-Current phase/task: P3.4 verified; P3.5 approved and next
-Status: P3.4 QUEUE/WORKER/RECOVERY VERIFIED; remaining P3 approved
-Last fully accepted software phase: P2; P3.1-P3.3 software tasks verified; learner checkpoints remain open
+Current phase/task: P3.5 software verification complete; P3 software implemented
+Status: P3.1-P3.5 SOFTWARE VERIFIED; learner checkpoints remain open
+Last fully accepted software phase: P3 software acceptance verified; hosted deployment pending
 Last completed learner checkpoint: none confirmed
 
 ## P1.1 task record
@@ -817,3 +817,58 @@ P3.4 requires its own explanation/approval before implementation.
 - Learner explanation and independent exercise: pending student responses.
 - Commit: `feat(P3.4): add durable investigation queue and worker` (this record).
 - Next: P3.5, explicitly approved; P4 is not approved.
+
+## P3.5 task record
+
+- Approval: user explicitly approved finishing all P3 parts. P4 is not approved.
+- Concept, architecture/data flow, file plan, approval checkpoint, implementation,
+  function walkthrough, exact run/test commands, debugging, manual hosting setup,
+  questions and independent exercise are in P3-LEARNING-GUIDE.md, P3.5 section.
+- Added authenticated GET /api/v1/incidents/:id/stream, saved-event replay and
+  Last-Event-ID resume. Events remain atomic with investigation state in migration
+  004; no additional schema/dependency required. Browser Watch/Stop/history controls
+  keep tokens and reconnect cursors in memory and display text rather than HTML.
+- Security/resource bounds: READ permission, strict verified expiry, current-user
+  recheck every five seconds, scoped cursors, query-parameter rejection, two streams
+  per user/ten per API process, 60-second or 500-event rotation, bounded drain wait,
+  50-event database batches, one-second polling and five browser connection attempts.
+- Actual final P3.5 verification: .artifacts/p3-5-verification.json, run started
+  2026-10-16 19:18:31 UTC (2026-10-17 IST), PASSED. 70 tests passed, zero skipped.
+  Positive SSE checks: persisted CREATED, live investigation enqueue, ordered status
+  replay from Last-Event-ID. Negative checks: anonymous401, invalid/wrong-scope
+  cursor400, query-token400, third concurrent stream429, expired JWT401, active
+  stream termination at expiry and disabled-account revocation.
+- Cumulative runtime checks also passed: authenticated incidents, API/database
+  restart history persistence, database-outage handling, worker crash recovery,
+  Redis AOF restart persistence and Redis-outage outbox recovery. Enqueue110ms.
+- Verifier correction: first P3.5 run passed 70 tests but an exact P3.4 conditional
+  skipped standalone queue recovery. Corrected it and reran the full gate above;
+  the final artifact includes all queue recovery flags. No skipped check is claimed
+  as having run in the earlier invocation.
+- P1 regression: scripts/verify-p1.py passed, seven real HTTP scenarios, all three
+  20-iteration k6 scenarios, 14 checkout and 27 payment tests. Its generic npm API
+  run intentionally skipped the database suite without test credentials; the separate
+  P3.5 gate above ran the real PostgreSQL/Redis suite with zero skips. Existing
+  FastAPI/httpx deprecation warning remains; no test failed.
+- Local preview: helper applied only pending migration004, preserved existing service
+  names and started API port3000 plus the workflow worker. Updated test page opened
+  visibly in the in-app browser. Sign in with your existing account to Watch progress.
+- Limitations: workflow check is not AI analysis or telemetry evidence; SSE is
+  one-second database polling and bounds are per process. Hosted infrastructure,
+  TLS ingress and public access have not been provisioned or tested. Full dashboard
+  remains P9. Learner explanations/exercise remain pending student completion.
+- Manual setup: no additional local setup required. Hosted PostgreSQL, TLS Redis,
+  secret manager, migration job, API/worker hosting, HTTPS and SSE proxy setup are
+  listed in the guide and require provider selection/deployment approval.
+- Commit: feat(P3.5): stream persisted investigation progress with SSE (this record).
+- Next phase: P4, awaiting separate explicit approval.
+
+- Final P2 Compose regression: .artifacts/p2-compose-verification.json PASSED,
+  run 2026-10-16 19:21:10 UTC. Sixteen concurrent requests created one payment;
+  eight HTTP replays, constraint/rollback checks, migration checksum/replay,
+  database restart persistence and four deployment records across
+  payment-v1 -> payment-v2-timeout -> payment-v3-error -> payment-v1 passed.
+- Final local readiness returned200; read-only database check found the existing
+  one user and one incident. No account recreation or personal credential access.
+- Final formatting, Ruff checks and whitespace checks passed. Runtime source SHA256
+  matched the final P3.5 verification artifact before commit.

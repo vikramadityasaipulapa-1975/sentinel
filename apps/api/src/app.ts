@@ -1,4 +1,5 @@
 import express from "express";
+import { streamRoute } from "./incident-stream.js";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import {
@@ -152,6 +153,12 @@ export function createApp(
       response.json({ services: await listServices(registry) });
     },
   );
+  if (incidents && auth)
+    app.get(
+      "/api/v1/incidents/:id/stream",
+      requirePermission("READ"),
+      streamRoute(incidents, auth),
+    );
   if (incidents) {
     app.use(
       "/api/v1/incidents",
@@ -183,6 +190,10 @@ export function createApp(
     response,
     _next,
   ) => {
+    if (response.headersSent) {
+      response.destroy();
+      return;
+    }
     let status: number | undefined;
     let code: string | undefined;
     let message: string | undefined;

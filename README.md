@@ -21,11 +21,14 @@ does not change the incident or add an event.
 **P3.3:** login, salted password hashing, 15-minute signed access tokens, live user
 checks and backend role permissions protect the API. No default accounts exist.
 
+**P3.5:** authenticated SSE replays durable incident/investigation history and
+resumes with Last-Event-ID. Watch/Stop/history controls are on the local test page.
+
 **P3.4:** operators can enqueue durable investigation workflow checks. PostgreSQL
 outbox/leases and Redis/BullMQ recover interrupted work. Results explicitly say no
 AI or telemetry investigation has been performed.
 
-## Run the Sentinel API locally (P3.1-P3.4)
+## Run the Sentinel API locally (P3.1-P3.5)
 
 From `V:\sentinel\sentinel`, with Node/npm dependencies installed and Docker Desktop running:
 
@@ -47,13 +50,12 @@ do not send it in chat or include it in command arguments.
 Open the [login testing page](http://localhost:3000/auth-test), log in, and use its
 profile/services/incidents buttons. Direct navigation to protected JSON endpoints
 without an Authorization header now correctly returns 401. Readiness remains public
-at [localhost:3000/ready](http://localhost:3000/ready). The real dashboard and live
-stream are later tasks. Local credentials/signing secret remain in ignored .env.api;
+at [localhost:3000/ready](http://localhost:3000/ready). The full dashboard is a later task; live progress is available on the test page. Local credentials/signing secret remain in ignored .env.api;
 the application is loopback-only and public hosting is not yet configured.
 
 ```powershell
 # Isolated real-database verification, including outage and restart checks:
-.\.venv\Scripts\python.exe scripts/verify-p3.py --task P3.4
+.\.venv\Scripts\python.exe scripts/verify-p3.py --task P3.5
 ```
 
 Ctrl+C stops the API. To stop its database without deleting the volume:

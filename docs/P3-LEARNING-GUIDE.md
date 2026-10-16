@@ -5,7 +5,7 @@
 P3.1 was explained and approved by the user with "proceed" on 2026-10-16.
 P3.2 was separately explained and approved with "proceed" on 2026-10-16.
 P3.3 was separately explained and approved in the conversation. This guide documents
-P3.1-P3.4. The user explicitly approved finishing P3.4 and P3.5 together; P4 remains
+P3.1-P3.5. The user explicitly approved finishing P3.4 and P3.5 together; P4 remains
 unapproved. **Current behavior:**
 protected API requests need a Bearer token. Earlier P3.1/P3.2 examples describe those
 milestones before authentication; use the P3.3 section for current login/run commands
@@ -1100,3 +1100,173 @@ References: [BullMQ idempotent jobs](https://docs.bullmq.io/patterns/idempotent-
 References: [OWASP password storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html),
 [Node crypto](https://nodejs.org/docs/latest-v24.x/api/crypto.html),
 [jose documentation](https://github.com/panva/jose).
+
+## P3.5 � Persisted progress and Server-Sent Events
+
+### Concept
+
+A normal HTTP request returns once. SSE keeps a GET response open and sends
+small text frames as events arrive. This fits progress updates flowing from server
+to browser. WebSockets would also support browser-to-server messages, but add a
+protocol we do not need: writes already use authenticated REST requests.
+
+Prerequisites are the P3.2 event table, P3.3 bearer authentication and P3.4 worker.
+An investigation event is already committed with its state change in PostgreSQL.
+Redis delivers work; PostgreSQL owns durable progress. This phase exposes that
+same history, without a second event table or another database migration.
+
+### Architecture/data flow
+
+1. Sign in on the test page; the token stays in JavaScript memory.
+2. Watch sends GET `/api/v1/incidents/:id/stream` with an Authorization header.
+3. Middleware verifies the JWT and current user. The stream checks READ permission,
+   incident existence, expiry, cursor scope and admission limits before headers.
+4. The API queries committed events in ascending sequence, at most 50 per batch,
+   then polls every second when caught up. Every frame contains an opaque scoped
+   cursor in `id`, `event: incident_event`, and a JSON `data` line.
+5. Worker transactions append QUEUED/RUNNING/COMPLETED/FAILED history. The next poll
+   delivers the committed change. Incident status transitions use the same stream.
+6. On reconnect the browser sends `Last-Event-ID`; the API queries strictly later
+   sequence numbers. Parent-incident row locks serialize event writers, preventing
+   an earlier sequence from committing after a later sequence for that incident.
+
+Example frame (illustrative IDs, not evidence from an actual incident):
+
+```text
+id: <opaque incident-scoped cursor>
+event: incident_event
+data: {"type":"INVESTIGATION","payload":{"status":"RUNNING"},"sequence":"12"}
+
+```
+
+The real payload includes the full validated event shape. The browser processes
+only complete frames, updates the timeline with textContent, then remembers the
+cursor. Its reconnect cursor is memory-only. Reloading clears authentication and
+cursor; after signing in, Watch replays history from the beginning. The existing
+GET events endpoint remains available for paginated history outside SSE.
+
+### File plan and approval checkpoint
+
+The user explicitly approved completing every remaining P3 part. The implementation
+uses no new dependency: Express supplies the response and Node supplies abort signals,
+timers and stream backpressure handling. Planned/implemented files:
+
+| File                                    | Responsibility                                                            |
+| --------------------------------------- | ------------------------------------------------------------------------- |
+| apps/api/src/incident-stream.ts         | Scoped replay, SSE encoding, polling, authentication rechecks and cleanup |
+| apps/api/src/auth.ts                    | Carry verified expiry internally, keeping the public profile unchanged    |
+| apps/api/src/app.ts                     | Mount authenticated stream and safely handle errors after headers         |
+| apps/api/public/auth-test.html and .js  | Watch/Stop/history controls and bounded reconnect                         |
+| apps/api/test/stream-database-checks.ts | Real PostgreSQL and HTTP streaming tests                                  |
+| apps/api/test/database.test.ts          | Include stream checks in the cumulative database suite                    |
+| scripts/verify-p3.py and package.json   | Reproducible P3.5 command, including P3.4 recovery gates                  |
+| README.md and docs                      | Usage, results, manual setup and learner exercises                        |
+
+### Implementation and walkthrough
+
+`streamRoute(store, auth)` returns one Express request handler, with admission
+counters shared by requests to that app instance. `store` is the existing incident
+repository; `auth` is the existing verified JWT/current-user service. The handler
+parses the UUID and Last-Event-ID before opening a response. Unsupported query
+parameters, including token query strings, return 400; anonymous access returns401,
+missing incidents return 404, exhausted stream capacity returns429. Bad scoped
+cursors return 400. Tokens are never placed in URLs or persisted in browser storage.
+
+`auth.authenticate` now also returns an internal `expires_at` derived from the
+verified JWT. Middleware copies only id/email/role to the public profile and stores
+expiry separately. Stream expiry is strict, including the ordinary JWT verifier's
+five-second clock-tolerance window: no new stream opens after its actual expiry.
+
+The async loop awaits repository reads and socket drain. It never holds a database
+connection while waiting for the next poll. Each connection ends at JWT expiry,
+60 seconds, or 500 events. It rechecks the current enabled user and token version
+every five seconds. Revocation produces `auth_expired` and closes the stream;
+a dependency failure produces `stream_error` if the connection can still write.
+Heartbeat comments keep idle connections active. A slow consumer has at most five
+seconds to drain; disconnect aborts waits. Finally clears timers/listeners and
+returns the per-user/process capacity. Limits are two streams per user and ten per
+API process; a future hosted ingress must also enforce a deployment-wide budget.
+
+The browser uses fetch rather than native EventSource because fetch can send the
+Authorization header. TextDecoder handles split UTF-8 chunks; the frame buffer
+waits for a blank line before parsing the server's LF-delimited frames. It displays
+at most 100 recent events and keeps the last applied ID for reconnect. Five automatic
+connection attempts use delays of one through five seconds; exhaustion asks the
+user to click Watch. Stop, changing the incident, signing in again or forgetting
+the token cancels the current stream. The full React timeline remains in P9.
+
+### Run/test
+
+From PowerShell in `V:\sentinel\sentinel`:
+
+```powershell
+npm run verify:p3.5
+.venv\Scripts\python.exe scripts/api-local.py
+```
+
+The verifier creates isolated real PostgreSQL/Redis containers and a temporary
+account. Expected final output is `PASS: P3.5 verification`; failures return nonzero.
+It includes the P3.4 worker-crash and Redis-outage checks. No personal credentials
+are used by tests. Verification artifacts are ignored under `.artifacts`.
+
+Open `http://localhost:3000/auth-test`, sign in with your existing local account,
+copy an incident UUID from Incidents into Incident UUID, then click Watch progress.
+Enqueue an investigation with a fresh request key: the timeline should show saved
+QUEUED, RUNNING and COMPLETED events. This is a real workflow check; AI and telemetry
+analysis are not implemented. Reload, sign in and Watch the same incident to replay
+history. Load history page returns the existing default page of 20 events and a
+next_cursor; additional pages use the REST cursor described in P3.2.
+
+Positive automated checks read saved CREATED, live investigation enqueue, status
+change and Last-Event-ID replay without repeating the previous event. Negative
+checks reject anonymous access, bad/wrong-scope cursors and query tokens. Additional
+checks verify two-stream admission, strict expiry and disabled-account revocation.
+Actual counts and outcomes belong in PROGRESS.md; a listed expectation is not a
+claim that it passed.
+
+### Debug
+
+- 401: sign in again; reload intentionally forgets your token. Check enabled account
+  and token version using the existing local account helper, never by pasting secrets.
+- 400: confirm UUID/cursor scope and remove query parameters. Use the Last-Event-ID
+  header rather than adding a token or cursor to the URL.
+- 429: Stop unused streams/tabs, then retry. Capacity is released on disconnect.
+- QUEUED without progress: inspect the worker terminal and Redis health. The durable
+  outbox retains requests during an outage; do not erase the database or Redis volume.
+- Updates delayed by seconds: this implementation polls at one second; it is not a
+  subsecond push notification bus. Hosted proxy buffering can add delay.
+- Saved history exists but hosted stream stalls: configure TLS ingress to disable
+  SSE buffering and allow long responses, and test reconnect through the real proxy.
+
+### Manual setup and hosted connection
+
+No additional manual setup required for local use beyond the account already
+confirmed by the user and running Docker Desktop. The local helper preserves the
+existing account/database and generates ignored Redis configuration as needed.
+
+Public access is still pending. Before deployment choose providers and approve
+provisioning/costs; provision durable PostgreSQL and authenticated TLS Redis; set
+SENTINEL_DATABASE_URL, SENTINEL_DATABASE_TLS, SENTINEL_REDIS_URL and SENTINEL_JWT_SECRET
+in the host's secret manager; run the migration owner once; seed the service registry;
+run the API and a separate persistent worker; configure HTTPS, SSE buffering/timeouts,
+health checks and ingress connection limits; then verify authenticated history,
+reconnect and worker recovery against the hosted URL. Browser and API should share
+an origin, or a separately reviewed CORS policy is required. Multiple API instances
+can replay from shared PostgreSQL, with no sticky session requirement. None of this
+hosting configuration has been provisioned or verified in P3.
+
+### Understanding check
+
+1. Why does reconnect use the last event ID rather than the current worker status?
+2. Why is Redis availability unnecessary for reading progress already in PostgreSQL?
+3. Why must authentication be rechecked after an SSE response has started?
+
+Independent modification: change the visible timeline limit from 100 to 50, enqueue
+several workflow checks, and explain why this affects display rather than saved
+history. Learner explanations and this exercise remain pending your own completion.
+
+### Commit summary
+
+`feat(P3.5): stream persisted investigation progress with SSE` contains this task.
+P3 software acceptance is complete only after the recorded tests pass. Learner
+mastery is separate; P4 requires a new explicit approval.

@@ -37,7 +37,9 @@ export interface AuthService {
     expires_in: number;
     user: Profile;
   }>;
-  authenticate(header: string | undefined): Promise<Profile>;
+  authenticate(
+    header: string | undefined,
+  ): Promise<Profile & { expires_at?: number }>;
 }
 export class AuthError extends Error {
   constructor(
@@ -191,6 +193,7 @@ export function createAuth(store: UserStore, secret: Uint8Array): AuthService {
         throw unauthorized();
       let id: string;
       let version: number;
+      let expires: number;
       try {
         const { payload } = await jwtVerify(header.slice(7), secret, {
           algorithms: ["HS256"],
@@ -217,13 +220,14 @@ export function createAuth(store: UserStore, secret: Uint8Array): AuthService {
           throw unauthorized();
         id = payload.sub;
         version = payload.ver;
+        expires = payload.exp;
       } catch {
         throw unauthorized();
       }
       const user = await store.byId(id);
       if (!validUser(user) || user.token_version !== version)
         throw unauthorized();
-      return profile(user);
+      return { ...profile(user), expires_at: expires };
     },
   };
 }
@@ -240,9 +244,9 @@ export const authenticated =
   (auth?: AuthService): RequestHandler =>
   async (request, response, next) => {
     if (!auth) throw unauthorized();
-    response.locals.user = await auth.authenticate(
-      request.get("authorization"),
-    );
+    const user = await auth.authenticate(request.get("authorization"));
+    response.locals.user = { id: user.id, email: user.email, role: user.role };
+    response.locals.authExpiresAt = user.expires_at;
     next();
   };
 export const requirePermission =

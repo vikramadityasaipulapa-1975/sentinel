@@ -81,14 +81,24 @@
         <button id="job-status" type="button">Investigation status</button
         ><button id="job-list" type="button">Incident investigations</button>
       </div>
+      <h2>Live incident history</h2>
+      <p>
+        Uses the Incident UUID above. Watch reloads saved history, then follows
+        live updates. Reconnect resumes in memory; reload and Watch replays
+        history again.
+      </p>
+      <button id="watch" type="button">Watch progress</button>
+      <button id="stop-watch" type="button">Stop watching</button>
+      <button id="history" type="button">Load history page</button>
+      <p id="stream-status" role="status">Stopped.</p>
+      <pre id="timeline" aria-live="polite"></pre>
       <h2>Backend response</h2>
       <pre id="result" aria-live="polite">
 Log in to inspect protected API responses.</pre>
       <p>
-        The dashboard and live streaming are later phases. This page does not
-        save tokens in cookies or browser storage. Forgetting the token here
-        does not revoke copies elsewhere; password reset or account disable
-        invalidates them.
+        The full dashboard is a later phase. This page does not save tokens in
+        cookies or browser storage. Forgetting the token here does not revoke
+        copies elsewhere; password reset or account disable invalidates them.
       </p>
     </main>
   </body>

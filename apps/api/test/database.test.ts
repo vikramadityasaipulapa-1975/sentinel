@@ -1,3 +1,4 @@
+import { streamDatabaseChecks } from "./stream-database-checks.js";
 import { investigationDatabaseChecks } from "./investigation-database-checks.js";
 import { domainAuth } from "./auth-fixture.js";
 import assert from "node:assert/strict";
@@ -188,6 +189,7 @@ test(
       await incidentDatabaseChecks(t, pool);
       await authDatabaseChecks(t, pool);
       await investigationDatabaseChecks(t, pool);
+      await streamDatabaseChecks(t, pool);
     } finally {
       await pool.end();
     }

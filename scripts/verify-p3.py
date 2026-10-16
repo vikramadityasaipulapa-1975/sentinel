@@ -84,7 +84,7 @@ class ApiClient:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--task", choices=["P3.1", "P3.2", "P3.3", "P3.4"], default="P3.4"
+        "--task", choices=["P3.1", "P3.2", "P3.3", "P3.4", "P3.5"], default="P3.5"
     )
     task = parser.parse_args().task
     artifacts = ROOT / ".artifacts"
@@ -222,7 +222,7 @@ def main():
             status, original = client.request("/api/v1/services")
             assert status == 200 and len(original["services"]) == 2
             incident = history = None
-            if task in {"P3.2", "P3.3", "P3.4"}:
+            if task in {"P3.2", "P3.3", "P3.4", "P3.5"}:
                 status, incident = client.incident(
                     "",
                     "POST",
@@ -293,7 +293,7 @@ def main():
                     client.request("/api/v1/auth/me")[0] == 200
                 )
                 assert report["token_survived_restart"]
-            if task == "P3.4":
+            if task in {"P3.4", "P3.5"}:
                 assert incident
 
                 def poll_job(job_id, expected, timeout=50):
