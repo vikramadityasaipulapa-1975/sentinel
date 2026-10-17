@@ -1089,3 +1089,9 @@ P3.4 requires its own explanation/approval before implementation.
 - Live testing caught Prometheus timestamp precision rounding; query boundaries now round inward to whole seconds. No source timestamp outside the requested window is accepted.
 - Manual: existing P4 collectors required locally; hosted monitoring remains unprovisioned.
 - Learner questions/exercise remain open; proceeding within explicit all-P5 approval.
+
+## P5.2 task record
+
+- Implemented fixed-selector log search, capped records/samples, retrieved-set counts and explicit truncation; approved with all P5.
+- Six cumulative fixture tests passed; live metrics/logs plus unreachable source checks passed. Ruff passed.
+- Documentation: P5-LEARNING-GUIDE.md P5.2. Hosted log provisioning remains manual; learner exercise remains open.

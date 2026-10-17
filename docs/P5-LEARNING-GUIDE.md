@@ -69,3 +69,45 @@ using the existing guide. Hosted source URLs and access protection are covered
 in MANUAL-SETUP.md; a local collector is not shared hosting.
 
 **Commit summary.** `feat(P5.1): add bounded typed Prometheus evidence queries`.
+
+## P5.2 — Bounded Loki searches
+
+**Concept.** Loki indexes labels and searches log records. A label selector fixes
+which service is searched; request IDs are values, not indexed labels. Logs are
+untrusted text, never instructions. Counts in this tool describe the retrieved
+set, not the entire matching population.
+
+**Architecture/data flow.** Validated Window → fixed service selector → GET
+query_range, newest first, limit 100 → JSON log allowlist → counts grouped by
+HTTP status plus at most five representative records. Reaching the limit marks
+PARTIAL/truncated because additional records may exist. Missing logs are EMPTY,
+not evidence that no errors occurred. Malformed records make the source INVALID.
+
+**File plan/implementation/walkthrough.** `evidence/loki.py` adds
+`search_loki(client, base, window)`, an async function returning Evidence. It
+reuses the endpoint/response limits from P5.1, validates service/timestamps, sorts
+newest-first, and retains only bounded operational fields. The existing log key
+`status` is normalized to `status_code`. Free-form bodies, messages and passwords
+are not returned. `tests/test_loki.py` checks grouping, sample limits, truncation,
+malformed/empty responses and instruction-like discarded log content.
+`scripts/verify-p5.py` now generates a real health request and checks live Loki.
+
+**Approval checkpoint.** Covered by explicit approval for all P5 tasks.
+
+**Run/test.** Use the P5.1 commands. Six cumulative fixture tests passed, and the
+live verifier retrieved real local logs and metrics; both unavailable-source
+checks passed. The health request generates real demo telemetry, not a synthetic
+collector response. No application records were deleted.
+
+**Debug.** Check `http://localhost:3100/ready`, Alloy ingestion and the service
+label in P4's guide. No logs can mean the time window is wrong, ingestion is late,
+or retention expired. Never present a capped count as the total error count.
+
+**Understanding check.** Why can 100 returned records mean more exist? Why retain
+request IDs as fields? Why discard arbitrary log messages? Exercise: add a test
+that rejects a returned record with another service label.
+
+**Manual setup.** No additional local setup beyond P4. Hosted log ingestion,
+private authenticated collector access and retention still need provisioning.
+
+**Commit summary.** `feat(P5.2): add bounded Loki evidence search and samples`.
