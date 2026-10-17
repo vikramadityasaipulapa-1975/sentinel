@@ -5,7 +5,9 @@ import time
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
+from opentelemetry.trace import Status, StatusCode
 from starlette.responses import JSONResponse
+from tracing import create_tracer, server_span
 
 
 def emit(record: dict) -> None:
@@ -25,12 +27,18 @@ class RequestContext:
         self.app = app
         self.sink = sink
         self.metrics = metrics
+        self.tracer = create_tracer()
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
         headers = dict(scope["headers"])
+        span = (
+            server_span(self.tracer, headers)
+            if self.tracer and scope.get("path") == "/payments"
+            else None
+        )
         try:
             raw = headers.get(b"x-request-id", b"").decode("ascii")
             request_id = str(UUID(raw)) if len(raw) == 36 else str(uuid4())
@@ -96,6 +104,11 @@ class RequestContext:
             else:
                 raise
         finally:
+            if span:
+                span.set_attribute("http.response.status_code", status)
+                if status >= 500:
+                    span.set_status(Status(StatusCode.ERROR))
+                span.end()
             route = scope.get("path")
             if self.metrics is not None and route != "/metrics" and completed:
                 # Match the endpoint template, never an attacker-controlled raw URL.
@@ -117,6 +130,11 @@ class RequestContext:
                     "service": "payment-service",
                     "event": "request_completed",
                     "request_id": request_id,
+                    **(
+                        {"trace_id": format(span.get_span_context().trace_id, "032x")}
+                        if span
+                        else {}
+                    ),
                     "route": route
                     if route
                     in {

@@ -1,4 +1,5 @@
 import express from "express";
+import { tracing } from "./tracing.js";
 import { createMetrics } from "./metrics.js";
 import { readConfig, type Config } from "./config.js";
 import { isPaymentRequest, uuidPattern } from "./contracts.js";
@@ -19,6 +20,7 @@ export function createApp(
   app.disable("x-powered-by");
   const metrics = createMetrics();
   app.use(metrics.observe);
+  app.use(tracing().middleware);
   app.use(requestContext(log));
   app.get("/metrics", metrics.expose);
   app.use(express.json({ limit: "8kb" }));
@@ -50,6 +52,7 @@ export function createApp(
       config,
       response.locals.requestId,
       key.toLowerCase(),
+      response.locals.trace,
     );
     response.status(201).json(payment);
   });

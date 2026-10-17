@@ -983,3 +983,26 @@ P3.4 requires its own explanation/approval before implementation.
   rotation, storage/retention, tenant authentication/TLS remain unprovisioned. Local
   loopback unauthenticated Loki must not be made public. Learner exercise pending.
 - Commit: feat(P4.3): collect demo JSON logs with Alloy and Loki. P4.4 is approved.
+
+## P4.4 task record
+
+- Approved in combined P4 plan. Full teaching/walkthrough/commands/risks/manual
+  hosting setup, questions and exercise: P4 guide P4.4 section.
+- Added optional explicit OpenTelemetry server/client/server spans across real
+  checkout/payment HTTP, service resources, bounded batch queues/deadlines and
+  trace-ID log correlation. Checkout creates a fresh ingress root; only internal
+  traceparent propagates, no baggage/bodies/query strings/credentials.
+- Pinned SDK/exporter dependencies and Tempo3.1.0 by digest; private loopback query/
+  OTLP ports, named trace volume,24h backend-worker retention. Tempo3 monolithic
+  config uses supported backend_worker rather than removed2.x compactor fields.
+- Actual P4.4 verifier PASSED: connected trace with both services, three spans and
+  parent links; malformed ingress context handled; checkout201 during stopped Tempo,
+  then Tempo restarted. Prior scrape/history/real-Loki-timeout gates also passed.
+  Evidence .artifacts/observability/p4.4-verification.json. No fabricated traces.
+- Python focused tracing tests2passed, verifying valid parent IDs, malformed-context
+  fresh root and remote/credentialed export destination rejection. Full service
+  regressions run before commit; current native guard permits only the fixed local
+  receiver. Hosted authenticatedTLS export remains a separately configured future
+  extension. No additional local manual setup required. Learner exercise pending.
+- Commit: feat(P4.4): trace checkout to payment with OpenTelemetry and Tempo.
+  Next P4.5 is approved; no P5 work authorized.

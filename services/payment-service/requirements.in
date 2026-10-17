@@ -7,3 +7,5 @@ pytest>=8,<10
 ruff>=0.9,<1
 psycopg[binary]>=3.2,<4
 prometheus-client>=0.26,<0.27
+opentelemetry-sdk==1.45.1
+opentelemetry-exporter-otlp-proto-http==1.45.1

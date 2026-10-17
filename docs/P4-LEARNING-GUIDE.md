@@ -404,3 +404,91 @@ event timestamp from ingestion time? What happens when the collector is behind?
 Exercise: add a LogQL filter for level=error and explain why it can differ from a
 fault_injected warning. Student understanding/exercise remain pending.
 Commit: feat(P4.3): collect demo JSON logs with Alloy and Loki.
+
+## P4.4 � Cross-language OpenTelemetry traces
+
+### Concept, prerequisites, architecture and approval
+
+Approved with the combined P4 plan. A trace groups operations by trace ID. A span
+has its own span ID, start/end times and optional parent. Here the flow is checkout
+SERVER -> payment-call CLIENT -> payment SERVER. Separate spans explain where time
+was spent; a trace still does not establish the ultimate cause of a failure.
+W3C traceparent carries IDs across the HTTP hop. Baggage is arbitrary metadata and
+is deliberately not forwarded. Existing request IDs remain useful log correlations.
+
+### File plan and implementation
+
+- Checkout tracing.ts builds an optional SDK provider and bounded batch exporter,
+  request middleware, client child-span helper and traceparent injection. app.ts
+  mounts it before request logging; payment-client.ts ends a span for each attempt;
+  http.ts adds the active trace ID to the already allowlisted completion log.
+- Payment tracing.py builds its own provider/exporter and extracts only a bounded
+  traceparent header. RequestContext creates/ends the receiving span and adds its
+  trace ID to completion logs. The SDK validates malformed context into a fresh root.
+- Node SDK2.12.0, OTLP HTTP exporter0.223.0 and their direct dependencies are pinned.
+  Python SDK/exporter1.45.1 and resolved transitive dependencies are pinned.
+- Tempo3.1.0 is release/digest pinned in Compose, with private OTLP HTTP receive
+  port4318 mapped only to127.0.0.1:4418 and queryAPI127.0.0.1:3200. A named volume
+  stores local trace blocks/WAL; backend_worker retention is24h. Tempo3's monolithic
+  deployment needs no Kafka. Metrics/log collectors remain independent.
+- Focused tracing tests cover bounded configuration and context behavior;
+  verify-p4.py adds connected-trace and actual backend-outage checks.
+
+### Walkthrough
+
+tracing() returns no-op middleware when the export endpoint is absent. When enabled,
+it validates the fixed local receiver URL, creates a service-named resource and
+BatchSpanProcessor. Each provider has a256-span queue,64-span batches,500ms flush
+interval and bounded export deadlines. The middleware starts a fresh ingress root
+rather than trusting public trace headers. It sets x-trace-id for local inspection,
+ends once on finish/close and marks server failures/disconnects as errors.
+clientSpan builds an explicit child context rather than relying on global async
+instrumentation. traceHeaders serializes its SDK-generated IDs. payOnce records
+status, marks thrown failures, ends in finally, and preserves existing bounded
+HTTP calls and retries. A retry gets a new child span, not another payment identity.
+
+Python create_tracer similarly validates the endpoint and creates a service-named,
+bounded batch exporter. server_span accepts only traceparent(up to128bytes), never
+baggage. RequestContext ends the span with final HTTP status and logs only its trace
+ID. Tracing changes neither database transactions nor payment response contracts.
+No global SDK registration is required for these explicit spans, avoiding ESM
+loader/automatic-instrumentation ordering surprises. This is deliberately narrower
+than instrumenting every library. SDK batch delivery can drop telemetry during an
+outage; it must not prevent a business response or claim complete trace coverage.
+
+### Run/test, negative paths and debug
+
+```powershell
+npm run test --workspace=@sentinel/checkout-service
+.venv\Scripts\python.exe -m pytest services/payment-service -q
+.venv\Scripts\python.exe scripts/verify-p4.py --task P4.4
+```
+
+The supervisor sets OTEL_EXPORTER_OTLP_TRACES_ENDPOINT to the fixed local receiver.
+The verifier reads x-trace-id from an actual checkout, retrieves that trace from
+Tempo and checks service identities, at least three spans and parent links. It
+then stops only Tempo and confirms a real checkout still succeeds, before starting
+Tempo again. Incoming malformed context is exercised; focused Python tests inspect
+real SDK in-memory spans for valid/invalid parent IDs. No trace payload is fabricated.
+
+If missing, check export configuration, receiver readiness, span end time and batch
+flush delay. Query by exact trace ID before broad searches. Inspect service resource
+names and parent IDs; three unrelated traces do not prove propagation. Requests
+with exports disabled remain valid but produce no x-trace-id. Private endpoint
+validation intentionally rejects remote/plaintext arbitrary destinations. Hosted
+TLS export configuration needs a reviewed extension rather than bypassing this
+local guard. No credentials/URLs/bodies are captured as span attributes.
+
+### Manual setup, understanding and commit
+
+No additional local manual setup required. Hosted setup remains unperformed:
+choose/approve trace storage/retention, private authenticated TLS OTLP receivers,
+sampling/cost budgets and service instance identity; configure exporters without
+PII/baggage and verify propagation through the actual ingress. Local full sampling
+is for bounded demo traffic, not an unrestricted production policy.
+
+Questions: Why three spans rather than three trace IDs? Why can a payment trace
+finish after checkout timed out? What telemetry can be lost while payments work?
+Exercise: find one timeout trace and compare span duration with the corresponding
+Loki completion log. Learner answers/exercise remain pending.
+Commit: feat(P4.4): trace checkout to payment with OpenTelemetry and Tempo.

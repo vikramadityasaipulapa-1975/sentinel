@@ -97,6 +97,9 @@ class Demo:
             if not key.startswith("SENTINEL_")
         }
         self.env["PYTHONPATH"] = sysconfig.get_path("purelib")
+        self.env["OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"] = (
+            "http://127.0.0.1:4418/v1/traces"
+        )
         self.env.update(
             STORAGE_MODE="memory",
             PAYMENT_FAULT_MODE="normal",

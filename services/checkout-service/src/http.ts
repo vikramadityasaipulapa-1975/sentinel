@@ -11,6 +11,7 @@ export interface LogRecord {
   route: string;
   status: number;
   duration_ms: number;
+  trace_id?: string;
 }
 export type LogSink = (record: LogRecord) => void;
 export const stdoutLog: LogSink = (record) =>
@@ -49,6 +50,9 @@ export function requestContext(log: LogSink): RequestHandler {
         service: "checkout-service",
         event: "request_completed",
         request_id: requestId,
+        ...(response.locals.trace
+          ? { trace_id: response.locals.trace.span.spanContext().traceId }
+          : {}),
         route:
           route === "/health" || route === "/checkout" ? route : "unmatched",
         status: response.statusCode,

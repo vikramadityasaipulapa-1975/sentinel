@@ -1,3 +1,5 @@
+import { SpanStatusCode } from "@opentelemetry/api";
+import { clientSpan, traceHeaders, type RequestTrace } from "./tracing.js";
 import {
   isPaymentResponse,
   type PaymentRequest,
@@ -21,11 +23,12 @@ export async function pay(
   config: Config,
   requestId: string,
   key: string,
+  tracing?: RequestTrace,
 ): Promise<PaymentResponse> {
   const maxAttempts = config.paymentMaxAttempts ?? 1;
   for (let attempt = 1; ; attempt++) {
     try {
-      return await payOnce(request, config, requestId, key);
+      return await payOnce(request, config, requestId, key, tracing);
     } catch (error) {
       if (
         !(error instanceof PaymentError) ||
@@ -43,8 +46,10 @@ async function payOnce(
   config: Config,
   requestId: string,
   key: string,
+  tracing?: RequestTrace,
 ): Promise<PaymentResponse> {
   const signal = AbortSignal.timeout(config.paymentTimeoutMs);
+  const span = clientSpan(tracing);
   try {
     const response = await fetch(`${config.paymentUrl}/payments`, {
       method: "POST",
@@ -52,11 +57,13 @@ async function payOnce(
         "content-type": "application/json",
         "x-request-id": requestId,
         "idempotency-key": key,
+        ...traceHeaders(span),
       },
       body: JSON.stringify(request),
       signal,
       redirect: "error",
     });
+    span?.setAttribute("http.response.status_code", response.status);
     if (response.status === 409) {
       await response.body?.cancel();
       throw new PaymentError(409, "PAYMENT_CONFLICT");
@@ -100,8 +107,11 @@ async function payOnce(
       throw new PaymentError(502, "PAYMENT_BAD_RESPONSE");
     return result;
   } catch (error) {
+    span?.setStatus({ code: SpanStatusCode.ERROR });
     if (signal.aborted) throw new PaymentError(504, "PAYMENT_TIMEOUT", true);
     if (error instanceof PaymentError) throw error;
     throw new PaymentError(502, "PAYMENT_UNAVAILABLE", true);
+  } finally {
+    span?.end();
   }
 }

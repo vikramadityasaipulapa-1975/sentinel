@@ -37,7 +37,18 @@ services:
     mem_limit: 256m
     cpus: 1
     security_opt: [no-new-privileges:true]
+  tempo:
+    image: grafana/tempo:3.1.0@sha256:3076b8dcdfb32fd6bc5ccef85e7b7313e6199b9cb84366257fc17ecb696db5fd
+    command: [-config.file=/etc/tempo/config.yaml]
+    ports: ["127.0.0.1:3200:3200", "127.0.0.1:4418:4318"]
+    volumes:
+      - ./observability/tempo.yaml:/etc/tempo/config.yaml:ro
+      - tempo-data:/var/tempo
+    mem_limit: 512m
+    cpus: 1
+    security_opt: [no-new-privileges:true]
 volumes:
+  tempo-data:
   loki-data:
   alloy-data:
   prometheus-data:
