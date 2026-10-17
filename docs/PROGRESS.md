@@ -1303,3 +1303,12 @@ P3.4 requires its own explanation/approval before implementation.
   no paid resources, public deployment, chat inference or remediation performed.
 - Commits pushed separately under the configured sole author: P7.1 28de0c8,
   P7.2 c06c818, P7.3 49065dc; P7.4 uses the descriptive task-labelled commit below.
+
+## P8.1 task record
+
+- Full P8 approval received, including isolated local rollback tests.
+- Added exact proposal parser, fixed action/sandbox policy and non-executing dry
+  run. Positive/negative policy checks passed; API TypeScript build passed.
+- Synthetic identities only in these tests; no Docker operation performed.
+- Concepts, walkthrough, debugging, learner questions/exercise and manual setup
+  recorded in P8-LEARNING-GUIDE.md. No manual setup required for this task.
