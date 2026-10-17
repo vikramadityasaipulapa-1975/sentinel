@@ -103,13 +103,13 @@ class Demo:
         self.env.update(
             STORAGE_MODE="memory",
             PAYMENT_FAULT_MODE="normal",
-            PAYMENT_FAULT_DELAY_MS="500",
+            PAYMENT_FAULT_DELAY_MS="2500",
             PAYMENT_VERSION="unversioned",
             SOURCE_SHA256="unknown",
             GIT_COMMIT="unknown",
             DEPLOYMENT_ID="unregistered",
             PAYMENT_URL="http://127.0.0.1:3002",
-            PAYMENT_TIMEOUT_MS="200",
+            PAYMENT_TIMEOUT_MS="1000",
             PAYMENT_MAX_ATTEMPTS="1",
         )
         try:
@@ -169,3 +169,22 @@ class Demo:
             self.stop(name)
         for log in self.logs:
             log.close()
+
+
+def webhook_secret():
+    values = dict(
+        line.split("=", 1)
+        for line in (ROOT / ".env.api").read_text().splitlines()
+        if line and not line.startswith("#") and "=" in line
+    )
+    import re
+
+    value = values.get("SENTINEL_ALERT_WEBHOOK_SECRET", "")
+    if not re.fullmatch("[0-9a-f]{64}", value):
+        raise RuntimeError(
+            "Run scripts/api-local.py to generate local webhook configuration"
+        )
+    directory = DATA / "secrets"
+    directory.mkdir(exist_ok=True)
+    (directory / "webhook-token").write_text(value)
+    return value

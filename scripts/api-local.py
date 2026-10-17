@@ -35,6 +35,7 @@ def local_environment(path):
                 "SENTINEL_API_PORT",
                 "SENTINEL_DB_PORT",
                 "SENTINEL_JWT_SECRET",
+                "SENTINEL_ALERT_WEBHOOK_SECRET",
                 "SENTINEL_REDIS_URL",
                 "SENTINEL_REDIS_PASSWORD",
                 "SENTINEL_REDIS_PORT",
@@ -79,6 +80,9 @@ def main():
         with path.open("a", encoding="utf-8") as handle:
             handle.write(f"\nSENTINEL_JWT_SECRET={secrets.token_hex(32)}\n")
         print("Added local JWT secret to ignored .env.api; value omitted", flush=True)
+    if "SENTINEL_ALERT_WEBHOOK_SECRET=" not in path.read_text(encoding="utf-8"):
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(f"\nSENTINEL_ALERT_WEBHOOK_SECRET={secrets.token_hex(32)}\n")
     settings = dict(
         line.split("=", 1)
         for line in path.read_text(encoding="utf-8").splitlines()
@@ -127,6 +131,7 @@ def main():
             if not args.api_only:
                 worker_env = dict(env)
                 worker_env.pop("SENTINEL_JWT_SECRET", None)
+                worker_env.pop("SENTINEL_ALERT_WEBHOOK_SECRET", None)
                 children.append(
                     subprocess.Popen(
                         [node, "apps/api/dist/src/worker-main.js"],

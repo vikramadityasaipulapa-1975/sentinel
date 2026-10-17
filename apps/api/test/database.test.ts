@@ -1,3 +1,4 @@
+import { alertDatabaseChecks } from "./alert-database-checks.js";
 import { streamDatabaseChecks } from "./stream-database-checks.js";
 import { investigationDatabaseChecks } from "./investigation-database-checks.js";
 import { domainAuth } from "./auth-fixture.js";
@@ -56,6 +57,7 @@ test(
           "002_incidents.sql",
           "003_users.sql",
           "004_investigations.sql",
+          "005_alert_episodes.sql",
         ]);
         assert.deepEqual(await migrate(pool), []);
         assert.equal(await registry.ready(), true);
@@ -81,6 +83,10 @@ test(
             join(directory, "004_investigations.sql"),
             await readFile(join(migrationDirectory, "004_investigations.sql")),
           );
+          await writeFile(
+            join(directory, "005_alert_episodes.sql"),
+            await readFile(join(migrationDirectory, "005_alert_episodes.sql")),
+          );
           await writeFile(join(directory, "001_services.sql"), "SELECT 1;");
           await assert.rejects(migrate(pool, directory), /checksum/);
           await writeFile(
@@ -88,7 +94,7 @@ test(
             await readFile(join(migrationDirectory, "001_services.sql")),
           );
           await writeFile(
-            join(directory, "005_invalid.sql"),
+            join(directory, "006_invalid.sql"),
             "CREATE TABLE sentinel_api.must_rollback (id integer); SELECT * FROM sentinel_api.does_not_exist;",
           );
           await assert.rejects(migrate(pool, directory));
@@ -106,7 +112,7 @@ test(
                 "SELECT count(*)::int AS n FROM sentinel_api.schema_migrations",
               )
             ).rows[0].n,
-            4,
+            5,
           );
         },
       );
@@ -190,6 +196,7 @@ test(
       await authDatabaseChecks(t, pool);
       await investigationDatabaseChecks(t, pool);
       await streamDatabaseChecks(t, pool);
+      await alertDatabaseChecks(t, pool);
     } finally {
       await pool.end();
     }

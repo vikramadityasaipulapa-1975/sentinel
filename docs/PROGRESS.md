@@ -1,8 +1,8 @@
 # Sentinel progress
 
-Current phase/task: P4.1 software verification complete
-Status: P1-P3 REVERIFIED; P4.1 NATIVE/CONTAINER VERIFIED; learner checkpoints remain open
-Last fully accepted software phase: P3 software acceptance verified; hosted deployment pending
+Current phase/task: P4.5 software verification complete; P4 software implemented
+Status: P4.1-P4.5 SOFTWARE VERIFIED; learner checkpoints remain open
+Last fully accepted software phase: P4 software acceptance verified; hosted deployment pending
 Last completed learner checkpoint: none confirmed
 
 ## P1.1 task record
@@ -949,7 +949,7 @@ P3.4 requires its own explanation/approval before implementation.
   architecture, file/function walkthrough, commands, debug notes, hosted setup,
   questions and independent exercise are in P4-LEARNING-GUIDE.md.
 - Implemented pinned Prometheus3.15.0 with immutable digest, loopback9090, named
-  volume,24h/256MB target retention and512MiB/oneCPU bounds; two native service
+  volume,24h/256MB target retention and512MiB/one CPU bounds; two native service
   targets over Docker Desktop host bridge,2s scraping,1s deadline. Added annotated
   PromQL and owned-process supervisor/verifier. No database/schema changes.
 - Actual scripts/verify-p4.py --task P4.2 PASSED against real processes and Docker:
@@ -999,10 +999,84 @@ P3.4 requires its own explanation/approval before implementation.
   parent links; malformed ingress context handled; checkout201 during stopped Tempo,
   then Tempo restarted. Prior scrape/history/real-Loki-timeout gates also passed.
   Evidence .artifacts/observability/p4.4-verification.json. No fabricated traces.
-- Python focused tracing tests2passed, verifying valid parent IDs, malformed-context
+- Python focused tracing tests 2 passed, verifying valid parent IDs, malformed-context
   fresh root and remote/credentialed export destination rejection. Full service
   regressions run before commit; current native guard permits only the fixed local
   receiver. Hosted authenticatedTLS export remains a separately configured future
   extension. No additional local manual setup required. Learner exercise pending.
 - Commit: feat(P4.4): trace checkout to payment with OpenTelemetry and Tempo.
   Next P4.5 is approved; no P5 work authorized.
+
+## P4.5 task record (verification in progress)
+
+- Approval: user approved all remaining P4.2-P4.5 after the combined explanation,
+  including authenticated ingestion and the new migration. Every required teaching
+  section, file/function walkthrough, commands, debug notes, manual hosted setup,
+  comprehension questions and independent exercise is in P4-LEARNING-GUIDE.md.
+- Added sustained-error rule, grouping/repeat Alertmanager receiver with a distinct
+  read-only credential file, migration005 alert episode receipts and fixed-service
+  webhook ingestion. Atomic advisory-lock transaction creates one incident/CREATED
+  event/receipt; repeats reuse incident; resolved-first/late firing cannot fabricate
+  or resurrect an incident. Signal resolution never auto-resolves incident status.
+- Auth before bounded 64 KiB JSON parsing, fixed alert/service/version/receiver,
+  bounded batch/timestamps, two concurrent operations/process and sanitized errors.
+  No annotation/groupKey/externalURL can select SQL, fetch targets or commands.
+  Helper generates/preserves ignored separate webhook key and strips it from workers.
+- Real cumulative API/database/queue/SSE/alert suite75 tests passed with zero skips.
+  Tests cover concurrent deduplication, event failure rollback, resolved-first/stale
+  notification, invalid/unsupported/truncated input, missing/wrong credentials and
+  ordinary user-auth separation. P3 runtime restart/outage/recovery gates passed.
+- Local pending migration005 applied without replacing users/incidents. Startup
+  then exposed a helper secret-stripping call error; corrected two separate dict.pop
+  calls and successfully started API/worker. No configuration values were printed.
+- promtool checked current Prometheus config/rule successfully; amtool checked the
+  actual Alertmanager receiver config successfully. Live end-to-end verification is
+  required in addition to these/API tests; outcome recorded below when complete.
+- Live test corrections: healthy request exceeded the overly tight 200 ms demo
+  deadline during collector load; supervisor now uses 1 s deadline/2.5s injected
+  latency. Assertions/alert thresholds were preserved. First repeat check was too
+  early; now sustains real fault while awaiting a bounded real notification repeat.
+- Manual setup: no additional local manual setup required. All hosted provider,
+  storage, TLS, secret rotation and ingress/SLO threshold work remains unprovisioned,
+  listed by task in the guide. Learner answers/exercises remain pending.
+
+### P4.5 live acceptance evidence
+
+- Final real P4.5 pipeline verification PASSED, run 2026-10-17 09:45:39 UTC
+  (15:15:39 IST). Artifact: .artifacts/observability/p4.5-verification.json.
+- Two healthy scrape targets, actual fault error rate, malformed PromQL rejection,
+  sample retention across Prometheus restart, fresh real Loki timeout, bounded Loki
+  labels, connected cross-language trace and stopped-Tempo checkout success passed.
+- Sustained real local fault -> Prometheus rule -> Alertmanager -> authenticated
+  webhook -> PostgreSQL produced exactly one new grouped incident in the measured
+  episode. Real repeat notifications were delivered/deduplicated. Recovery recorded
+  signal resolved while incident remained OPEN. One inspected episode had 4 receipts.
+- Failed attempts remain honestly documented above; later PASS does not erase them.
+  Verifiers restore normal traffic/stop only owned children; collector volumes are
+  retained. Independent fault episodes/test retries can retain multiple demo
+  incidents overall; the guarantee is one incident per canonical episode, not one
+  incident in the entire database. No user record was deleted or recreated.
+
+### P4 final regression, preview and commit summary
+
+- Final P1 verifier PASSED, run 2026-10-17 09:48:24 UTC: 17 checkout tests, 32 payment
+  tests, seven real HTTP fault scenarios and three 20-iteration k6 checks. The generic
+  npm API test invocation skips database tests without dedicated credentials; the
+  separate 75-test real PostgreSQL/Redis gate above ran with zero skips. Existing
+  FastAPI/httpx TestClient deprecation warning is documented, not hidden.
+- Final P2 Compose verifier PASSED, run 09:49:13 UTC: rebuilt services with pinned
+  metrics/tracing dependencies, 16 concurrent requests/one payment, 8 HTTP replays,
+  constraints/rollback, migration replay/checksum, restart persistence and four
+  version deployment records. Evidence: .artifacts/p2-compose-verification.json.
+- Final API source and dependency lock hash matches the real 75-test verification
+  artifact. Prettier, Ruff, official promtool/amtool config checks and whitespace
+  checks passed. Supervisor restored healthy memory-only demo; main API/worker and
+  persistent databases remain separate. Prometheus/Alertmanager opened visibly in
+  browser, with per-task collector endpoints documented. Personal account preserved.
+- P4.2 commit 4ed8813 (follow-up import cleanup ae2ea15); P4.3 cecff0e;
+  P4.4 ae5eeb1; P4.5 feat(P4.5): ingest authenticated grouped alerts without duplicate
+  incidents (this record's commit). Each uses the configured sole author, no trailers.
+- No manual local setup required. Hosted/public access, private authenticatedTLS
+  ingestion/storage, provider accounts/costs, retention and production threshold
+  selection remain unprovisioned and task-by-task manual steps are in the guide.
+- Student explanations and independent exercises remain pending. P5 is not approved.

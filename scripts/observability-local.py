@@ -2,10 +2,11 @@
 
 import time
 
-from observability_support import DATA, Demo, compose, run
+from observability_support import DATA, Demo, compose, run, webhook_secret
 
 if __name__ == "__main__":
     try:
+        webhook_secret()
         with Demo() as demo:
             run(compose("up", "-d"))
             print(

@@ -1,3 +1,4 @@
+import { postgresAlerts, readWebhookSecret } from "./alert-ingestion.js";
 import { createApp } from "./app.js";
 import { readConfig } from "./config.js";
 import { createPool } from "./db.js";
@@ -17,6 +18,9 @@ try {
     postgresIncidents(pool),
     createAuth(postgresUsers(pool), secret),
     postgresInvestigations(pool),
+    readWebhookSecret()
+      ? postgresAlerts(pool, readWebhookSecret()!)
+      : undefined,
   ).listen(config.port, "127.0.0.1", () => {
     console.log(
       JSON.stringify({

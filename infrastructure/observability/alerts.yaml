@@ -1,0 +1,13 @@
+groups:
+  - name: sentinel-demo
+    rules:
+      - alert: CheckoutHighErrorRate
+        expr: |
+          (sum by (service) (rate(sentinel_http_requests_total{service="checkout-service",route="/checkout",status_code=~"5.."}[30s]))
+          / sum by (service) (rate(sentinel_http_requests_total{service="checkout-service",route="/checkout"}[30s]))) > 0.25
+          and sum by (service) (rate(sentinel_http_requests_total{service="checkout-service",route="/checkout"}[30s])) > 0.05
+        for: 6s
+        labels:
+          severity: high
+        annotations:
+          summary: Sustained checkout error rate above 25 percent

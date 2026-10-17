@@ -1,4 +1,5 @@
 import express from "express";
+import { alertRoutes, type AlertStore } from "./alert-ingestion.js";
 import { streamRoute } from "./incident-stream.js";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
@@ -28,6 +29,7 @@ export function createApp(
   incidents?: IncidentStore,
   auth?: AuthService,
   investigations?: InvestigationStore,
+  alerts?: AlertStore,
 ) {
   const app = express();
   app.disable("x-powered-by");
@@ -84,6 +86,7 @@ export function createApp(
         (!incidents || (await incidents.ready())) &&
         (!auth || (await auth.ready()));
       if (ready && investigations) ready = await investigations.ready();
+      if (ready && alerts) ready = await alerts.ready();
     } catch {
       /* Dependency details stay private. */
     }
@@ -142,6 +145,7 @@ export function createApp(
       );
     },
   );
+  app.use("/api/v1/webhooks/alertmanager", alertRoutes(alerts));
   app.use("/api/v1", authenticated(auth));
   app.get("/api/v1/auth/me", (_request, response) =>
     response.json({ user: response.locals.user }),

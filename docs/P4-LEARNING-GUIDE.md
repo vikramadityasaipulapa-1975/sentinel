@@ -4,7 +4,8 @@
 
 P1-P3 were reverified on 2026-10-17 before implementation. P4.1 was explained in
 conversation, then the user explicitly selected Approve P4.1. This guide documents
-P4.1 only. P4.2-P4.5 need their own explanation/approval checkpoints.
+P4.1-P4.5. After the remaining plan was explained, the user approved P4.2-P4.5
+together. P5 requires a separate approval.
 
 The phase roadmap is metrics (P4.1), Prometheus scraping/queries (P4.2), Loki log
 collection (P4.3), cross-service tracing (P4.4), and authenticated/deduplicated alert
@@ -261,9 +262,9 @@ This host bridge is development plumbing, not the hosted architecture. In a host
 private network use internal service DNS and scrape every instance.
 
 - infrastructure/compose.observability.yaml pins Prometheus by release and digest,
-  publishes9090 only on127.0.0.1, uses a named volume and512MiB/one-CPU bound.
-- infrastructure/observability/prometheus.yaml sets a2-second scrape/evaluation
-  interval and1-second scrape timeout. These short values make the local lesson
+  publishes 9090 only on 127.0.0.1, uses a named volume and 512 MiB/one-CPU bound.
+- infrastructure/observability/prometheus.yaml sets a 2-second scrape/evaluation
+  interval and 1-second scrape timeout. These short values make the local lesson
   quick; choose slower intervals/budgets for hosted operation.
 - infrastructure/observability/queries.promql explains availability, request rate,
   error fraction and p95 with business-route filters.
@@ -272,7 +273,7 @@ private network use internal service DNS and scrape every instance.
   ports, uses explicitly simulated memory-only payments, and strips Sentinel secrets
   from demo child environments. Exceptions and context exit stop owned children.
 - scripts/observability-local.py supervises a continuing local preview. It stops at
-  a20MB-per-file log budget. Ctrl+C stops owned apps; collectors/volumes remain.
+  a 20 MB-per-file log budget. Ctrl+C stops owned apps; collectors/volumes remain.
 - scripts/verify-p4.py runs real collector gates and writes ignored JSON evidence.
 
 ### Implementation and walkthrough
@@ -280,16 +281,16 @@ private network use internal service DNS and scrape every instance.
 compose builds an argument list for the one fixed observability Compose file; it
 never executes shell text. run uses subprocess with a bounded deadline. http
 accepts only a local port/path, bounds response reads and HTTP time, and returns
-status plus parsedJSON/text. wait retries a condition for at most60seconds.
-query wraps Prometheus's read-only instant-query API and checks HTTP200.
+status plus parsedJSON/text. wait retries a condition for at most 60 seconds.
+query wraps Prometheus's read-only instant-query API and checks HTTP 200.
 Demo.payment terminates only its owned payment child before selecting an allowlisted
 fault mode and starting a replacement. Application registries reset across that
 restart; Prometheus history persists independently. The verifier creates real normal
 traffic, switches its own payment child to the simulated error mode and measures
-nonzero checkout5xx rate. It also tests invalid PromQL and restarts only Prometheus,
+nonzero checkout 5xx rate. It also tests invalid PromQL and restarts only Prometheus,
 then reads the earlier sample at its original timestamp.
 
-Storage is bounded by24-hour retention and256MB target retention, with disk/WAL
+Storage is bounded by 24-hour retention and 256 MB target retention, with disk/WAL
 and head-block overhead possible. The memory/process limits are separate. The
 local UI has no public ingress/authentication: never publish these ports publicly.
 Metrics are evidence, not authorization to remediate. No database migration is added.
@@ -305,7 +306,7 @@ Expected verifier output: PASS: P4.2 real collector verification. Actual results
 are recorded in PROGRESS.md and .artifacts/observability/p4.2-verification.json.
 Open http://localhost:9090/query and paste expressions from queries.promql. A
 positive check finds two up=1 targets and saved counters; the negative test sends
-malformed PromQL and expects400/422. The fault check uses real HTTP502/503 from
+malformed PromQL and expects 400/422. The fault check uses real HTTP502/503 from
 injected demo faults, not invented metric samples. Empty rate needs at least two
 scrapes; wait several seconds. up=0 usually means the app stopped, wrong port or
 Docker host bridge failure. A busy3001/3002 is deliberately rejected; stop the
@@ -323,7 +324,7 @@ hosted dependency or database replacement.
 
 Questions: Why use rate rather than counter subtraction? What does up=0 prove and
 what does it not prove? Why retain the le label while aggregating histogram buckets?
-Exercise: change the displayed PromQL window from1m to2m and explain the tradeoff
+Exercise: change the displayed PromQL window from 1m to 2m and explain the tradeoff
 between responsiveness and smoothing. Learner responses/exercise remain pending.
 Commit: feat(P4.2): collect and verify Prometheus service metrics.
 
@@ -347,9 +348,9 @@ and payment.log, drops malformed non-JSON startup lines, reads timestamp using
 RFC3339Nano, then sends records to Loki over the private Compose network. Service
 is a fixed stream label; arbitrary JSON fields are not promoted to labels.
 
-Files: compose.observability.yaml adds release/digest-pinned Loki3.7.8 and
-Alloy1.20.1, resource limits and named data/positions volumes; loki.yaml configures
-single-node filesystem/TSDB storage with24h retention; config.alloy defines exactly
+Files: compose.observability.yaml adds release/digest-pinned Loki 3.7.8 and
+Alloy 1.20.1, resource limits and named data/positions volumes; loki.yaml configures
+single-node filesystem/TSDB storage with 24h retention; config.alloy defines exactly
 two file sources, timestamp processing and the Loki writer; verify-p4.py adds real
 LogQL and negative-query checks. Existing P4.2 supervisor supplies the files.
 
@@ -365,12 +366,12 @@ retains chunks/indexes and compactor state; the in-memory ring is single-node
 membership metadata rather than the only log store. Loki disables anonymous usage
 reporting. Local API publication is127.0.0.1:3100 with no public ingress.
 
-The verifier switches its owned payment process to500ms latency while checkout's
-200ms deadline is active. A real checkout504 completion log receives a unique
+The verifier switches its owned payment process to 2.5-second latency while checkout's
+1-second deadline is active. A real checkout 504 completion log receives a unique
 request ID. It polls LogQL for that exact ID and status, so old logs cannot satisfy
 the test. It checks that Loki index labels do not include request_id and malformed
-LogQL returns400/422. Loki ingestion is asynchronous; bounded polling accounts for
-collector batching/startup. HTTP deadlines and a90s query gate prevent hanging.
+LogQL returns 400/422. Loki ingestion is asynchronous; bounded polling accounts for
+collector batching/startup. HTTP deadlines and a 90-second query gate prevent hanging.
 
 ### Run/test and debugging
 
@@ -425,11 +426,11 @@ is deliberately not forwarded. Existing request IDs remain useful log correlatio
 - Payment tracing.py builds its own provider/exporter and extracts only a bounded
   traceparent header. RequestContext creates/ends the receiving span and adds its
   trace ID to completion logs. The SDK validates malformed context into a fresh root.
-- Node SDK2.12.0, OTLP HTTP exporter0.223.0 and their direct dependencies are pinned.
-  Python SDK/exporter1.45.1 and resolved transitive dependencies are pinned.
-- Tempo3.1.0 is release/digest pinned in Compose, with private OTLP HTTP receive
-  port4318 mapped only to127.0.0.1:4418 and queryAPI127.0.0.1:3200. A named volume
-  stores local trace blocks/WAL; backend_worker retention is24h. Tempo3's monolithic
+- Node SDK 2.12.0, OTLP HTTP exporter 0.223.0 and their direct dependencies are pinned.
+  Python SDK/exporter 1.45.1 and resolved transitive dependencies are pinned.
+- Tempo 3.1.0 is release/digest pinned in Compose, with private OTLP HTTP receive
+  port 4318 mapped only to 127.0.0.1:4418 and query API 127.0.0.1:3200. A named volume
+  stores local trace blocks/WAL; backend_worker retention is24h. Tempo 3's monolithic
   deployment needs no Kafka. Metrics/log collectors remain independent.
 - Focused tracing tests cover bounded configuration and context behavior;
   verify-p4.py adds connected-trace and actual backend-outage checks.
@@ -438,7 +439,7 @@ is deliberately not forwarded. Existing request IDs remain useful log correlatio
 
 tracing() returns no-op middleware when the export endpoint is absent. When enabled,
 it validates the fixed local receiver URL, creates a service-named resource and
-BatchSpanProcessor. Each provider has a256-span queue,64-span batches,500ms flush
+BatchSpanProcessor. Each provider has a 256-span queue, 64-span batches, 500 ms flush
 interval and bounded export deadlines. The middleware starts a fresh ingress root
 rather than trusting public trace headers. It sets x-trace-id for local inspection,
 ends once on finish/close and marks server failures/disconnects as errors.
@@ -448,7 +449,7 @@ status, marks thrown failures, ends in finally, and preserves existing bounded
 HTTP calls and retries. A retry gets a new child span, not another payment identity.
 
 Python create_tracer similarly validates the endpoint and creates a service-named,
-bounded batch exporter. server_span accepts only traceparent(up to128bytes), never
+bounded batch exporter. server_span accepts only traceparent(up to 128 bytes), never
 baggage. RequestContext ends the span with final HTTP status and logs only its trace
 ID. Tracing changes neither database transactions nor payment response contracts.
 No global SDK registration is required for these explicit spans, avoiding ESM
@@ -492,3 +493,127 @@ finish after checkout timed out? What telemetry can be lost while payments work?
 Exercise: find one timeout trace and compare span duration with the corresponding
 Loki completion log. Learner answers/exercise remain pending.
 Commit: feat(P4.4): trace checkout to payment with OpenTelemetry and Tempo.
+
+## P4.5 � Alerts, authenticated ingestion and incident deduplication
+
+### Concept, prerequisites and approval checkpoint
+
+Approved with the combined P4 plan, including a new migration. P4.1-P4.4 supply
+telemetry; P3 supplies authenticated incidents, PostgreSQL transactions and events.
+Prometheus evaluates a condition repeatedly. A for duration requires it to remain
+true before FIRING; a resolved signal says that condition stopped holding. Alertmanager
+groups related alerts and retries notifications. Delivery can repeat or arrive late,
+so backend authorization and transaction-safe deduplication are essential.
+
+### Architecture/data flow and file plan
+
+A real checkout fault raises its5xx fraction above 25 percent with minimum traffic.
+The local rule requires 6 seconds, then Alertmanager groups by alertname/service,
+waits 2 seconds and posts to /api/v1/webhooks/alertmanager. The API verifies a distinct
+Bearer key before parsing bounded JSON, validates the allowlisted alert and service,
+then writes an episode receipt and incident/initial event atomically. Repeat delivery
+returns the existing incident ID. Resolved signals update receipt metadata only.
+
+Files: alerts.yaml contains the sustained-error rule; prometheus.yaml discovers
+Alertmanager and loads that rule; alertmanager.yaml defines grouping/retries and a
+read-only credentials file; Compose adds pinned/digest Alertmanager 0.34.1 with named
+storage, private 9093 and limits. Migration005_alert_episodes.sql adds receipts/episode
+uniqueness. alert-ingestion.ts owns validation, authentication, transactional storage
+and HTTP routing. app.ts mounts it before ordinary JWT routes because this receiver
+uses a separate identity; server.ts enables it only with valid configuration.
+api-local.py generates/preserves a distinct ignored key and removes it from worker
+environments. .env.example includes a fake placeholder only. Focused parser/HTTP/
+database tests and verify-p4.py exercise negative paths and actual alert delivery.
+
+### Implementation and walkthrough
+
+readWebhookSecret accepts an optional 64-hex configuration value; malformed supplied
+values fail startup. Missing configuration makes the receiver unavailable rather
+than anonymous. The route compares equal-length credential bytes in constant time,
+requires JSON and limits bodies to 64 KiB. At most two ingest operations per API
+process run concurrently; busy requests receive retryable503. Ordinary API reads
+still require their user JWT; possession of the webhook key grants no other API role.
+
+parseAlert accepts Alertmanager version 4, receiver sentinel, at most 20 complete
+alerts, only CheckoutHighErrorRate/checkout-service and matching group/individual
+labels. Truncated batches are rejected. Starts must be within 30 days and no more than
+5minutes in the future; resolved ends must follow starts and be no more than 5 minutes
+ahead. Status must match the member signals. Sender groupKey, annotations, arbitrary
+external URLs and additional labels never select commands, SQL, fetch targets or
+incident titles. Only validated canonical values reach storage.
+
+The episode key hashes the service, allowlisted alert name and earliest canonical
+start timestamp in this grouped notification. This shipped rule aggregates to one
+service-level alert, keeping group membership/start stable. Broad multi-instance
+rules need a reviewed episode/group lifecycle contract before enabling them.
+PostgreSQL advisory transaction locks serialize a canonical episode across API
+instances, supplemented by primary/unique constraints. A first firing inserts
+incident severity HIGH/title fixed by backend, its CREATED event and receipt in one
+transaction. Any failure rolls everything back and returns sanitized503. Repeats
+increment a capped count and reuse the incident. Resolved is terminal for that
+signal episode; late firing repeats cannot resurrect it. Resolved-first notification
+records a receipt with no invented incident. A later independent episode has a new
+start and can create a new incident. Incident status stays under the established
+human/operator workflow; no alert executes remediation or automatically resolves it.
+
+The helper writes the credential to ignored .env.api. observability_support copies
+only that specific validated key into an ignored local credential file mounted
+read-only into Alertmanager. It never prints it. Local URLs are fixed. The supervisor
+still strips Sentinel secrets from demo services. Authenticated webhook retries and
+saved receipt uniqueness survive API restart because the database owns the record.
+
+### Run/test and debug
+
+```powershell
+.venv\Scripts\python.exe scripts/api-local.py
+# Another terminal; demo ports 3001/3002 must be free:
+.venv\Scripts\python.exe scripts/verify-p4.py --task P4.5
+```
+
+Expected final PASS is not itself evidence until recorded in PROGRESS.md. The live
+verifier deliberately produces simulated local failures and creates a real demo
+incident in the existing local Sentinel database. It waits for earlier fault samples
+to leave the short rule window, records the baseline, sustains a new fault, verifies
+exactly one new grouped incident and repeated deliveries, then restores normal
+traffic and verifies signal recovery without incident auto-resolution. All P4
+metric/log/trace gates run as part of this task. API database tests separately cover
+concurrent delivery, resolved-first/late firing, forced event rollback, absent/wrong
+credentials, unsupported/truncated/malformed payloads and public API role separation.
+
+The local rule uses 30-second rate windows, 6-second persistence and 10-second repeat
+notifications for a short lesson. These are demonstration thresholds, not validated
+production SLOs. The traffic guard avoids alerting on a single very sparse sample;
+missing data is not treated as healthy and target-up alerting is a separate future
+rule. Before changing rules, validate configuration with promtool; do not expose an
+unbounded rule/query API to telemetry or users.
+
+401 means the distinct webhook credential is absent/wrong; never paste it into chat.
+503 can mean missing configuration/schema, storage outage or the bounded ingest
+budget; inspect readiness and safe logs, then retry.422 means invalid/unsupported
+notification; do not loosen validation to accept arbitrary alerts. If no live
+incident, inspect Prometheus rule state, then Alertmanager receiver delivery, then
+API status, then receipt/incident persistence in that order. A successful synthetic
+HTTP post alone does not prove the real alert chain. Stop test faults using the
+owned supervisor, never arbitrary production remediation.
+
+### Manual setup, understanding and commit summary
+
+No additional local manual setup required after the checked helpers run. The helper
+generates the separate key; existing user credentials/accounts are preserved. No
+provider account, paid service or external deployment was created. Hosted setup
+remains unperformed: provision private collectors and durable storage, configure
+reviewed SLO thresholds/traffic guards, put a rotated webhook secret in the API
+secret manager and Alertmanager credential store, use authenticatedTLS between
+hosts, scoped ingress/rate limits and migration identity, then verify a sandbox
+alert all the way to the hosted database and browser stream. This local plaintext
+host bridge must not be copied onto a public network.
+
+Questions: Why must deduplication live in PostgreSQL rather than Alertmanager alone?
+Why does signal recovery not prove an incident is resolved? Which fields from an
+untrusted notification are allowed to select an action(none)? Exercise: compare one
+alert episode's notification count with its single incident and initial event;
+explain why retries changed one number but not the others. Learner mastery remains
+pending your independent answers/exercise.
+Commit: feat(P4.5): ingest authenticated grouped alerts without duplicate incidents.
+P4 software acceptance is complete only after the recorded checks pass. P5 is not
+approved by the instruction to finish P4.

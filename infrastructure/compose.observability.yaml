@@ -12,6 +12,7 @@ services:
     ports: ["127.0.0.1:9090:9090"]
     volumes:
       - ./observability/prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
+      - ./observability/alerts.yaml:/etc/prometheus/alerts.yaml:ro
       - prometheus-data:/prometheus
     mem_limit: 512m
     cpus: 1
@@ -47,7 +48,25 @@ services:
     mem_limit: 512m
     cpus: 1
     security_opt: [no-new-privileges:true]
+  alertmanager:
+    image: prom/alertmanager:v0.34.1@sha256:e9733bafb1bdef9b00e25a21f8f99dc26a22224bf16641ad754d1649f4c3357a
+    command:
+      [
+        --config.file=/etc/alertmanager/config.yaml,
+        --storage.path=/alertmanager,
+        --data.retention=24h,
+        --cluster.listen-address=,
+      ]
+    ports: ["127.0.0.1:9093:9093"]
+    volumes:
+      - ./observability/alertmanager.yaml:/etc/alertmanager/config.yaml:ro
+      - ../.artifacts/observability/secrets/webhook-token:/run/secrets/webhook-token:ro
+      - alertmanager-data:/alertmanager
+    mem_limit: 128m
+    cpus: 1
+    security_opt: [no-new-privileges:true]
 volumes:
+  alertmanager-data:
   tempo-data:
   loki-data:
   alloy-data:

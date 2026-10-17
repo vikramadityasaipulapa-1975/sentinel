@@ -322,3 +322,22 @@ Run `.venv\Scripts\python.exe scripts/observability-local.py` for the supervised
 local demo or `scripts/verify-p4.py --task P4.2` with that Python interpreter for
 real scrape/fault/restart checks. See the P4 guide and annotated queries in
 infrastructure/observability/queries.promql. Hosted collectors remain unconfigured.
+
+P4.2-P4.5 now add persistent Prometheus metrics, Alloy/Loki JSON logs, explicit
+OpenTelemetry traces in Tempo, and grouped authenticated Alertmanager incident
+creation. Each task has its own walkthrough, results, manual hosted setup and
+exercises in docs/P4-LEARNING-GUIDE.md and docs/PROGRESS.md.
+
+Start the main API with `.venv\Scripts\python.exe scripts/api-local.py`, then the
+observability demo with `.venv\Scripts\python.exe scripts/observability-local.py`.
+The demo uses simulated memory-only payments and can create real **demo incidents**
+in the preserved local Sentinel database when a sustained fault is injected.
+The supervisor refuses occupied demo ports and stops its owned processes on Ctrl+C.
+Collector containers/volumes remain until explicitly stopped with Compose (no -v).
+
+Local interfaces: Prometheus :9090, Loki :3100, Tempo :3200, Alertmanager :9093, existing
+API/auth-test :3000 and demo metrics :3001/:3002. All published interfaces are loopback.
+No additional manual setup is required in the checked environment. Public hosting,
+private authenticatedTLS collector access, durable provider storage/retention and
+production alert thresholds are still unprovisioned; use each task's hosting steps.
+No alert or telemetry content can execute remediation. P5 is not started.

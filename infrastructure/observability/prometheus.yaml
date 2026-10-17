@@ -6,3 +6,9 @@ scrape_configs:
     scrape_timeout: 1s
     static_configs:
       - targets: [host.docker.internal:3001, host.docker.internal:3002]
+rule_files:
+  - /etc/prometheus/alerts.yaml
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: [alertmanager:9093]
