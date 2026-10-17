@@ -15,6 +15,8 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 from uuid import uuid4
 
+from prometheus_client.parser import text_string_to_metric_families
+
 ROOT = Path(__file__).resolve().parent.parent
 ARTIFACTS = ROOT / ".artifacts"
 PAYMENT = {
@@ -22,6 +24,37 @@ PAYMENT = {
     "amount_minor": 12500,
     "currency": "INR",
 }
+
+
+def verify_metrics(port, route, status):
+    with urlopen(f"http://127.0.0.1:{port}/metrics", timeout=5) as response:
+        assert response.status == 200
+        assert "text/plain" in response.headers["content-type"]
+        text = response.read().decode()
+    samples = [
+        sample
+        for family in text_string_to_metric_families(text)
+        for sample in family.samples
+    ]
+
+    def value(name, **extra):
+        expected = {"route": route, "status_code": str(status), **extra}
+        return next(
+            sample.value
+            for sample in samples
+            if sample.name == name
+            and all(sample.labels.get(key) == item for key, item in expected.items())
+        )
+
+    count = value("sentinel_http_requests_total")
+    assert count >= 3
+    assert value("sentinel_http_request_duration_seconds_count") == count
+    assert value("sentinel_http_request_duration_seconds_bucket", le="+Inf") == count
+    assert value("sentinel_http_request_duration_seconds_sum") > 0
+    assert "secret-marker" not in text and "request_id" not in text
+    with urlopen(f"http://127.0.0.1:{port}/metrics", timeout=5) as response:
+        assert response.read().decode() == text, "Scraping changed application metrics"
+    return {"status": status, "completed": count}
 
 
 def request(port, path, body=None, request_id=None):
@@ -230,6 +263,12 @@ def run_scenario(name, mode, expected, delay, timeout, k6):
                 time.sleep(
                     delay / 1000 + 0.1
                 )  # Let timed-out downstream calls finish their logs.
+            scenario["checkout_metrics"] = verify_metrics(3001, "/checkout", expected)
+            if mode != "unavailable":
+                scenario["payment_metrics"] = verify_metrics(
+                    3002, "/payments", 503 if mode == "error" else 201
+                )
+            scenario["metrics_verified"] = True
         finally:
             for child in reversed(children):
                 stop(child)

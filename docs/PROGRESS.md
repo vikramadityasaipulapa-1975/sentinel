@@ -1,7 +1,7 @@
 # Sentinel progress
 
-Current phase/task: P3.5 software verification complete; P3 software implemented
-Status: P3.1-P3.5 SOFTWARE VERIFIED; learner checkpoints remain open
+Current phase/task: P4.1 software verification complete
+Status: P1-P3 REVERIFIED; P4.1 NATIVE/CONTAINER VERIFIED; learner checkpoints remain open
 Last fully accepted software phase: P3 software acceptance verified; hosted deployment pending
 Last completed learner checkpoint: none confirmed
 
@@ -868,7 +868,7 @@ P3.4 requires its own explanation/approval before implementation.
   eight HTTP replays, constraint/rollback checks, migration checksum/replay,
   database restart persistence and four deployment records across
   payment-v1 -> payment-v2-timeout -> payment-v3-error -> payment-v1 passed.
-- Final local readiness returned200; read-only database check found the existing
+- Final local readiness returned 200; read-only database check found the existing
   one user and one incident. No account recreation or personal credential access.
 - Final formatting, Ruff checks and whitespace checks passed. Runtime source SHA256
   matched the final P3.5 verification artifact before commit.
@@ -880,16 +880,65 @@ P3.4 requires its own explanation/approval before implementation.
   Docker Desktop and reran successfully, without deleting volumes.
 - Initial P1 workspace invocation exceeded its historical 60-second subprocess
   timeout during Docker startup and expanded P3 tests. Increased only the bounded
-  workspace test-process deadline to180seconds; assertions and load thresholds
-  remain unchanged. Retry passed all14 checkout tests,27 payment tests, seven
-  real HTTP scenarios and three20-iteration k6 scenarios.
-- P3.5 verifier passed70tests with zero skips, plus API/database restart, worker
+  workspace test-process deadline to 180 seconds; assertions and load thresholds
+  remain unchanged. Retry passed all 14 checkout tests, 27 payment tests, seven
+  real HTTP scenarios and three 20-iteration k6 scenarios.
+- P3.5 verifier passed 70 tests with zero skips, plus API/database restart, worker
   crash recovery, Redis persistence and Redis-outage outbox recovery. Final artifact
-  run2026-10-17 08:39:56UTC. P2 Compose verifier passed, run08:41:45UTC:16 concurrent
-  requests/one payment,8HTTP replays, persistence/checksum/rollback and deployment
-  profile checks. Local API restored: health/ready/auth-test200; anonymous protected
-  services/incidents401. Existing configuration/volumes preserved.
+  run 2026-10-17 08:39:56 UTC. P2 Compose verifier passed, run 08:41:45 UTC: 16 concurrent
+  requests/one payment, 8 HTTP replays, persistence/checksum/rollback and deployment
+  profile checks. Local API restored: health/ready/auth-test 200; anonymous protected
+  services/incidents 401. Existing configuration/volumes preserved.
 - Ruff formatting/checks passed for the timeout fix. Commit uses taskID P3.5.
 - P4.1 concepts, data flow, proposed files, dependency choices, risks and acceptance
   tests explained. User explicitly answered Approve P4.1 after that explanation.
   P4.2-P4.5 remain subject to their own learning-first checkpoints.
+
+## P4.1 task record
+
+- Approval: after concepts, request/data flow, proposed files, risks and acceptance
+  tests were explained, user explicitly selected Approve P4.1. Implementation began
+  after P1, P2 Compose and P3.5 rechecks passed. P4.2 is not approved yet.
+- Concepts/architecture/file plan/approval/implementation/walkthrough/run-test/debug/
+  understanding check/commit summary: docs/P4-LEARNING-GUIDE.md, including exact
+  commands and manual local/hosted setup. Learner exercise and responses pending.
+- Added per-app registries, completed HTTP response counters and classic latency
+  histograms in checkout and payment, exposed at GET /metrics. Bounded service,
+  method, route and status labels; unmatched/OTHER fallbacks; no raw URLs, IDs or
+  secret fields. Scrapes are excluded. Timers include request parsing and awaited
+  dependencies. No database migration, API auth change or new secret required.
+- Dependencies pinned: @prometheus-io/client 0.16.1 (current official Node package,
+  renamed from prom-client; verified Node 24 support) and prometheus-client 0.26.0.
+- Focused tests executed:16 checkout tests passed, 30 payment tests passed. New tests
+  cover real HTTP/ASGI success/failure metrics, delays, unknown URLs/private markers,
+  matching count/+Inf histogram bucket, scrape exclusion and per-app isolation.
+  Node dependency-latency unit test explicitly uses a payment HTTP stub. Python
+  payments remain simulated; no real financial transaction occurred.
+- Updated real native verifier checks metrics in every scenario and passed all
+  seven normal/fault scenarios and three 20-iteration k6 checks. Actual metric
+  assertions parse real exported text from both running services, including
+  checkout 502/504 and payment 503 responses; unavailable payment has no scrape.
+  See .artifacts/p1-verification.json for individual counts and timestamps.
+- Existing FastAPI/httpx TestClient deprecation warning remains; tests pass. Counters
+  reset on process restart; collector history is P4.2. Aborted responses without a
+  completed body are outside these completed-response metrics. Current Python
+  collection supports one worker per service instance. Hosted metrics stay private.
+- Manual setup: no additional setup required for local checked environment. Fresh
+  clones install pinned npm/Python dependencies and use documented start commands.
+  No hosted service has been provisioned. Provider/collector storage/retention,
+  private routing/TLS and per-instance scrape setup remain future manual work.
+- Planned commit: feat(P4.1): instrument checkout and payment HTTP metrics.
+
+- Final P4.1 P2 Compose regression PASSED, run 2026-10-17 08:48:29 UTC,
+  .artifacts/p2-compose-verification.json: rebuilt both services with pinned metrics
+  clients; 16 concurrent requests created one payment; 8 HTTP replays, migration replay/
+  checksum/rollback, restart persistence and deployment version faults all passed.
+- Final native preview started supervised loopback services on 3001/3002 with explicit
+  simulated memory-only payment storage. Demo checkout 201 and invalid request 422
+  returned as expected. Both /metrics returned 200 with request/histogram samples;
+  browser tabs opened visibly and confirmed real samples. API/worker on 3000 remain
+  healthy, backed by the preserved P3 PostgreSQL/Redis configuration.
+- Final Prettier, Ruff/check-format and whitespace checks passed. Existing warnings
+  are documented above; no failed test is being presented as a pass.
+- Commit summary: feat(P4.1): instrument checkout and payment HTTP metrics.
+  Next task is P4.2 Prometheus scraping/PromQL, awaiting its learning checkpoint.

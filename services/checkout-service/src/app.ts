@@ -1,4 +1,5 @@
 import express from "express";
+import { createMetrics } from "./metrics.js";
 import { readConfig, type Config } from "./config.js";
 import { isPaymentRequest, uuidPattern } from "./contracts.js";
 import { pay } from "./payment-client.js";
@@ -16,7 +17,10 @@ export function createApp(
 ) {
   const app = express();
   app.disable("x-powered-by");
+  const metrics = createMetrics();
+  app.use(metrics.observe);
   app.use(requestContext(log));
+  app.get("/metrics", metrics.expose);
   app.use(express.json({ limit: "8kb" }));
 
   app.get("/health", (_request, response) => {

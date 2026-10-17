@@ -302,3 +302,17 @@ Python formatting uses `python -m ruff format` through the virtual environment.
   pass. This compatibility warning is recorded for a future dependency update.
 - Tiny local k6 runs verify behavior, not production capacity or stable SLOs.
 - .gitignore cannot protect already tracked secrets. Commit examples only.
+
+## P4.1: request metrics
+
+Checkout and payment now expose GET /metrics with request counters and latency
+histograms. Known routes/methods/statuses form bounded labels; raw URLs, IDs and
+credentials are excluded. Registries reset on service restart; Prometheus history
+collection is P4.2. No database migration or new secrets are required.
+
+See [P4 learning guide](docs/P4-LEARNING-GUIDE.md) for concepts, full file/function
+walkthrough, exact commands, tests, debugging, hosted manual setup and exercises.
+Use npm run verify:p1 to test metrics across real normal/faulted two-service traffic.
+The existing P2 Compose workflow verifies the same services with real PostgreSQL.
+Hosted metric endpoints must stay private to the collector; public deployment has
+not been configured. P4.1 is approved; later P4 tasks retain learning checkpoints.

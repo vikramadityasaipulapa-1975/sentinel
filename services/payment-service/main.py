@@ -8,6 +8,7 @@ import psycopg
 from config import Settings
 from fastapi import FastAPI, Header, Request
 from fastapi.exceptions import RequestValidationError
+from metrics import HttpMetrics
 from models import ErrorResponse, PaymentRequest, PaymentResponse
 from observability import RequestContext, emit, error_response
 from starlette.exceptions import HTTPException
@@ -30,7 +31,12 @@ def create_app(sink=emit, settings: Settings | None = None, store=None) -> FastA
             code: {"model": ErrorResponse} for code in (404, 409, 413, 422, 500, 503)
         },
     )
-    app.add_middleware(RequestContext, sink=sink)
+    metrics = HttpMetrics()
+    app.add_middleware(RequestContext, sink=sink, metrics=metrics)
+
+    @app.get("/metrics", include_in_schema=False)
+    async def prometheus_metrics():
+        return metrics.response()
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request: Request, _error):

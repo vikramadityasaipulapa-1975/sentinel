@@ -21,9 +21,10 @@ def error_response(request_id: str, status: int, code: str, message: str):
 
 
 class RequestContext:
-    def __init__(self, app, sink=emit):
+    def __init__(self, app, sink=emit, metrics=None):
         self.app = app
         self.sink = sink
+        self.metrics = metrics
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
@@ -39,9 +40,10 @@ class RequestContext:
         start = time.perf_counter()
         status = 500
         started = False
+        completed = False
 
         async def send_with_id(message):
-            nonlocal status, started
+            nonlocal status, started, completed
             if message["type"] == "http.response.start":
                 status = message["status"]
                 started = True
@@ -51,6 +53,10 @@ class RequestContext:
                     if key.lower() != b"x-request-id"
                 ] + [(b"x-request-id", request_id.encode("ascii"))]
             await send(message)
+            if message["type"] == "http.response.body" and not message.get(
+                "more_body", False
+            ):
+                completed = True
 
         try:
             # Bound actual bytes, including chunked requests with no Content-Length.
@@ -91,6 +97,15 @@ class RequestContext:
                 raise
         finally:
             route = scope.get("path")
+            if self.metrics is not None and route != "/metrics" and completed:
+                # Match the endpoint template, never an attacker-controlled raw URL.
+                template = getattr(scope.get("route"), "path", "unmatched")
+                self.metrics.observe(
+                    scope.get("method", "OTHER"),
+                    template,
+                    status,
+                    time.perf_counter() - start,
+                )
             self.sink(
                 {
                     "timestamp": datetime.now(UTC).isoformat(),
