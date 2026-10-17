@@ -1,8 +1,8 @@
 # Sentinel progress
 
-Current phase/task: P6.5 software and fixture evaluation complete; live model setup deferred
-Status: P6.1-P6.5 SOFTWARE VERIFIED; live model quality and learner checkpoints remain open
-Last fully accepted software phase: P6 software/fixture checks verified; live model quality and public hosting unmeasured
+Current phase/task: P7.1-P7.4 local software complete; hosted setup deferred
+Status: P1-P7 LOCAL SOFTWARE VERIFIED; chat-model quality, cloud deployment and learner checkpoints remain open
+Last fully accepted software phase: P7 local ingestion/retrieval/citation boundaries verified; public hosting and chat-model quality unmeasured
 Last completed learner checkpoint: none confirmed
 
 ## P1.1 task record
@@ -1271,3 +1271,35 @@ P3.4 requires its own explanation/approval before implementation.
 - Local API restarted with migration 008 and reader-only knowledge configuration;
   localhost auth-test opened with the new report/citations button. Existing login
   credentials untouched. Full hosted/manual instructions recorded separately.
+
+## P7.4 task record
+
+- Added reproducible real pgvector/CPU embedding verifier with owned disposable
+  DB cleanup. Positive tests cover 12 documents/72 chunks, five category searches,
+  exact source passages, replay and retained/latest versions. Negative tests cover
+  same-version changes, mixed model identity, token overflow and reader write
+  denial even after disabling its read-only transaction setting.
+- Relevance finding: initial 0.5 threshold returned irrelevant passages for two
+  off-topic queries with incidental domain terms (scores 0.543-0.598). Shared
+  engine/backend minimum raised to 0.65; both now abstain while all five curated
+  queries retain expected top sources. Two additional lexical-guard abstentions
+  pass. This is small-set calibration, not general retrieval accuracy.
+- Injection: actually embedded/retrieved a synthetic malicious version only in
+  the disposable DB; no action was performed. Separate engine-boundary tests
+  show malicious retrieved text cannot alter hypotheses or become executable
+  fields. Backend forged/action-bearing citations are rejected. HTML rendering
+  remains textContent. No chat-model attack-resistance claim is made.
+- Actual verification: engine 46 passed; API 90 passed with zero skips and live
+  context required; payment 32 passed; checkout 17 passed. Real retrieval/version/
+  privileges/injection checks passed; Ruff, Python format, Prettier and pip check
+  passed. A real unreachable knowledge DB returned UNAVAILABLE in 4.86 seconds.
+  Main API, engine, checkout, payment and Prometheus returned HTTP 200 readiness.
+- One intermediate verifier run failed due to an undefined fixture variable;
+  corrected and rerun successfully before completion. This did not modify the
+  development catalog or primary data. Test-only databases were cleaned up.
+- Documentation: full task-by-task P7 concepts/flow/files/walkthrough/tests/debug/
+  questions/exercises, README and ordered local/hosted manual setup instructions.
+  Config secrets and model weights are ignored. Cloud setup remains deferred;
+  no paid resources, public deployment, chat inference or remediation performed.
+- Commits pushed separately under the configured sole author: P7.1 28de0c8,
+  P7.2 c06c818, P7.3 49065dc; P7.4 uses the descriptive task-labelled commit below.

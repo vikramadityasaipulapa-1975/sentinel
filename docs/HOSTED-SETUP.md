@@ -288,3 +288,55 @@ its URL remains loopback under the current adapter. Hosted multi-process model
 networking or any remote provider needs separately reviewed transport/authorization.
 Manual cloud/model setup can wait during local P6 development. Graph tracing is
 explicitly disabled; no LangSmith account is required.
+
+## P7 additions: private knowledge storage and model artifacts
+
+The public app needs hosted durable storage and continuously running backend
+processes; a developer's local DB cannot serve everyone. Knowledge can use a
+separate PostgreSQL database on a provider supporting pgvector, while the main
+incident DB keeps its current schema. Metrics/logs/traces still need collectors
+and storage of their own. P7 does not provision any cloud resource.
+
+When hosting is separately approved:
+
+1. Confirm the chosen provider supports PostgreSQL vector(384), the vector
+   extension and your region/cost needs. Create a **separate staging knowledge
+   database** through its console; copy its owner URL directly into your secret
+   manager. Do not reuse the incident DB owner. Provider-specific provisioning
+   screens and extension policies must be checked when selecting the provider.
+2. Connect privately with the migration identity and verified TLS. Apply
+   `database/knowledge-migrations/001_knowledge.sql` using a reviewed migration
+   runner/transaction and checksum ledger. Enable vector with the provider's
+   permitted migration identity; local `knowledge-local.py` intentionally rejects
+   remote URLs and must not be pointed at production.
+3. Create a separate LOGIN reader using a generated password in the secret
+   manager, with NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS. Grant CONNECT on
+   the selected database, USAGE on `sentinel_knowledge` and SELECT on its documents
+   and chunks only. Set default_transaction_read_only=on; test writes are denied.
+   Never grant INSERT/UPDATE/DELETE to the engine reader.
+4. Package the reviewed `knowledge/` corpus/profile in API and worker builds.
+   Package the pinned ONNX/tokenizer artifacts in the engine build at
+   `.artifacts/knowledge-model` relative to the repo layout, verifying each profile
+   hash. Download artifacts during a controlled build, not an investigation.
+   Check the model's MIT licence and preserve its attribution with redistribution.
+5. Run owner ingestion as an explicit one-shot migration job. Set only that
+   job's owner secret; call `knowledge_ingest.ingest(owner_url, LocalEmbedder())`
+   from the engine module directory. The local helper is not a cloud deployer.
+   Confirm twelve documents/72 chunks and replay zero. Remove owner credentials
+   from runtime. For source updates publish a new version and matching API corpus.
+6. Set `SENTINEL_KNOWLEDGE_READ_URL` only on the private engine. The URL must have
+   no query-string TLS overrides; remote connections use verified TLS. Allow
+   private ingress only. Keep the five-second retrieval limit in mind when
+   sizing CPU and database cold-start behaviour; test it on the chosen host.
+7. Apply main API migration 008 with the existing migration identity. Grant its
+   runtime identity SELECT, INSERT on `sentinel_api.investigation_knowledge`.
+   Restart compatible API/worker/engine processes and enqueue a staging test.
+8. Verify correct citations, unknown/forged citation rejection, reader write
+   denial, explicit unavailable status, authentication and preserved reports after
+   restarts. Restore a backup of both DBs and confirm report text remains intact.
+   Only after separately authorized public deployment test from another device.
+
+These are pending hosting responsibilities, not completed setup. Current API and
+engine remain loopback-bound; host binding/private networking, domain/TLS/SSE,
+process packaging and provider-specific secret/bootstrap work still need review.
+Manual cloud work can wait during subsequent approved local development phases.

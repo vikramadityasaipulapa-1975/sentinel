@@ -46,7 +46,7 @@ def search(dsn, embedder, query, service, category):
     return [
         dict(row, similarity=round(float(row["similarity"]), 6))
         for row in rows
-        if row["similarity"] >= 0.5
+        if row["similarity"] >= 0.65
     ]
 
 

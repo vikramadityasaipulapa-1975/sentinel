@@ -219,3 +219,46 @@ remote service/admin bootstrap, monitored release recording, selected vendor
 collector authentication, HTTPS/SSE ingress and backup restoration tests. The
 current code intentionally remains loopback-only. Creating the cloud DB is a
 preparation step; it does not make Sentinel publicly reachable.
+
+## P7: local knowledge preparation and later hosted setup
+
+Cloud setup can still wait. The working development stack uses a separate
+knowledge database on loopback 55436, in addition to the existing incident DB.
+Knowledge stores runbook passages/vectors; it does not collect telemetry itself.
+
+On a fresh machine, from `V:\sentinel\sentinel`:
+
+1. Install the pinned embedding dependencies:
+   `.venv\Scripts\python.exe -m pip install -r apps/ai-engine/requirements.txt`.
+2. Start Docker Desktop with Linux containers. Run
+   `.venv\Scripts\python.exe scripts/knowledge-local.py`. It creates ignored
+   `.env.knowledge`, a retained pgvector volume, migration ledger, reader role,
+   downloads hash-pinned model artifacts if missing, and ingests reviewed files.
+   Expect twelve documents/72 passages initially, zero newly inserted passages on
+   a repeat. Do not delete existing credentials or volumes to repeat setup.
+3. Run `.venv\Scripts\python.exe scripts/verify-p7.py`. It creates/removes only a
+   uniquely named test DB, verifies real embeddings/pgvector and prints no secrets.
+4. Stop the existing API supervisor with Ctrl+C, then run
+   `.venv\Scripts\python.exe scripts/api-local.py`. Migration 008 is additive.
+   Only the knowledge reader URL is passed to the engine. No model/owner/main-DB
+   credentials are added to the browser.
+5. Open `http://localhost:3000/auth-test`, log in using your own account, create or
+   select an incident and enqueue a new investigation. Read the saved report.
+   `knowledge.status: OK` has exact source/version/section/range/hash citations.
+   EMPTY means no qualifying passage; UNAVAILABLE is a bounded retrieval failure;
+   DISABLED means the process has no reader configuration. Existing reports do
+   not change automatically. Embeddings run locally; the chat model remains off.
+6. To stop only the development knowledge container while preserving data:
+   `docker compose --env-file .env.knowledge -f infrastructure/compose.knowledge.yaml stop`.
+   Restart using the setup helper. Never run `down -v` on persistent databases.
+
+No further user action is needed to continue local development once these checks
+have been performed. A successful local run does not provide public access.
+
+For a later public deployment, first choose provider/region/budget and approve the
+hosting work. Then follow HOSTED-SETUP plus its P7 additions: private pgvector
+provisioning/roles, migration/ingestion, packaged source/model artifacts, engine
+reader secret and runtime table grants. Keep connection strings in provider
+secret settings. Do not paste them in chat. Accounts, billing, public DNS/TLS,
+hosted API/worker/Redis/collectors and recovery verification remain manual work
+until a separately approved deployment is actually performed.

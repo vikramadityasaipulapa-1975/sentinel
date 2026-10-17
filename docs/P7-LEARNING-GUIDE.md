@@ -154,7 +154,7 @@ runtime embedding stays local. No cloud account is needed yet. Never publish
 **Concept.** Top-k means “at most k nearest passages,” not “k relevant answers.”
 Cosine similarity compares vectors; it does not establish truth, confidence or
 causation. We cap context at three passages, filter service/category and latest
-published version, require two incident-domain terms and similarity >= 0.5, and
+published version, require two incident-domain terms and similarity >= 0.65, and
 return EMPTY when nothing qualifies. This conservative filter can miss relevant
 paraphrases: retrieval quality needs measured examples, not a universal claim.
 
@@ -218,6 +218,7 @@ supervisor with Ctrl+C and restart:
 
 ```powershell
 .venv\Scripts\python.exe scripts/api-local.py
+$env:TEST_KNOWLEDGE_REQUIRED="1"
 .venv\Scripts\python.exe scripts/verify-p3.py --task P3.5 --with-evidence
 ```
 
@@ -293,6 +294,7 @@ is performed.
 ```powershell
 npm run test:engine
 npm run verify:p7
+$env:TEST_KNOWLEDGE_REQUIRED="1"
 .venv\Scripts\python.exe scripts/verify-p3.py --task P3.5 --with-evidence
 npm run test:payment
 npm run test --workspace=@sentinel/checkout-service
@@ -323,3 +325,49 @@ Public deployment, cloud database creation, hosted compute/model packaging and
 backup/restore validation remain deferred. No local test establishes those.
 
 **Commit summary.** `test(P7.4): verify retrieval relevance and untrusted-content boundaries`.
+
+## P7 final verification record
+
+- Real pinned CPU embeddings and pgvector: 12 documents/72 chunks; repeat zero;
+  five curated category queries returned expected top documents. Top similarities:
+  dependency/payment-timeout 0.853829; deployment/deployment-correlation 0.833579;
+  load/load-surge 0.824427; application/checkout-errors 0.799907;
+  telemetry/incomplete-traces 0.755457. These are similarities, not probabilities.
+- Two irrelevant-query checks returned empty. The domain-term filter intentionally
+  abstains before model/DB calls; these do not prove universal irrelevant-document
+  detection. Token overflow and mixed model profiles are rejected. Source version
+  history is retained; latest-version filtering is verified.
+- Real reader writes are denied even after disabling its read-only transaction
+  setting: permissions, not that setting alone, protect the index.
+- API: 90 passed, zero skips/failures, actual PostgreSQL/Redis and live P7 context
+  required. Includes migration upgrade/replay/checksum/rollback, invalid citation
+  atomic rollback, append-only context, replay, existing auth/SSE/queue/outages.
+- Engine: 46 tests passed, including synthetic malicious context and timeout
+  boundaries. Payment: 32 passed. Checkout: 17 passed. Dependency compatibility,
+  formatter and Ruff checks are recorded in the final progress record.
+- Live collector: actual local telemetry plus three retrieved passages in 4.67s;
+  independently accepted by backend citation validation. No chat model was run.
+- Knowledge image transfer needed a local workaround: Desktop stalled while direct
+  registry reads worked. OCI index/manifest/config/every layer hashes were verified
+  and imported; Docker retained the pinned repository digest. Existing service
+  images and persistent data were preserved. The normal setup helper still uses
+  Compose; it does not alter Docker proxy settings or embed a custom downloader.
+- Main local app is available at `http://localhost:3000/auth-test`. Existing account
+  credentials were not read or changed. New investigations show knowledge; old
+  saved reports are not retroactively rewritten. Cloud deployment remains open.
+
+P7.4 relevance calibration found a limitation in the initial 0.5 threshold: two
+off-topic queries containing incidental domain words returned passages scoring
+0.543–0.598. Raising the shared engine/backend minimum to 0.65 rejects these
+examples while retaining all five curated expected-top-source queries. This is
+small-set calibration, not a held-out accuracy result or universal guarantee.
+The verifier now checks these actual embedding-based abstentions as well as the
+two queries rejected by the lexical guard.
+
+The real disposable-DB verifier also ingests a synthetic malicious version and
+retrieves its attack text verbatim as data; the separate engine-boundary test
+checks that such content cannot change hypotheses or authorize actions. The
+malicious version is never published to the development catalog. A real
+unreachable knowledge DB returned UNAVAILABLE in 4.86 seconds, with no primary
+DB change. One intermediate verifier run failed because its new attack fixture
+variable was missing; the fixture was corrected and rerun before acceptance.

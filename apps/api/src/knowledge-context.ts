@@ -72,7 +72,7 @@ export function validateKnowledge(
       citation.model_id !== model ||
       typeof citation.similarity !== "number" ||
       !Number.isFinite(citation.similarity) ||
-      citation.similarity < 0.5 ||
+      citation.similarity < 0.65 ||
       citation.similarity > 1 ||
       !Number.isInteger(citation.ordinal) ||
       Number(citation.ordinal) < 0 ||

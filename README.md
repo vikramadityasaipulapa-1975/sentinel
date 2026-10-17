@@ -1,9 +1,9 @@
 # Sentinel
 
 Sentinel is a learning-first AI-assisted incident response and reliability project.
-Current local software: P1-P6 implemented and tested. Start with the
+Current local software: P1-P7 implemented and tested. Start with the
 [manual checklist](docs/MANUAL-SETUP.md) for the current stack; earlier sections
-record each phase. Model/cloud setup is optional and deferred.
+record each phase. Optional chat-model/cloud setup is deferred; P7 uses verified local embeddings.
 **P1 implementation is complete:** two local demo services, validated simulated
 payments, bounded checkout calls, request IDs, safe JSON logs, deterministic faults,
 and reproducible local tests/load checks. P2 adds PostgreSQL persistence,
@@ -12,7 +12,14 @@ See the progress log for separately measured native and Docker verification.
 **P2 implementation is verified:** native PostgreSQL and Docker/Compose checks
 passed, including restart persistence and container version switching/rollback.
 P4 adds centralized local telemetry; P5-P6 add evidence and cited hypothesis reports.
-Live model configuration, public deployment and remediation remain unperformed.
+Live chat-model configuration, public deployment and remediation remain unperformed.
+
+**P7:** twelve reviewed runbooks/fictional examples are indexed as 72 versioned
+passages in a separate pgvector development DB. Local CPU embeddings retrieve up
+to three passages; the backend verifies exact source/version/range/hashes before
+storing immutable knowledge context with a report. Retrieved text is untrusted
+guidance and cannot authorize an action. See the [task-by-task P7 guide](docs/P7-LEARNING-GUIDE.md)
+and [manual setup steps](docs/MANUAL-SETUP.md#p7-local-knowledge-preparation-and-later-hosted-setup).
 
 **P3.1:** the main Sentinel API now has a PostgreSQL-backed service registry,
 explicit migrations, readiness checks and a reproducible local workflow. See the
