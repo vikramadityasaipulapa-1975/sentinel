@@ -1158,3 +1158,9 @@ P3.4 requires its own explanation/approval before implementation.
 - Added strict hypothesis/citation schema and optional loopback Ollama adapter; disabled by default, no remote calls or model installation.
 - 25 cumulative engine tests passed, including malformed/oversized output, unknown citations, unavailable and timeout paths. Ruff passed.
 - Fixtures are not live AI accuracy measurements. Manual model/cloud setup can wait. See P6-LEARNING-GUIDE.md for walkthrough and learner checks.
+
+## P6.2 task record
+
+- Added explicit sequential stages, guarded fixed tools, exact scalar fact provenance and partial-state handling under combined P6 approval.
+- 28 cumulative engine tests passed. Live sequential workflow passed against local collectors/reader with model disabled; no fabricated zero/deployment claims.
+- No cloud/model setup required for this path. See P6 guide and .artifacts/p6-workflow-verification.json.

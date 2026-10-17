@@ -63,3 +63,55 @@ and [chat API](https://docs.ollama.com/api/chat). A provider adapter plus approv
 telemetry disclosure is needed before any remote inference.
 
 **Commit summary.** `feat(P6.1): validate cited hypotheses behind a bounded model adapter`.
+
+## P6.2 — Sequential workflow and failure isolation
+
+**Concept.** A workflow makes execution order and limits explicit. Partial failure
+means useful evidence can survive a missing source. A tool budget bounds time and
+calls; missing values must never be invented as zero.
+
+**Architecture/data flow.** Revalidate Window → exactly three fixed tools, in
+metrics/log/deployment order → deterministic calculation → finite scalar facts →
+optional model adapter → validated workflow state. Each source gets one call and
+2.7 seconds; the reference sequential workflow has a 17-second ceiling, including
+the optional eight-second model call. There is no in-process retry loop; durable
+worker attempts remain a separate backend responsibility.
+
+**File plan / implementation / walkthrough.** `workflow.py` defines Tool and
+InvestigationState. `guarded_source` checks source identity/window and maps known
+transport/validation failures to explicit source states, preserving siblings.
+`extract_facts` selects only observed numeric values and records exact JSON
+pointers into their source snapshots. Empty deployment history is omitted, not
+turned into a zero-release observation. Log counts retain their retrieved-set
+scope. `finish_analysis` records stages, model status and partial completion.
+`run_sequential` is an executable reference path; the parallel implementation
+arrives separately in P6.3. `tests/test_workflow.py` tests order, missing-source
+handling, invalid input and absence of invented deployment facts.
+`scripts/verify-p6.py` runs actual read-only local queries with the model disabled.
+
+**Approval checkpoint.** Explicit combined P6.2-P6.5 approval after explanation.
+
+**Run/test.** The engine pytest command passed 28 cumulative tests. Positive:
+ordered fixture sources produce observations with exact pointers. Negative:
+connection failure preserves logs and creates no numeric metrics. Live check:
+
+```powershell
+.venv\Scripts\python.exe scripts/verify-p6.py
+```
+
+Passed against the real local collectors/reader. Its ignored report explicitly
+says live telemetry, no model inference. No primary DB writes or faults occurred.
+
+**Debug.** Inspect source statuses and stages rather than inferring healthy zeros.
+A source/window mismatch is INVALID, not a reason to query a different service.
+Unknown programming exceptions fail the job instead of silently being labelled a
+network outage. The reference path is slower than parallel collection by design.
+
+**Understanding check.** Which timeout bounds a whole workflow? Why keep worker
+retries separate? Why preserve a JSON pointer alongside each fact? Exercise: test
+a source that returns a valid payload for the wrong service/window.
+
+**Manual setup.** Existing local P5 sources are needed for the live verifier. No
+cloud setup or model configuration is required for the default disabled path.
+
+**Commit summary.** `feat(P6.2): add a bounded sequential investigation workflow`.
