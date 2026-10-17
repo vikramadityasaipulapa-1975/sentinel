@@ -364,6 +364,7 @@ export function postgresInvestigations(pool: Pool) {
         | "WORKFLOW_CHECK_FAILED"
         | "EVIDENCE_COLLECTION_FAILED" = "WORKFLOW_CHECK_FAILED",
       analysis?: unknown,
+      knowledge?: unknown,
     ) =>
       transaction(async (client) => {
         const current = await locked(client, id);
@@ -388,7 +389,14 @@ export function postgresInvestigations(pool: Pool) {
         const report =
           analysis && evidence ? validateReport(analysis, evidence) : undefined;
         if (report && evidence)
-          await insertReport(client, id, current.attempts, report, evidence);
+          await insertReport(
+            client,
+            id,
+            current.attempts,
+            report,
+            evidence,
+            knowledge,
+          );
         const terminal =
           report?.status === "PARTIAL" ||
           evidence?.some((row) => row.status !== "OK")

@@ -1,3 +1,4 @@
+import { knowledgeFixture } from "./knowledge-fixture.js";
 import { once } from "node:events";
 import { createApp } from "../src/app.js";
 import { createAuth } from "../src/auth.js";
@@ -74,6 +75,27 @@ export async function reportDatabaseChecks(t: TestContext, pool: Pool) {
     },
   );
   await t.test(
+    "invalid knowledge rolls back report, snapshots and terminal state",
+    async () => {
+      const context = knowledgeFixture("checkout-errors");
+      context.citations[0].passage = "fabricated";
+      await assert.rejects(
+        store.finish(
+          run.id,
+          claim.token,
+          true,
+          evidence,
+          "WORKFLOW_CHECK_FAILED",
+          report,
+          context,
+        ),
+      );
+      assert.equal((await store.evidence(run.id, {})).snapshots.length, 0);
+      await assert.rejects(store.report(run.id));
+      assert.equal((await store.get(run.id)).status, "RUNNING");
+    },
+  );
+  await t.test(
     "report and exact snapshot citations commit once and reject mutation",
     async () => {
       assert.equal(
@@ -84,11 +106,19 @@ export async function reportDatabaseChecks(t: TestContext, pool: Pool) {
           evidence,
           "WORKFLOW_CHECK_FAILED",
           report,
+          knowledgeFixture("checkout-errors"),
         ),
         true,
       );
       const saved = await store.report(run.id);
       assert.equal(saved.hash_verified, true);
+      assert.equal(saved.knowledge.hash_verified, true);
+      assert.equal(saved.knowledge.citations[0].document_id, "checkout-errors");
+      for (const statement of [
+        "UPDATE sentinel_api.investigation_knowledge SET sha256=repeat('0',64) WHERE investigation_id=$1",
+        "DELETE FROM sentinel_api.investigation_knowledge WHERE investigation_id=$1",
+      ])
+        await assert.rejects(pool.query(statement, [run.id]), /append-only/);
       assert.equal((await store.get(run.id)).result?.mode, "hypothesis-report");
       const snapshots = (await store.evidence(run.id, {})).snapshots;
       for (const fact of saved.report.facts)

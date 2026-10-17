@@ -180,7 +180,7 @@ export async function collectInvestigation(
   const response = await fetch(config.url, {
     method: "POST",
     redirect: "error",
-    signal: AbortSignal.timeout(14000),
+    signal: AbortSignal.timeout(21000),
     headers: {
       "content-type": "application/json",
       authorization: `Bearer ${config.secret}`,
@@ -219,7 +219,7 @@ export async function collectInvestigation(
       : validateReport(body.analysis, evidence);
   if ((analysis?.ai_performed ?? false) !== body.ai_performed)
     throw new Error("Inconsistent AI status");
-  return { evidence, analysis };
+  return { evidence, analysis, knowledge: body.knowledge };
 }
 
 export async function collectEvidence(

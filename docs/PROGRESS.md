@@ -1252,3 +1252,22 @@ P3.4 requires its own explanation/approval before implementation.
   image; Docker reported the expected repository digest. No Docker settings,
   existing DB images or persistent volumes were changed.
 - Learning/manual instructions: see P7-LEARNING-GUIDE P7.2; cloud setup deferred.
+
+## P7.3 task record
+
+- Implementation: fixed category queries, service/latest-version/model filters,
+  exact cosine top-3 retrieval and explicit OK/EMPTY/DISABLED/UNAVAILABLE states.
+  A maximum of two five-second killable children protects native inference work.
+- Backend: independently validates exact reviewed source/version/passage/range/hash;
+  migration 008 persists immutable context in the existing fenced transaction.
+  Authenticated report reads preserve the stored text; old reports return null.
+- Actual results: 90 API tests, zero skips/failures, with real PostgreSQL/Redis.
+  Repeated with TEST_KNOWLEDGE_REQUIRED=1 against the restarted real collector:
+  worker stored real retrieved context, hash verification and store replay passed.
+  Invalid context rolled back snapshots/report/completion; UPDATE/DELETE denied.
+- Live collection: real local sources plus three actual embedding-retrieved
+  passages returned in 4.67 seconds; the TypeScript backend accepted all exact
+  passages. No chat model inference or remediation performed.
+- Local API restarted with migration 008 and reader-only knowledge configuration;
+  localhost auth-test opened with the new report/citations button. Existing login
+  credentials untouched. Full hosted/manual instructions recorded separately.

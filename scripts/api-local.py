@@ -149,6 +149,13 @@ def main():
                 }
             }
             engine_env.update(evidence)
+            knowledge_config = ROOT / ".env.knowledge"
+            if knowledge_config.is_file():
+                for line in knowledge_config.read_text(encoding="utf-8").splitlines():
+                    if line.startswith("SENTINEL_KNOWLEDGE_READ_URL="):
+                        engine_env["SENTINEL_KNOWLEDGE_READ_URL"] = line.split("=", 1)[
+                            1
+                        ]
             engine_env["PYTHONPATH"] = os.pathsep.join(
                 [sysconfig.get_paths()["purelib"], str(ROOT / "apps/ai-engine")]
             )

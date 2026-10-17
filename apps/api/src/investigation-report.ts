@@ -1,3 +1,4 @@
+import { validateKnowledge } from "./knowledge-context.js";
 import type { PoolClient } from "pg";
 import { canonical, hash, readSnapshot, type Evidence } from "./evidence.js";
 import { IncidentError, unavailable } from "./incidents.js";
@@ -206,8 +207,18 @@ export async function insertReport(
   attempt: number,
   input: unknown,
   evidence: Evidence[],
+  knowledge?: unknown,
 ) {
   const report = validateReport(input, evidence);
+  const context =
+    knowledge === undefined
+      ? undefined
+      : validateKnowledge(
+          knowledge,
+          evidence[0].window.service,
+          ((report.hypotheses as Record<string, unknown>[])[0]
+            ?.category as string) ?? "telemetry",
+        );
   const snapshots = (
     await client.query(
       "SELECT id,source,sha256 FROM sentinel_api.evidence_snapshots WHERE investigation_id=$1 AND attempt=$2",
@@ -232,6 +243,13 @@ export async function insertReport(
     "INSERT INTO sentinel_api.investigation_reports(investigation_id,attempt,report_json,canonical_json,sha256) VALUES ($1,$2,$3::text::jsonb,$3::text,$4)",
     [id, attempt, text, hash(text)],
   );
+  if (context) {
+    const contextText = canonical(context);
+    await client.query(
+      "INSERT INTO sentinel_api.investigation_knowledge(investigation_id,context_json,canonical_json,sha256) VALUES ($1,$2::text::jsonb,$2::text,$3)",
+      [id, contextText, hash(contextText)],
+    );
+  }
 }
 export async function readReport(client: PoolClient, id: string) {
   const row = (
@@ -272,7 +290,26 @@ export async function readReport(client: PoolClient, id: string) {
     )
       throw unavailable();
   }
+  const knowledge = (
+    await client.query(
+      "SELECT * FROM sentinel_api.investigation_knowledge WHERE investigation_id=$1",
+      [id],
+    )
+  ).rows[0];
+  if (
+    knowledge &&
+    (hash(knowledge.canonical_json) !== knowledge.sha256 ||
+      canonical(knowledge.context_json) !== knowledge.canonical_json)
+  )
+    throw unavailable();
   return {
+    knowledge: knowledge
+      ? {
+          hash_verified: true,
+          sha256: knowledge.sha256,
+          ...knowledge.context_json,
+        }
+      : null,
     investigation_id: id,
     attempt: row.attempt,
     hash_verified: true,

@@ -231,7 +231,7 @@ export async function evidenceDatabaseChecks(t: TestContext, pool: Pool) {
             await once(publisher.redis, "ready");
           const pending = await store.enqueue(incident.id, actor, randomUUID());
           await dispatchOnce(pool, publisher.add);
-          const deadline = Date.now() + 20000;
+          const deadline = Date.now() + 26000;
           while (
             !["COMPLETED", "PARTIAL", "FAILED"].includes(
               (await store.get(pending.id)).status,
@@ -250,6 +250,15 @@ export async function evidenceDatabaseChecks(t: TestContext, pool: Pool) {
           );
           const savedReport = await store.report(pending.id);
           assert.equal(savedReport.hash_verified, true);
+          if (process.env.TEST_KNOWLEDGE_REQUIRED === "1") {
+            assert.equal(savedReport.knowledge?.status, "OK");
+            assert.equal(savedReport.knowledge.hash_verified, true);
+            assert.ok(savedReport.knowledge.citations.length > 0);
+            assert.deepEqual(
+              (await postgresInvestigations(pool).report(pending.id)).knowledge,
+              savedReport.knowledge,
+            );
+          }
           assert.equal(savedReport.report.ai_performed, false);
           assert.equal(savedReport.report.model_status, "DISABLED");
           assert.equal(

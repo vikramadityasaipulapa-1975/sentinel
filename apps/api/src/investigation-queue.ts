@@ -147,6 +147,7 @@ export function startInvestigationWorker(
       try {
         let evidence: Evidence[] | undefined;
         let analysis: unknown;
+        let knowledge: unknown;
         await Promise.race([
           execute
             ? execute(id)
@@ -168,6 +169,7 @@ export function startInvestigationWorker(
                   );
                   evidence = collected.evidence;
                   analysis = collected.analysis;
+                  knowledge = collected.knowledge;
                 })()
               : (async () => {
                   await pool.query(
@@ -179,7 +181,7 @@ export function startInvestigationWorker(
           new Promise<never>((_resolve, reject) => {
             timer = setTimeout(
               () => reject(new Error("Workflow timeout")),
-              collector ? 17000 : 5000,
+              collector ? 24000 : 5000,
             );
           }),
         ]);
@@ -190,6 +192,7 @@ export function startInvestigationWorker(
           evidence,
           "WORKFLOW_CHECK_FAILED",
           analysis,
+          knowledge,
         );
       } catch {
         await store.finish(
