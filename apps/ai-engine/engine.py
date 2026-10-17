@@ -5,13 +5,13 @@ import hmac
 import os
 
 import httpx
-from evidence.calculations import compare_metrics
 from evidence.deployments import query_deployments, validate_dsn
 from evidence.http import endpoint
 from evidence.loki import search_loki
 from evidence.models import Window
 from evidence.prometheus import query_prometheus
 from fastapi import FastAPI, Request
+from investigation_graph import run_parallel
 from pydantic import ValidationError
 from starlette.responses import JSONResponse
 
@@ -56,22 +56,18 @@ def create_app(settings=None, transport=None):
             async with httpx.AsyncClient(
                 transport=transport, trust_env=False
             ) as client:
-                metrics, logs, releases = await asyncio.wait_for(
-                    asyncio.gather(
-                        query_prometheus(client, prom, window),
-                        search_loki(client, loki, window),
-                        query_deployments(dsn, window),
-                    ),
-                    3,
+                state = await run_parallel(
+                    window,
+                    {
+                        "prometheus": lambda win: query_prometheus(client, prom, win),
+                        "loki": lambda win: search_loki(client, loki, win),
+                        "deployments": lambda win: query_deployments(dsn, win),
+                    },
                 )
-            calculations = compare_metrics(metrics, logs)
             return {
                 "mode": "deterministic-evidence",
                 "ai_performed": False,
-                "evidence": [
-                    item.model_dump(mode="json")
-                    for item in (metrics, logs, releases, calculations)
-                ],
+                "evidence": [item.model_dump(mode="json") for item in state.evidence],
             }
         except (asyncio.TimeoutError, ValueError):
             return JSONResponse({"error": "COLLECTION_FAILED"}, status_code=503)

@@ -1164,3 +1164,10 @@ P3.4 requires its own explanation/approval before implementation.
 - Added explicit sequential stages, guarded fixed tools, exact scalar fact provenance and partial-state handling under combined P6 approval.
 - 28 cumulative engine tests passed. Live sequential workflow passed against local collectors/reader with model disabled; no fabricated zero/deployment claims.
 - No cloud/model setup required for this path. See P6 guide and .artifacts/p6-workflow-verification.json.
+
+## P6.3 task record
+
+- Added pinned LangGraph 1.2.16 parallel source nodes, explicit join and bounded analysis; engine uses the graph with the P5 response contract preserved.
+- 30 engine tests passed; real sequential and parallel local workflows passed. pip check passed; existing dependency versions constrained, full engine runtime closure pinned.
+- No hosted tracing/model call; graph memory is not represented as durable checkpoints. PG/queue remain the recovery boundary.
+- Manual: install engine requirements on future restarts/deployments; cloud setup can wait. See P6 guide.

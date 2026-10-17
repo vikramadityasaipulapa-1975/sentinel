@@ -13,6 +13,7 @@ from evidence.deployments import query_deployments  # noqa: E402
 from evidence.loki import search_loki  # noqa: E402
 from evidence.models import Window  # noqa: E402
 from evidence.prometheus import query_prometheus  # noqa: E402
+from investigation_graph import run_parallel  # noqa: E402
 from workflow import run_sequential  # noqa: E402
 
 
@@ -37,6 +38,8 @@ async def main():
             ),
         }
         state = await run_sequential(window, tools)
+        parallel = await run_parallel(window, tools)
+        assert len(parallel.evidence) == 4 and parallel.model.status == "DISABLED"
     assert len(state.evidence) == 4
     assert state.evidence[0].status in {"OK", "PARTIAL"}
     assert state.model.status == "DISABLED" and not state.model.ai_performed
@@ -44,6 +47,7 @@ async def main():
         "at": end.isoformat(),
         "data_kind": "live local telemetry; no model inference",
         "status": state.status,
+        "parallel_status": parallel.status,
         "stages": state.stages,
         "source_statuses": {row.source: row.status for row in state.evidence},
         "fact_count": len(state.facts),
@@ -51,7 +55,9 @@ async def main():
     (ROOT / ".artifacts/p6-workflow-verification.json").write_text(
         json.dumps(report, indent=2), encoding="utf-8"
     )
-    print("P6 live sequential workflow passed; model disabled; report in .artifacts")
+    print(
+        "P6 live sequential and parallel workflows passed; model disabled; report in .artifacts"
+    )
 
 
 if __name__ == "__main__":

@@ -115,3 +115,62 @@ a source that returns a valid payload for the wrong service/window.
 cloud setup or model configuration is required for the default disabled path.
 
 **Commit summary.** `feat(P6.2): add a bounded sequential investigation workflow`.
+
+## P6.3 — Parallel evidence graph
+
+**Concept.** A graph node is a bounded unit of work. Three parallel branches reduce
+collection latency; a join waits for all three before calculating. A checkpoint
+saves execution state, but an in-memory checkpoint does not survive a crash.
+Retries must not multiply across graph and durable queue layers.
+
+**Architecture/data flow.** START fans out to metric/log/deployment nodes, each
+writing its own typed state key. A three-node barrier leads to one calculation
+node, then one analysis node and END. Source guards preserve useful sibling
+results. No per-node retries; the existing worker owns the durable attempt budget.
+The compiled graph has a 12-second deadline and recursion limit 6. PostgreSQL
+leases/outbox and saved evidence remain the durable boundary: after a crash an
+unfinished attempt recollects, rather than pretending a memory checkpoint survived.
+
+**File plan / implementation / walkthrough.** `investigation_graph.py` defines
+GraphState and `build_graph(tools, adapter)`, then `run_parallel` validates input
+and invokes the compiled StateGraph. Distinct branch keys avoid concurrent-write
+conflicts. The barrier edge takes the entire source list; separate edges into
+calculation would risk repeated joins. `engine.py` now uses the graph while
+preserving P5's four-source response contract. `tests/test_graph.py` uses an event
+barrier to prove actual overlap without timing-performance assertions; it also
+checks one failed source returns PARTIAL and matches sequential fact extraction.
+`verify-p6.py` now runs both paths against live local sources.
+
+LangGraph 1.2.16 and its installed dependency closure are pinned in the engine's
+requirements, constrained during installation by the existing payment lock pins.
+`pip check` passed; no existing payment versions were upgraded. Transitive packages
+include LangSmith, but no tracing service/account is configured. The engine's
+allowlisted environment excludes tracing keys, and graph calls have no callbacks.
+We do not use hosted LangGraph/LangSmith services. API reference:
+[LangGraph graph API](https://docs.langchain.com/oss/python/langgraph/graph-api).
+
+**Approval checkpoint.** Covered by explicit P6.2-P6.5 approval.
+
+**Run/test.** Thirty cumulative engine tests passed. Positive: all three fixture
+branches enter before release, then join exactly once. Negative: a failed Loki
+branch preserves metrics and creates a PARTIAL outcome. Both sequential and
+parallel live source checks passed, with the model explicitly disabled.
+
+**Debug.** Check which source key is missing; branches must not overwrite shared
+lists without a reducer. Keep the join barrier intact. A recursion-limit error is
+a graph design problem, not a reason to increase the limit indefinitely.
+
+**Understanding check.** Why use distinct branch keys? What does the join wait for?
+Why is the queue's durable retry different from a graph checkpoint? Exercise:
+change the fixture failure from Loki to deployments and assert metrics remain.
+
+**Manual setup.** Install engine dependencies locally/at deployment:
+
+```powershell
+.venv\Scripts\python.exe -m pip install -r apps/ai-engine/requirements.txt
+```
+
+No cloud account, tracing key or model is required. Restart the local supervisor
+when testing updated engine code; it does not hot-reload.
+
+**Commit summary.** `feat(P6.3): collect bounded evidence through parallel LangGraph branches`.
