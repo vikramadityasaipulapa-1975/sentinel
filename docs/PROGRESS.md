@@ -1095,3 +1095,10 @@ P3.4 requires its own explanation/approval before implementation.
 - Implemented fixed-selector log search, capped records/samples, retrieved-set counts and explicit truncation; approved with all P5.
 - Six cumulative fixture tests passed; live metrics/logs plus unreachable source checks passed. Ruff passed.
 - Documentation: P5-LEARNING-GUIDE.md P5.2. Hosted log provisioning remains manual; learner exercise remains open.
+
+## P5.3 task record
+
+- Added async bounded deployment reader, SELECT-only local identity and ignored config; preserved existing migrations.
+- Ten cumulative fixture tests passed. Real isolated PostgreSQL synthetic release read and EMPTY checks passed; DELETE, payment-table reads and DDL denied.
+- Real Windows test caught incompatible default async loop; verifier now selects Windows selector loop, also required by the engine launcher.
+- Local demo DB started on 55432, existing P2 migrations applied, reader provisioned. No real releases fabricated; hosted setup remains pending.

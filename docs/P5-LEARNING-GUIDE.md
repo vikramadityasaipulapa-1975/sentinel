@@ -111,3 +111,65 @@ that rejects a returned record with another service label.
 private authenticated collector access and retention still need provisioning.
 
 **Commit summary.** `feat(P5.2): add bounded Loki evidence search and samples`.
+
+## P5.3 — Deployment history and database permissions
+
+**Concept.** A deployment attempt is not a verified release. `deployed_at` records
+an attempt; `verified_at` records successful runtime verification. SQL parameters
+keep the service and dates separate from executable SQL. A read-only database
+role enforces permissions even if application code has a bug.
+
+**Architecture/data flow.** A fixed service/window queries the monitored demo's
+existing P2 registry through a separate SELECT-only login. SQL joins immutable
+version metadata to release attempts, using verified time when available and
+attempt time otherwise. Results include version, timestamps, status, backend,
+commit/hash; configuration JSON and payment data are excluded. Queries fetch 51
+rows to detect truncation and return at most 50. Missing checkout releases are
+honestly EMPTY because only payment deployment history currently exists.
+
+**File plan/implementation/walkthrough.** `evidence/deployments.py` validates the
+reader DSN, sets verified TLS for remote hosts, read-only transactions, UTC,
+connection/statement deadlines and a 2.5-second total deadline. The async reader
+returns normalized Evidence with a credential-free table/filter locator.
+`scripts/evidence_support.py` is a local-only owner-run setup helper: it creates
+`sentinel_evidence_reader`, grants only the two table reads, and stores a generated
+password in ignored `.env.evidence`. It preserves an existing stored password.
+The default read-only transaction setting is defense in depth, not a substitute
+for GRANT permissions. Existing P2 migrations are unchanged.
+
+**Approval checkpoint.** Included in the all-P5 approval, including creating the
+local reader identity. No hosted identities or resources were created.
+
+**Run/test.** Start only the demo DB (does not replace running payment services):
+
+```powershell
+docker compose --env-file .env -f infrastructure/compose.yaml up -d --wait db
+.venv\Scripts\python.exe scripts/evidence_support.py
+.venv\Scripts\python.exe scripts/verify-p5-deployments.py
+```
+
+Existing P2 migrations must first exist; the final P5 launcher automates that
+order. The standalone helper does not migrate. Ten cumulative fixture tests
+passed. The real PostgreSQL verifier created its own temporary DB/reader,
+inserted a clearly synthetic release, read its exact timestamp/version, checked
+EMPTY for another service, then proved DELETE, payment-table SELECT and CREATE
+TABLE are denied **even after disabling the default read-only setting**. It
+removed only its own temporary resources. The retained local demo DB contains no
+invented releases.
+
+**Debug.** UNAVAILABLE may mean the DB is stopped or grants are missing. Never
+replace the reader URL with the owner URL as a fix. On Windows Psycopg async needs
+a selector loop; the verifier and engine entry point select it explicitly. The
+reader does not print exception connection details or persist credentials.
+
+**Understanding check.** Why distinguish attempted and verified times? Why test
+permissions after disabling the read-only default? Why is checkout history empty?
+Exercise: add a synthetic FAILED attempt to the isolated verifier and check its
+verified-release count stays unchanged.
+
+**Manual setup.** Local reader provisioning is now automated. Hosted registry
+provisioning requires a separate reader and a reviewed release-recording workflow;
+P2's deployment/migration CLI deliberately supports only local demo URLs. See the
+final manual guide before configuring remote systems.
+
+**Commit summary.** `feat(P5.3): read deployment history with a restricted database role`.
