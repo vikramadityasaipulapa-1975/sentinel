@@ -300,7 +300,7 @@ def main():
     npm_command = (
         ["cmd.exe", "/d", "/c", "npm test"] if os.name == "nt" else ["npm", "test"]
     )
-    subprocess.run(npm_command, cwd=ROOT, env=test_env, check=True, timeout=60)
+    subprocess.run(npm_command, cwd=ROOT, env=test_env, check=True, timeout=180)
     format_command = (
         ["cmd.exe", "/d", "/c", "npm run format:check"]
         if os.name == "nt"

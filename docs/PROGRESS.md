@@ -872,3 +872,24 @@ P3.4 requires its own explanation/approval before implementation.
   one user and one incident. No account recreation or personal credential access.
 - Final formatting, Ruff checks and whitespace checks passed. Runtime source SHA256
   matched the final P3.5 verification artifact before commit.
+
+## P3.5 follow-up: pre-P4 regression gate (2026-10-17)
+
+- User requested verification through P3 before continuing to P4. Initial Docker
+  verification failed because the Linux engine was stopped; started the installed
+  Docker Desktop and reran successfully, without deleting volumes.
+- Initial P1 workspace invocation exceeded its historical 60-second subprocess
+  timeout during Docker startup and expanded P3 tests. Increased only the bounded
+  workspace test-process deadline to180seconds; assertions and load thresholds
+  remain unchanged. Retry passed all14 checkout tests,27 payment tests, seven
+  real HTTP scenarios and three20-iteration k6 scenarios.
+- P3.5 verifier passed70tests with zero skips, plus API/database restart, worker
+  crash recovery, Redis persistence and Redis-outage outbox recovery. Final artifact
+  run2026-10-17 08:39:56UTC. P2 Compose verifier passed, run08:41:45UTC:16 concurrent
+  requests/one payment,8HTTP replays, persistence/checksum/rollback and deployment
+  profile checks. Local API restored: health/ready/auth-test200; anonymous protected
+  services/incidents401. Existing configuration/volumes preserved.
+- Ruff formatting/checks passed for the timeout fix. Commit uses taskID P3.5.
+- P4.1 concepts, data flow, proposed files, dependency choices, risks and acceptance
+  tests explained. User explicitly answered Approve P4.1 after that explanation.
+  P4.2-P4.5 remain subject to their own learning-first checkpoints.
