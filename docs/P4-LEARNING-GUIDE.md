@@ -326,3 +326,81 @@ what does it not prove? Why retain the le label while aggregating histogram buck
 Exercise: change the displayed PromQL window from1m to2m and explain the tradeoff
 between responsiveness and smoothing. Learner responses/exercise remain pending.
 Commit: feat(P4.2): collect and verify Prometheus service metrics.
+
+## P4.3 � JSON logs through Alloy into Loki
+
+### Concept, prerequisites and approval
+
+Approved with the combined P4 plan. P4.2 provides the running demo and collector
+network. Logs describe individual events; Loki indexes a deliberately small set
+of stream labels, then LogQL parses the JSON fields during a query. Request IDs
+remain JSON fields rather than labels, preventing one indexed stream per request.
+Alloy is the supported collector used here. The applications still write their
+existing allowlisted JSON completion/fault records; no log content authorizes tools.
+
+### Architecture/data flow and file plan
+
+The owned supervisor redirects each demo process's stdout/stderr to its own log
+file under ignored .artifacts/observability/logs. Alloy mounts only that directory
+read-only, not the Docker socket or the rest of the workspace. It tails checkout.log
+and payment.log, drops malformed non-JSON startup lines, reads timestamp using
+RFC3339Nano, then sends records to Loki over the private Compose network. Service
+is a fixed stream label; arbitrary JSON fields are not promoted to labels.
+
+Files: compose.observability.yaml adds release/digest-pinned Loki3.7.8 and
+Alloy1.20.1, resource limits and named data/positions volumes; loki.yaml configures
+single-node filesystem/TSDB storage with24h retention; config.alloy defines exactly
+two file sources, timestamp processing and the Loki writer; verify-p4.py adds real
+LogQL and negative-query checks. Existing P4.2 supervisor supplies the files.
+
+### Implementation and walkthrough
+
+loki.source.file remembers read positions in the persistent Alloy storage volume.
+loki.process parses only timestamp/event into temporary fields, preserving the raw
+JSON for query-time inspection. stage.timestamp uses the application's UTC event
+time, rather than pretending collection time is occurrence time. Invalid timestamps
+are not fabricated; failure skips timestamp conversion and uses collector handling.
+loki.write batches delivery to the fixed private Loki endpoint. Loki's named volume
+retains chunks/indexes and compactor state; the in-memory ring is single-node
+membership metadata rather than the only log store. Loki disables anonymous usage
+reporting. Local API publication is127.0.0.1:3100 with no public ingress.
+
+The verifier switches its owned payment process to500ms latency while checkout's
+200ms deadline is active. A real checkout504 completion log receives a unique
+request ID. It polls LogQL for that exact ID and status, so old logs cannot satisfy
+the test. It checks that Loki index labels do not include request_id and malformed
+LogQL returns400/422. Loki ingestion is asynchronous; bounded polling accounts for
+collector batching/startup. HTTP deadlines and a90s query gate prevent hanging.
+
+### Run/test and debugging
+
+```powershell
+.venv\Scripts\python.exe scripts/verify-p4.py --task P4.3
+```
+
+Expected PASS: P4.3 real collector verification; actual evidence is in PROGRESS.md
+and ignored .artifacts/observability/p4.3-verification.json. Example LogQL:
+
+```logql
+{service="checkout-service"} | json | status=504
+```
+
+If empty, generate a timeout, inspect the two mounted log files, confirm Alloy is
+running and wait for its batch. Never index arbitrary URLs or request IDs to make
+queries easier. Mixed uvicorn startup lines are intentionally dropped. Collection
+of already-written data can replay after lost positions; query duplicate events
+using their request/event fields if needed. Local log files stop the supervisor at
+20MB each; this is a demo bound rather than a production rotation policy.
+
+### Manual setup, understanding and commit
+
+No additional manual setup required locally. Hosted work remains unperformed:
+choose/approve Loki storage and retention, scoped collector identities/file access,
+rotation/replay policy, encryption, tenant authentication and private networking.
+Do not expose this unauthenticated single-tenant Loki configuration publicly.
+
+Questions: Why query request_id as JSON rather than an index label? Why distinguish
+event timestamp from ingestion time? What happens when the collector is behind?
+Exercise: add a LogQL filter for level=error and explain why it can differ from a
+fault_injected warning. Student understanding/exercise remain pending.
+Commit: feat(P4.3): collect demo JSON logs with Alloy and Loki.

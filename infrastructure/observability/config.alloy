@@ -1,0 +1,24 @@
+loki.source.file "demo" {
+  targets = [
+    {__path__ = "/logs/checkout.log", service = "checkout-service"},
+    {__path__ = "/logs/payment.log", service = "payment-service"},
+  ]
+  forward_to = [loki.process.demo.receiver]
+}
+loki.process "demo" {
+  stage.json {
+    expressions = {timestamp = "timestamp", event = "event"}
+    drop_malformed = true
+  }
+  stage.timestamp {
+    source = "timestamp"
+    format = "RFC3339Nano"
+    action_on_failure = "skip"
+  }
+  forward_to = [loki.write.demo.receiver]
+}
+loki.write "demo" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

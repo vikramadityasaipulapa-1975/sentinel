@@ -964,3 +964,22 @@ P3.4 requires its own explanation/approval before implementation.
   private service discovery, TLS/authentication and durable retention remain pending.
 - Learner responses/exercise pending. Commit: feat(P4.2): collect and verify
   Prometheus service metrics. Next P4.3 is already approved.
+
+## P4.3 task record
+
+- Approved in combined P4 plan. Concepts, files/functions, flow, exact commands,
+  positive/negative tests, debug, hosted manual steps and exercises: P4 guide.
+- Added pinned/digest-verified Loki3.7.8 and Alloy1.20.1, bounded resources,
+  persistent Loki/Alloy positions volumes,24h log retention and read-only mount
+  of only the two owned demo log files. No Docker socket mounted.
+- Actual P4.3 verifier PASSED: real latency fault caused checkout504; a fresh
+  request-ID/status LogQL filter found its JSON completion log. Labels contained
+  filename/service/service_name, no request_id. Invalid LogQL rejected.
+- Initial run timed out because repeated identical counter values across process
+  restarts hid growth in the P4.2 rate fixture. Fixed fixture to wait for the first
+  error scrape before additional requests; full rerun passed. Loki startup readiness
+  was also allowed to settle. Evidence: .artifacts/observability/p4.3-verification.json.
+- Manual setup: no additional local setup required. Hosted scoped file collection,
+  rotation, storage/retention, tenant authentication/TLS remain unprovisioned. Local
+  loopback unauthenticated Loki must not be made public. Learner exercise pending.
+- Commit: feat(P4.3): collect demo JSON logs with Alloy and Loki. P4.4 is approved.
