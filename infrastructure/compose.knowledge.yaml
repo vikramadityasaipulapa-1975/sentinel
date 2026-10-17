@@ -1,0 +1,19 @@
+name: sentinel-knowledge
+services:
+  knowledge-db:
+    image: pgvector/pgvector:pg17@sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d
+    environment:
+      POSTGRES_DB: sentinel_knowledge
+      POSTGRES_USER: knowledge_owner
+      POSTGRES_PASSWORD: ${SENTINEL_KNOWLEDGE_PASSWORD:?Run knowledge-local.py first}
+    ports:
+      - "127.0.0.1:55436:5432"
+    volumes:
+      - knowledge-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U knowledge_owner -d sentinel_knowledge"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+volumes:
+  knowledge-data:

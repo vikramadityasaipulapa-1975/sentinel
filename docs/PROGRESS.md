@@ -1234,3 +1234,21 @@ P3.4 requires its own explanation/approval before implementation.
 - Authored ten tailored runbooks and two explicitly fictional postmortems. Added versioned manifest and bounded, safe-path/metadata/required-section validator.
 - 40 cumulative engine tests passed; invalid/duplicate/traversal/missing-section/unlabelled-example cases rejected. No database/model call in this task.
 - P7 guide includes walkthrough, commands, debugging, learner questions/exercise. Manual setup: none. No remediation authorized by document content.
+
+## P7.2 task record
+
+- Approval: included in the user's complete P7 approval; separate development DB
+  and local model-artifact download authorized. No cloud resource provisioned.
+- Implementation: deterministic section chunks, exact Unicode offsets, immutable
+  source versions, fixed-model normalized vectors, pinned CPU embedding artifacts,
+  separate digest-pinned pgvector DB/volume and SELECT-only reader.
+- Measured: first real local ingestion stored 12 documents and 72 chunks. The
+  real isolated verifier checked replay zero, same-version mutation rejection,
+  retained version 1 after publishing version 2, and reader write denial.
+  Local model query returned 384 dimensions; artifact hashes and pip check passed.
+  Chunk/vector/catalog tests passed in the 43-test engine run.
+- Download recovery: Docker Desktop's image transfer stalled. Downloaded the same
+  OCI objects directly, checked every SHA-256, and imported the exact pinned
+  image; Docker reported the expected repository digest. No Docker settings,
+  existing DB images or persistent volumes were changed.
+- Learning/manual instructions: see P7-LEARNING-GUIDE P7.2; cloud setup deferred.
