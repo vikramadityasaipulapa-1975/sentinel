@@ -1,3 +1,9 @@
+import {
+  insertEvidence,
+  validateEvidence,
+  readSnapshot,
+  type Evidence,
+} from "./evidence.js";
 import { randomUUID } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
 import { uuidPattern } from "./services.js";
@@ -35,7 +41,9 @@ function metadata(
   const data = value as Record<string, unknown>;
   if (result) {
     if (
-      data.mode !== "workflow-check" ||
+      !["workflow-check", "deterministic-evidence"].includes(
+        String(data.mode),
+      ) ||
       data.ai_performed !== false ||
       typeof data.message !== "string" ||
       data.message.length > 200
@@ -45,7 +53,11 @@ function metadata(
   }
   if (
     typeof data.code !== "string" ||
-    !["ATTEMPTS_EXHAUSTED", "WORKFLOW_CHECK_FAILED"].includes(data.code)
+    ![
+      "ATTEMPTS_EXHAUSTED",
+      "WORKFLOW_CHECK_FAILED",
+      "EVIDENCE_COLLECTION_FAILED",
+    ].includes(data.code)
   )
     throw unavailable();
   return { code: data.code };
@@ -297,7 +309,48 @@ export function postgresInvestigations(pool: Pool) {
           investigation: readInvestigation(claimed),
         };
       }),
-    finish: (id: string, token: string, success: boolean) =>
+    evidence: (id: string, query: unknown) =>
+      transaction(async (client) => {
+        if (
+          !(
+            await client.query(
+              "SELECT id FROM sentinel_api.investigations WHERE id=$1",
+              [id],
+            )
+          ).rows[0]
+        )
+          throw new IncidentError(
+            404,
+            "INVESTIGATION_NOT_FOUND",
+            "Investigation not found",
+          );
+        const scope = `evidence-${id}`;
+        const options = parseList(query, scope);
+        const rows = (
+          await client.query(
+            "SELECT * FROM sentinel_api.evidence_snapshots WHERE investigation_id=$1 AND ($2::bigint IS NULL OR position<$2) ORDER BY position DESC LIMIT $3",
+            [id, options.position ?? null, options.limit + 1],
+          )
+        ).rows;
+        const page = rows.slice(0, options.limit);
+        const { encodeCursor, eventScope } = await import("./incidents.js");
+        return {
+          snapshots: page.map(readSnapshot),
+          next_cursor:
+            rows.length > options.limit
+              ? encodeCursor(page[page.length - 1].position, eventScope(scope))
+              : null,
+        };
+      }),
+    finish: (
+      id: string,
+      token: string,
+      success: boolean,
+      evidence?: Evidence[],
+      failureCode:
+        | "WORKFLOW_CHECK_FAILED"
+        | "EVIDENCE_COLLECTION_FAILED" = "WORKFLOW_CHECK_FAILED",
+    ) =>
       transaction(async (client) => {
         const current = await locked(client, id);
         if (
@@ -306,29 +359,42 @@ export function postgresInvestigations(pool: Pool) {
           current.lease_valid !== true
         )
           return false;
+        if (evidence && !success) throw unavailable();
+        if (evidence) {
+          const service = (
+            await client.query(
+              "SELECT s.name FROM sentinel_api.incidents i JOIN sentinel_api.services s ON s.id=i.service_id WHERE i.id=$1",
+              [current.incident_id],
+            )
+          ).rows[0]?.name;
+          validateEvidence(evidence, service);
+          await insertEvidence(client, id, current.attempts, evidence);
+        }
+        const terminal = evidence?.some((row) => row.status !== "OK")
+          ? "PARTIAL"
+          : "COMPLETED";
         const status = success
-          ? "COMPLETED"
+          ? terminal
           : current.attempts >= 3
             ? "FAILED"
             : "QUEUED";
         const result = success
           ? {
-              mode: "workflow-check",
+              mode: evidence ? "deterministic-evidence" : "workflow-check",
               ai_performed: false,
-              message:
-                "Queue and persistence workflow checked; no telemetry gathered or AI investigation performed",
+              message: evidence
+                ? "Read-only evidence snapshots stored; inspect source status and coverage. No AI investigation performed"
+                : "Queue and persistence workflow checked; no telemetry gathered or AI investigation performed",
             }
           : null;
         const updated = (
           await client.query(
-            "UPDATE sentinel_api.investigations SET status=$2,lease_token=NULL,lease_until=NULL,finished_at=CASE WHEN $2 IN ('COMPLETED','FAILED') THEN statement_timestamp() ELSE NULL END,result_json=$3,error_json=$4 WHERE id=$1 RETURNING *",
+            "UPDATE sentinel_api.investigations SET status=$2,lease_token=NULL,lease_until=NULL,finished_at=CASE WHEN $2 IN ('COMPLETED','PARTIAL','FAILED') THEN statement_timestamp() ELSE NULL END,result_json=$3,error_json=$4 WHERE id=$1 RETURNING *",
             [
               id,
               status,
               result ? JSON.stringify(result) : null,
-              success
-                ? null
-                : JSON.stringify({ code: "WORKFLOW_CHECK_FAILED" }),
+              success ? null : JSON.stringify({ code: failureCode }),
             ],
           )
         ).rows[0];
@@ -336,7 +402,7 @@ export function postgresInvestigations(pool: Pool) {
           client,
           updated,
           success
-            ? "COMPLETED"
+            ? terminal
             : status === "FAILED"
               ? "FAILED"
               : "RETRY_SCHEDULED",

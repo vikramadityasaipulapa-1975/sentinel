@@ -1,4 +1,4 @@
-"""Prepare the separate P3 development database and run the loopback-only API."""
+"""Prepare local databases and supervise the loopback API, evidence engine and worker."""
 
 import argparse
 import os
@@ -6,10 +6,15 @@ import secrets
 import shutil
 import socket
 import subprocess
+import sys
+import sysconfig
 import time
+import urllib.request
 from urllib.parse import urlsplit
 
-from local_support import ROOT, docker_executable
+from evidence_support import prepare_reader
+from local_support import ROOT, compose_command, docker_executable, local_env
+from migrate import migrate
 
 
 def command(args, env=None, timeout=120):
@@ -100,6 +105,10 @@ def main():
             if name not in settings:
                 handle.write(f"\n{name}={value}\n")
     env = local_environment(path)
+    demo = local_env()
+    command(compose_command() + ["up", "-d", "--wait", "db"], demo, 120)
+    migrate(demo["DATABASE_URL"])
+    evidence = prepare_reader()
     # Resolve first so an unavailable Docker installation cannot leave child services.
     docker = compose(env, env_file=path)
     with socket.socket() as probe:
@@ -123,6 +132,44 @@ def main():
     if not args.prepare_only:
         children = []
         try:
+            with socket.socket() as probe:
+                probe.bind(("127.0.0.1", 8001))
+            engine_env = {
+                key: value
+                for key, value in os.environ.items()
+                if key.upper()
+                in {
+                    "PATH",
+                    "SYSTEMROOT",
+                    "WINDIR",
+                    "TEMP",
+                    "TMP",
+                    "USERPROFILE",
+                    "LOCALAPPDATA",
+                }
+            }
+            engine_env.update(evidence)
+            engine_env["PYTHONPATH"] = os.pathsep.join(
+                [sysconfig.get_paths()["purelib"], str(ROOT / "apps/ai-engine")]
+            )
+            engine = subprocess.Popen(
+                [sys._base_executable, str(ROOT / "apps/ai-engine/engine_main.py")],
+                cwd=ROOT,
+                env=engine_env,
+            )
+            children.append(engine)
+            deadline = time.monotonic() + 20
+            while True:
+                if engine.poll() is not None or time.monotonic() > deadline:
+                    raise RuntimeError("Evidence engine startup failed")
+                try:
+                    with urllib.request.urlopen(
+                        "http://127.0.0.1:8001/health", timeout=1
+                    ) as response:
+                        if response.status == 200:
+                            break
+                except OSError:
+                    time.sleep(0.2)
             children.append(
                 subprocess.Popen(
                     [node, "apps/api/dist/src/server.js"], cwd=ROOT, env=env
@@ -130,6 +177,10 @@ def main():
             )
             if not args.api_only:
                 worker_env = dict(env)
+                worker_env["SENTINEL_EVIDENCE_URL"] = "http://127.0.0.1:8001"
+                worker_env["SENTINEL_EVIDENCE_SECRET"] = evidence[
+                    "SENTINEL_EVIDENCE_SECRET"
+                ]
                 worker_env.pop("SENTINEL_JWT_SECRET", None)
                 worker_env.pop("SENTINEL_ALERT_WEBHOOK_SECRET", None)
                 children.append(

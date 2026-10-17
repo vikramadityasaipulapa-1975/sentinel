@@ -341,3 +341,21 @@ No additional manual setup is required in the checked environment. Public hostin
 private authenticatedTLS collector access, durable provider storage/retention and
 production alert thresholds are still unprovisioned; use each task's hosting steps.
 No alert or telemetry content can execute remediation. P5 is not started.
+
+## P5 evidence and hosted setup
+
+P5 adds deterministic read-only Prometheus, Loki and deployment-history tools,
+coverage-aware comparisons and four immutable, hash-verified snapshots per
+successful collection attempt. The local launcher now starts the internal Python
+collector alongside the API and worker. No LLM call or remediation is performed.
+
+- [P5 task-by-task concepts, architecture, files and tests](docs/P5-LEARNING-GUIDE.md)
+- [Local restart, browser testing and manual checklist](docs/MANUAL-SETUP.md)
+- [Cloud PostgreSQL and public hosting steps](docs/HOSTED-SETUP.md)
+
+Use `scripts/api-local.py` for the full local P5 stack. Standalone
+`npm run start:worker` with only `.env.api` retains P3 workflow-check mode unless
+you explicitly configure the separate evidence URL/key; it does not gather
+telemetry in that compatibility mode. The shared deployment must use hosted
+storage/processes. Current loopback bindings and remote bootstrap restrictions
+still need the reviewed deployment work listed in the hosted guide.

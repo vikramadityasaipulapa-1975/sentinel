@@ -32,4 +32,7 @@ async def bounded_json(client: httpx.AsyncClient, url: str, params: dict):
             raw.extend(chunk)
             if len(raw) > 262144:
                 raise ValueError("Source response exceeds 256 KiB")
-        return json.loads(raw)
+        body = json.loads(raw)
+        if not isinstance(body, dict):
+            raise ValueError("Expected source JSON object")
+        return body

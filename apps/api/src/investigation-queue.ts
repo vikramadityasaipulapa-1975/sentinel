@@ -1,3 +1,4 @@
+import { collectEvidence, evidenceConfig, type Evidence } from "./evidence.js";
 import { Queue, Worker, UnrecoverableError } from "bullmq";
 import { Redis } from "ioredis";
 import type { Pool } from "pg";
@@ -117,6 +118,7 @@ export function startInvestigationWorker(
 ) {
   const store = postgresInvestigations(pool);
   const delay = readWorkDelay();
+  const collector = evidenceConfig();
   const redis = new Redis(url, {
     maxRetriesPerRequest: null,
     connectTimeout: 2000,
@@ -139,16 +141,34 @@ export function startInvestigationWorker(
       if (!claim) return;
       let timer: NodeJS.Timeout | undefined;
       try {
+        let evidence: Evidence[] | undefined;
         await Promise.race([
           execute
             ? execute(id)
-            : (async () => {
-                await pool.query(
-                  "SELECT id FROM sentinel_api.investigations WHERE id=$1",
-                  [id],
-                );
-                await new Promise((resolve) => setTimeout(resolve, delay));
-              })(),
+            : collector
+              ? (async () => {
+                  const row = (
+                    await pool.query(
+                      "SELECT s.name FROM sentinel_api.investigations v JOIN sentinel_api.incidents i ON i.id=v.incident_id JOIN sentinel_api.services s ON s.id=i.service_id WHERE v.id=$1",
+                      [id],
+                    )
+                  ).rows[0];
+                  const end = new Date();
+                  const start = new Date(end.getTime() - 600000);
+                  evidence = await collectEvidence(
+                    collector,
+                    row.name,
+                    start.toISOString(),
+                    end.toISOString(),
+                  );
+                })()
+              : (async () => {
+                  await pool.query(
+                    "SELECT id FROM sentinel_api.investigations WHERE id=$1",
+                    [id],
+                  );
+                  await new Promise((resolve) => setTimeout(resolve, delay));
+                })(),
           new Promise<never>((_resolve, reject) => {
             timer = setTimeout(
               () => reject(new Error("Workflow timeout")),
@@ -156,9 +176,15 @@ export function startInvestigationWorker(
             );
           }),
         ]);
-        await store.finish(id, claim.token, true);
+        await store.finish(id, claim.token, true, evidence);
       } catch {
-        await store.finish(id, claim.token, false);
+        await store.finish(
+          id,
+          claim.token,
+          false,
+          undefined,
+          collector ? "EVIDENCE_COLLECTION_FAILED" : "WORKFLOW_CHECK_FAILED",
+        );
         throw new Error("Workflow check failed");
       } finally {
         if (timer) clearTimeout(timer);

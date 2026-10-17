@@ -61,10 +61,12 @@
             maxlength="200" /></label
         ><button type="submit">Create HIGH severity incident</button>
       </form>
-      <h2>Investigation workflow check</h2>
+      <h2>Read-only evidence investigation</h2>
       <p>
-        This enqueues a real background workflow check, not AI or telemetry
-        analysis. Reuse the same request key to retry an uncertain submission.
+        This enqueues a real background investigation. With the P5 collector
+        enabled, it saves metrics, logs, deployment history and descriptive
+        comparisons. It does not perform AI analysis. Reuse the same request key
+        to retry an uncertain submission.
       </p>
       <form id="investigation">
         <label
@@ -80,6 +82,10 @@
       <div id="actions-queue">
         <button id="job-status" type="button">Investigation status</button
         ><button id="job-list" type="button">Incident investigations</button>
+        <button id="job-evidence" type="button">Saved evidence</button>
+        <button id="next-evidence" type="button" disabled>
+          Next evidence page
+        </button>
       </div>
       <h2>Live incident history</h2>
       <p>

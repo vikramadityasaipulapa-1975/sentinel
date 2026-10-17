@@ -52,5 +52,13 @@ export function investigationRoutes(store: InvestigationStore) {
     async (request, response) =>
       response.json(await store.get(parseId(request.params.id))),
   );
+  router.get(
+    "/investigations/:id/evidence",
+    requirePermission("READ"),
+    async (request, response) =>
+      response.json(
+        await store.evidence(parseId(request.params.id), request.query),
+      ),
+  );
   return router;
 }

@@ -1,6 +1,7 @@
 import asyncio
 from urllib.parse import urlsplit
 
+import certifi
 import psycopg
 from psycopg.rows import dict_row
 
@@ -40,6 +41,7 @@ async def query_deployments(dsn: str, window: Window):
                 sslmode="disable"
                 if url.hostname in {"127.0.0.1", "localhost"}
                 else "verify-full",
+                sslrootcert=certifi.where(),
                 options="-c default_transaction_read_only=on -c statement_timeout=1500 -c timezone=UTC",
             )
             async with conn:

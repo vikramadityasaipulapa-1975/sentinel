@@ -218,3 +218,119 @@ matching display offsets? Exercise: add a negative-delta fixture (4 → 2).
 **Manual setup.** No manual setup required; this task is pure calculation.
 
 **Commit summary.** `feat(P5.4): calculate bounded before and after evidence changes`.
+
+## P5.5 — Durable evidence snapshots and worker integration
+
+**Concept.** A snapshot preserves what an investigation actually observed, even
+when a collector later expires its data. Provenance records where, when and how
+it was collected. SHA-256 detects a mismatch between saved canonical bytes and
+their expected digest. It is an integrity check, not an external signature or
+proof against a database administrator who can disable triggers and replace both
+payload and hash.
+
+**Architecture/data flow.** Authenticated incident enqueue → existing transactional
+outbox → BullMQ worker → database lease claim → service-name lookup → fixed
+10-minute lookback ending at worker execution → authenticated internal collector →
+concurrent metrics/log/registry reads → deterministic adjacent five-minute
+comparisons → backend validation → one transaction inserting four snapshots,
+finishing the investigation, appending its timeline event and removing the outbox.
+The selected window describes current observations; it does not pretend to
+reconstruct a historic incident beyond collector retention. It is explicitly
+recorded in every snapshot.
+
+```mermaid
+flowchart LR
+  User[Signed-in user] --> API[API: authorize and enqueue]
+  API --> DB[(Primary PostgreSQL)]
+  DB --> Worker[Outbox dispatcher and worker]
+  Worker --> Queue[(Redis / BullMQ)]
+  Queue --> Worker
+  Worker --> Engine[Private authenticated evidence collector]
+  Engine --> Prom[Prometheus: read]
+  Engine --> Loki[Loki: read]
+  Engine --> Registry[(Release registry: SELECT only)]
+  Engine --> Worker
+  Worker --> DB
+  DB --> History[Authorized saved evidence and SSE]
+```
+
+**File plan / implementation / file-by-file walkthrough.**
+
+| File                                                      | Purpose and important behavior                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/ai-engine/engine.py`                                | `create_app(settings, transport)` validates fixed operator endpoints/key/reader DSN. `POST /collect` checks a distinct bearer key using constant-time comparison, bounds JSON input to 2 KiB, rejects extra query fields, limits active collections to two and reads the three independent sources concurrently with a three-second collection deadline. Source failures remain labelled; comparisons are pure. `GET /health` checks process health only. No main DB or queue credentials are needed.                                                                                                    |
+| `engine_main.py`                                          | Runs loopback-only on port 8001, disables access logs/docs, bounds server concurrency, and selects the Windows-compatible async loop. No child process shell or model SDK is used.                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `requirements.txt`                                        | Pins only the engine's runtime dependency subset already present in the tested payment environment, including FastAPI/httpx/Pydantic/Psycopg/uvicorn and certificate roots.                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `evidence/http.py`                                        | Also rejects non-object source JSON before callers inspect fields. The injected HTTP transport makes negative tests independent of collectors.                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `evidence/deployments.py`                                 | Uses certifi roots with verified remote database TLS; local loopback DB stays explicitly local development mode.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `apps/api/database/migrations/006_evidence_snapshots.sql` | Additive table with investigation FK, attempt/source uniqueness, source/status/window checks, exact canonical text plus JSONB, SHA-256 and paged position. An UPDATE/DELETE trigger rejects mutation. Existing migrations were not edited.                                                                                                                                                                                                                                                                                                                                                               |
+| `apps/api/src/evidence.ts`                                | `canonical(value)` recursively sorts object keys and validates finite JSON, depth, count, string and byte budgets; arrays retain order. `hash(text)` hashes those UTF-8 bytes. `validateEvidence` checks all four unique sources and matching bounded service/windows. `collectEvidence` calls only the configured URL with a 3.5-second fetch deadline, no redirects and 128-KiB streamed response cap. `insertEvidence` is called only inside the worker's fenced transaction. `readSnapshot` recomputes both canonical JSON and hash before returning `hash_verified: true`; corruption fails closed. |
+| `investigations.ts`                                       | `finish(id, token, success, evidence?, failureCode?)` locks the incident then investigation and checks current token/status/expiry before any snapshot write. Invalid/stale completion returns false. Snapshot insertion and terminal event/result are atomic; a failed insert rolls everything back. Any non-OK source, including EMPTY or partial calculations, produces PARTIAL. All four OK produces COMPLETED. `evidence(id, query)` provides READ history with bounded scoped cursors and hash checks.                                                                                             |
+| `investigation-queue.ts`                                  | When collector configuration exists, the worker obtains the service and calls it; the old five-second operation budget, attempt cap and lease fencing remain. Rejected/malformed/unreachable collector calls retry, then become FAILED with EVIDENCE_COLLECTION_FAILED. There is no successful fallback. Explicitly unconfigured P3 installations retain workflow-check mode for compatibility and say no telemetry was gathered.                                                                                                                                                                        |
+| `investigation-routes.ts`                                 | Adds authenticated `GET /api/v1/investigations/:id/evidence?limit=4&cursor=...` under READ permission. The enqueue body remains `{}`; callers cannot supply arbitrary source URLs or query language.                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `worker-main.ts`                                          | Startup log truthfully distinguishes deterministic-evidence and legacy workflow-check mode without logging keys.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `apps/api/public/auth-test.html` / `.js`                  | Updates investigation wording and adds Saved evidence / next-page controls using the selected investigation UUID. Tokens remain in memory; evidence is displayed with textContent, never HTML execution.                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `scripts/api-local.py`                                    | Starts only the separate demo DB, applies its existing migrations and prepares the restricted reader; starts engine/API/worker with owned child lifetimes. Engine environment is allowlisted and lacks primary DB/JWT secrets; worker lacks JWT/webhook credentials and receives only its collector key/URL. API keeps its existing credentials. Normal restarts preserve data.                                                                                                                                                                                                                          |
+| `scripts/verify-p3.py`                                    | Adds `--with-evidence`, loading only the ignored collector key into the isolated verifier's test environment. It does not put the deployment reader DSN in Node or change the normal worker's mode.                                                                                                                                                                                                                                                                                                                                                                                                      |
+| API/Python tests                                          | Add contracts, hash tampering, real transaction rollback, pagination, normal mutation denial, expired/replacement lease fencing, API reconstruction, live collector/worker persistence and wrong-key failure. Migration upgrade/checksum tests include 006 and move the invalid fixture to 007.                                                                                                                                                                                                                                                                                                          |
+| `.env.example`, manual/hosted guides, README and progress | Fake configuration placeholders, exact restart/testing steps, current hosting blockers and account-specific provisioning instructions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+
+**Approval checkpoint.** All P5 implementation was explicitly approved after the
+expanded explanation. No permission to start P6 or deploy/pay externally is
+inferred. The remaining learner checkpoints are still open.
+
+**Security/error semantics.** Telemetry remains untrusted data. No shell execution,
+remediation, LLM call or model hypothesis is part of P5. The engine cannot write
+Sentinel records; the backend revalidates its output. Deployment configuration
+is excluded from history output and source locators contain no DSN/password.
+Engine failures return safe fixed codes; owner DB exception details are not
+returned. A source outage can still produce useful PARTIAL snapshots; an invalid
+collector envelope fails the investigation after bounded retries. Empty release
+history is not manufactured into a causal explanation. No production endpoint is
+exposed by this local phase.
+
+**Run/test (measured).** Use MANUAL-SETUP.md's exact commands. Final measured checks:
+
+- Engine: 16 tests passed; no skipped tests. Fixture cases are explicitly separate
+  from live collector observations.
+- Full API suite: **83 tests passed, zero failed/skipped**, with real PostgreSQL,
+  Redis, Python collector and BullMQ. It includes pre-P5 auth, incidents, queue,
+  alerts and SSE tests, plus exact evidence/rollback/fencing checks.
+- Runtime verifier: API/database/Redis restart and outage/recovery checks passed.
+- Reader verifier: real isolated PostgreSQL release read plus denied DELETE,
+  payment SELECT and DDL passed; only its synthetic test resources were removed.
+- Existing checkout: 17 tests passed. Existing payment: 32 tests passed; the
+  pre-existing FastAPI TestClient dependency emits a deprecation warning, not a
+  test failure. P5 engine tests use ASGITransport without that warning.
+- Live P5.1/P5.2 verifier reads actual local metrics/logs and confirms unavailable
+  endpoints are labelled, with its report retained under `.artifacts`.
+
+Live integration initially found a canonical-text round-trip defect: PostgreSQL
+inferred a shared parameter as JSONB and reformatted its text representation.
+Explicitly typing it as text **before** converting the separate JSONB column fixed
+that mismatch. Real round-trip tests then passed. The additive migration did not
+need modification. The live suite also proves a wrong collector key reaches
+FAILED with no evidence snapshots; it never reports a successful workflow check.
+
+**Debug.** See MANUAL-SETUP.md's symptom checklist. Check source status, coverage,
+worker mode and exact window before interpreting values. A main database outage
+keeps process health separate from readiness. Do not edit snapshots or disable
+certificate verification to make a test green. Engine health alone does not prove
+its source credentials or collector reachability.
+
+**Understanding check.** Why must snapshots and the terminal event share one
+transaction? How does a lease token prevent a recovered worker from accepting an
+old worker's output? What does a hash prove, and what does it not prove against a
+DB administrator? Exercise: add a unit test rejecting duplicate source names in
+an otherwise valid four-source envelope.
+
+**Manual setup.** Existing local configuration has been prepared and preserved.
+For later restarts use MANUAL-SETUP.md. Follow HOSTED-SETUP.md for Neon provisioning,
+restricted runtime/reader identities, verified TLS, Render service types, Redis,
+monitoring, bootstrap, ingress and backup checks. Cloud provisioning and public
+availability are not completed; code/transport/bootstrap blockers are listed
+explicitly. No LLM API key is needed for this phase.
+
+**Commit summary.** `feat(P5.5): persist fenced evidence snapshots with verified hashes`.
+P5.1-P5.4 already have separate pushed commits. This commit completes P5 software;
+P6 needs its own learning explanation and approval.

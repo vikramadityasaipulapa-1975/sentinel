@@ -296,3 +296,34 @@ document.querySelector("#watch").addEventListener("click", async () => {
     streamStatus.textContent =
       "Reconnect budget exhausted. Click Watch to reload history.";
 });
+
+let evidenceCursor = null;
+let evidenceInvestigation = null;
+async function loadEvidence(next) {
+  const id = document.querySelector("#queue-id").value;
+  if (!next || evidenceInvestigation !== id) evidenceCursor = null;
+  evidenceInvestigation = id;
+  try {
+    const params = new URLSearchParams({ limit: "4" });
+    if (evidenceCursor) params.set("cursor", evidenceCursor);
+    const { response, data } = await request(
+      `/api/v1/investigations/${encodeURIComponent(id)}/evidence?${params}`,
+    );
+    evidenceCursor = response.ok ? data.next_cursor : null;
+    document.querySelector("#next-evidence").disabled = !evidenceCursor;
+    result.textContent = JSON.stringify(
+      { status: response.status, ...data },
+      null,
+      2,
+    );
+  } catch {
+    result.textContent =
+      "Evidence request failed. Check the investigation ID and session.";
+  }
+}
+document
+  .querySelector("#job-evidence")
+  .addEventListener("click", () => loadEvidence(false));
+document
+  .querySelector("#next-evidence")
+  .addEventListener("click", () => loadEvidence(true));

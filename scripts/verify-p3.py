@@ -86,7 +86,13 @@ def main():
     parser.add_argument(
         "--task", choices=["P3.1", "P3.2", "P3.3", "P3.4", "P3.5"], default="P3.5"
     )
-    task = parser.parse_args().task
+    parser.add_argument(
+        "--with-evidence",
+        action="store_true",
+        help="Also verify the running local P5 collector and evidence worker",
+    )
+    args = parser.parse_args()
+    task = args.task
     artifacts = ROOT / ".artifacts"
     artifacts.mkdir(exist_ok=True)
     task_slug = task.lower().replace(".", "-")
@@ -108,6 +114,16 @@ def main():
     started = False
     command = None
     env = dict(os.environ)
+    if args.with_evidence:
+        settings = dict(
+            line.split("=", 1)
+            for line in (ROOT / ".env.evidence")
+            .read_text(encoding="utf-8")
+            .splitlines()
+            if line and not line.startswith("#")
+        )
+        env["TEST_EVIDENCE_SECRET"] = settings["SENTINEL_EVIDENCE_SECRET"]
+        report["live_evidence_checks_requested"] = True
     try:
         node = shutil.which("node")
         npm = shutil.which("npm.cmd" if os.name == "nt" else "npm")

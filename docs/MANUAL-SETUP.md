@@ -1,99 +1,138 @@
 # Sentinel manual setup checklist
 
-This checklist distinguishes actions completed by the local helpers from actions
-that require your account access or a separately approved hosted deployment.
-Never paste passwords, tokens or connection strings into chat or Git.
+P5.1-P5.5 are implemented locally. For provider-specific cloud database steps,
+read [HOSTED-SETUP.md](HOSTED-SETUP.md). No external deployment or paid resource
+has been created. Keep credentials in ignored configuration or a secret manager;
+never paste them into chat or Git.
 
-## Current local environment (verified at the start of P5 planning)
+## What is already automated locally
 
-The API/database/Redis and Prometheus/Loki/Tempo/Alertmanager are already running.
-API readiness, Prometheus readiness and Loki readiness returned200 during P5
-planning. Do not start duplicate services on occupied ports. P5 implementation is
-awaiting its combined learning-first approval; the deployment reader identity and
-internal evidence service are not provisioned yet.
+The local launcher prepares three retained PostgreSQL/Redis services, applies
+pending migrations, preserves accounts/incidents, provisions the restricted
+history reader and starts the API, worker and evidence service. P4's separate
+supervisor runs the monitored demo and collectors. These are development/test
+services, not public hosting. No LLM key or model subscription is required for P5.
 
-For a later restart, open PowerShell and use the existing repository:
+Ignored `.env.api` contains primary API/queue secrets; `.env` contains the separate
+demo DB settings; `.env.evidence` contains the reader and collector settings. The
+Python engine receives no main DB credentials. Local deployment history remains
+EMPTY until a real versioned deployment is recorded through P2's workflow.
+
+## Restart locally: exact order
+
+First start Docker Desktop with Linux containers. Use Node 24/npm 11 and Python
+3.11. If services are already running, use the open page; do not launch duplicates.
+From a PowerShell terminal:
 
 ```powershell
 Set-Location V:\sentinel\sentinel
 npm ci
+# Only if the virtual environment does not yet exist:
+# py -3.11 -m venv .venv
 .venv\Scripts\python.exe -m pip install -r services/payment-service/requirements.txt
+.venv\Scripts\python.exe scripts/init-local.py
 npm run build
 .venv\Scripts\python.exe scripts/api-local.py
 ```
 
-Keep that API terminal running. In a second terminal:
+`init-local.py` preserves an existing `.env`. The API launcher starts only the demo
+**database**, not another payment/checkout process. It applies the unchanged P2
+migrations, prepares the reader, applies API migration 006 and starts owned API,
+engine and worker children. Expected API log: `listening` on 3000; worker mode:
+`deterministic-evidence`. Keep this terminal open.
+
+In a second terminal:
 
 ```powershell
 Set-Location V:\sentinel\sentinel
 .venv\Scripts\python.exe scripts/observability-local.py
 ```
 
-Start Docker Desktop with Linux containers first. The API helper preserves the
-existing database/account, applies only pending migrations and uses ignored local
-secrets. The observability supervisor uses simulated memory-only payments; it does
-not create deployment records or imply a verified release. Ctrl+C stops only owned
-processes; named collector/database volumes remain. Never use down -v to debug.
+This uses memory-only demo payments and creates no verified release records.
+Ctrl+C stops each supervisor's owned processes. Retained volumes stay available;
+do not use `down -v` as a debugging shortcut.
 
-Verification:
+Check readiness and open the page:
 
 ```powershell
 (Invoke-WebRequest http://localhost:3000/ready).StatusCode
+(Invoke-WebRequest http://localhost:8001/health).StatusCode
 (Invoke-WebRequest http://localhost:9090/-/ready).StatusCode
 (Invoke-WebRequest http://localhost:3100/ready).StatusCode
+Start-Process http://localhost:3000/auth-test
 ```
 
-Expected200. Open http://localhost:3000/auth-test and sign in with your existing
-account; there are no default credentials. Reload forgets the browser token.
+Expected: all 200. Engine health confirms the process, not collector availability.
+Missing collectors produce explicit evidence source failures/PARTIAL results.
 
-P5's setup/verifier commands will be added here after they are implemented and
-actually tested. A missing deployment history must remain EMPTY or UNAVAILABLE;
-we will not populate invented release evidence merely to make the UI look complete.
-No LLM API key, LLM account or model purchase is required for P5.
+## Test an investigation yourself
 
-## Hosted setup (not performed; provider choice and deployment approval required)
+1. Sign in on `/auth-test` with your existing local account; there are no defaults.
+   Reload clears the page's token from memory.
+2. Click **Services** and copy a service UUID. Create a clearly named `DEMO:`
+   incident using an OPERATOR or ADMIN account, or use an existing open incident.
+3. Copy its incident UUID into the investigation form. Generate a new request key.
+4. Click **Watch progress**, then **Enqueue investigation**. This creates real
+   local data. Retry an uncertain submission with the same key.
+5. Click **Investigation status**, then **Saved evidence**. Expect four snapshots,
+   source statuses, exact windows/locators, normalized data and `hash_verified: true`.
+   PARTIAL is normal when releases/logs are absent or metric coverage is sparse.
+6. To rerun, generate a new key after the first run finishes. Earlier investigation
+   UUIDs retain their original snapshots. **Next evidence page** follows a scoped
+   cursor if more records exist. Investigations currently compare the previous
+   five minutes with the latest five minutes at worker execution time; they do
+   not claim to reconstruct an old incident outside collector retention.
+7. Negative permission check: a VIEWER can inspect saved evidence but cannot
+   enqueue an investigation (403). An anonymous protected read returns 401.
 
-These are ordered manual responsibilities, not a claim that public hosting exists.
-Exact provider-console button names depend on the provider you choose.
+The page is a testing interface; the full dashboard is a later phase. Source
+values render as text, never executable HTML. No automated remediation happens.
 
-1. Choose providers/region/budget for a persistent API process, background worker,
-   internal Python evidence service, PostgreSQL, authenticated Redis and metrics/log/
-   trace storage. Confirm private networking, long-lived workers and SSE support.
-   Free sleeping web functions are not equivalent to a continuously running worker.
-2. Provision durable PostgreSQL with backups. Create separate migration and runtime
-   identities; do not use the provider owner as an application credential. Keep the
-   demo payment/deployment registry separate from Sentinel's users/incidents/evidence.
-3. Provision authenticated TLS Redis on a private network. Supply SENTINEL_REDIS_URL
-   using rediss:// to the worker/dispatcher through the secret manager.
-4. Configure the API's secret manager with SENTINEL_DATABASE_URL,
-   SENTINEL_DATABASE_TLS=verify-full and the provider CA when required through
-   SENTINEL_DATABASE_CA. Keep SENTINEL_JWT_SECRET shared across API replicas and
-   SENTINEL_ALERT_WEBHOOK_SECRET distinct. Generate values locally or in the provider's
-   secret manager; never use .env.example placeholders as deployed credentials.
-5. Run the API migration command with the migration identity in an approved deployment
-   job: node apps/api/dist/src/migrate.js. Verify its successful result before starting
-   new application code. Back up first and review new schema changes. Demo seed/user
-   helpers currently restrict remote databases; do not bypass those guards. Hosted
-   service registration and first-admin bootstrap need a reviewed deployment workflow.
-6. Configure private Prometheus and Loki read endpoints/credentials and a separate
-   SELECT-only deployment-registry identity for the evidence service. P5 will document
-   final variable names and SQL grants after implementation. The identity must have
-   no payment-table read permission, no write privileges and no database-owner role.
-7. Deploy the API, separate worker and internal evidence service. Restrict the evidence
-   service to authenticated worker requests; do not expose collector administration,
-   arbitrary PromQL/LogQL or database connections through the public application.
-8. Configure service scraping, scoped log collection and tracing. Choose storage
-   retention/sampling and traffic/error thresholds based on your actual workload.
-   The short P4 demonstration thresholds are not validated production SLOs.
-9. Put the public application behind HTTPS. Disable proxy buffering for SSE, allow
-   streaming timeouts/reconnects, restrict forwarded headers to trusted ingress and
-   enforce connection/request budgets. Browser/API should share an origin unless a
-   separately reviewed CORS policy is configured.
-10. Verify from a second device: sign-in, protected API reads, live progress/reconnect,
-    worker execution, source failures, exact evidence history and a sandbox alert.
-    Check backups and recovery. Confirm collector/database ports remain private.
+## Repeat automated checks
 
-Public deployment, paid resources, DNS/account changes and provider provisioning
-have not been authorized by a request to complete a coding phase. Choose providers
-and approve deployment separately. A provider choice is needed before precise
-provider-specific UI steps can be supplied; this does not block local P5 work.
+```powershell
+.venv\Scripts\python.exe -m pytest -c apps/ai-engine/pytest.ini apps/ai-engine/tests -q
+.venv\Scripts\python.exe scripts/verify-p5.py
+.venv\Scripts\python.exe scripts/verify-p5-deployments.py
+.venv\Scripts\python.exe scripts/verify-p3.py --task P3.5 --with-evidence
+```
+
+The first command uses controlled fixtures. The second reads real collectors.
+The third uses real PostgreSQL and synthetic releases in an isolated disposable
+DB. The last runs the full API/DB/Redis suite plus live Python collection and
+worker persistence, then API/DB/Redis restart checks in isolated containers.
+It does not reset the main application DB. Docker must be available on PATH for
+Compose plugins; open a new terminal after installing Docker Desktop if needed.
+Reports stay ignored under `.artifacts`; task-specific measured results are in
+PROGRESS.md. Sandboxed Python startup may stall on this Windows host; use your
+normal terminal for these commands rather than launching duplicate test runs.
+
+## If something fails
+
+- Port occupied: stop the existing supervisor with Ctrl+C, not arbitrary Python or
+  Node processes. The API helper refuses occupied ports to avoid duplicate workers.
+- API 503: check the main DB and migration completion before re-entering passwords.
+- Engine missing: check port 8001 and the launcher's safe error output. Do not copy
+  its key into browser requests; only the worker calls it.
+- PARTIAL: inspect individual source status/coverage; EMPTY is not a healthy-zero
+  measurement. Start collectors or select a fresh observation window as appropriate.
+- FAILED with EVIDENCE_COLLECTION_FAILED: check the worker/engine matching secret
+  and engine URL/health. The system retries within its three-attempt budget and
+  never substitutes a successful workflow check for a rejected evidence call.
+- Reader UNAVAILABLE: rerun the local launcher to check migrations and reader
+  provisioning. Never substitute the monitored database owner credential.
+- Hash check failure: preserve the record and investigate integrity; do not edit
+  immutable snapshots to suppress the error.
+
+## Manual cloud responsibilities
+
+A cloud PostgreSQL DB stores application records; it does not replace hosted API,
+worker, Redis, metrics, logs or traces. Follow [HOSTED-SETUP.md](HOSTED-SETUP.md) for
+Neon creation, secure connection settings, owner/runtime separation, exact SQL
+grants, deployment-reader setup, Render process types and verification.
+
+Remaining deployment work includes host/port binding, private transport policy,
+remote service/admin bootstrap, monitored release recording, selected vendor
+collector authentication, HTTPS/SSE ingress and backup restoration tests. The
+current code intentionally remains loopback-only. Creating the cloud DB is a
+preparation step; it does not make Sentinel publicly reachable.

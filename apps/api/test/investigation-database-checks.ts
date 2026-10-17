@@ -296,6 +296,21 @@ export async function investigationDatabaseChecks(t: TestContext, pool: Pool) {
           (await store.list(incident.id, {})).investigations.length,
           1,
         );
+        const evidenceUrl = `http://127.0.0.1:${address.port}/api/v1/investigations/${run.id}/evidence`;
+        assert.equal((await fetch(evidenceUrl)).status, 401);
+        const evidenceResponse = await fetch(evidenceUrl, {
+          headers: { authorization: "Bearer " + viewer },
+        });
+        assert.equal(evidenceResponse.status, 200);
+        assert.deepEqual((await evidenceResponse.json()).snapshots, []);
+        assert.equal(
+          (
+            await fetch(evidenceUrl + "?limit=999", {
+              headers: { authorization: "Bearer " + viewer },
+            })
+          ).status,
+          422,
+        );
         const claim = await store.claim(run.id);
         assert.ok(claim);
         await store.finish(run.id, claim.token, true);

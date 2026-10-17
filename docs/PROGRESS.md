@@ -1,8 +1,8 @@
 # Sentinel progress
 
-Current phase/task: P4.5 software verification complete; P4 software implemented
-Status: P4.1-P4.5 SOFTWARE VERIFIED; learner checkpoints remain open
-Last fully accepted software phase: P4 software acceptance verified; hosted deployment pending
+Current phase/task: P5.5 software verification complete; P5 software implemented
+Status: P5.1-P5.5 SOFTWARE VERIFIED; learner checkpoints remain open
+Last fully accepted software phase: P5 software acceptance verified; hosted deployment pending
 Last completed learner checkpoint: none confirmed
 
 ## P1.1 task record
@@ -1108,3 +1108,46 @@ P3.4 requires its own explanation/approval before implementation.
 - Implemented pure adjacent-window means, coverage and explicit missing/zero-baseline semantics. Approved with all P5.
 - Fourteen cumulative fixture tests passed; Ruff passed. No causal or AI claim made.
 - Manual setup: none. Learner questions and independent exercise remain in P5-LEARNING-GUIDE.md.
+
+## P5.5 task record
+
+- Approval: explicit all-P5 implementation request after expanded explanation.
+- Added authenticated internal Python collection, additive API migration 006,
+  four bounded canonical SHA-256 snapshots, append-only mutation protection,
+  fenced atomic completion/event/outbox persistence, READ history pagination and
+  localhost evidence inspection controls.
+- Local launcher separates engine/worker/API credentials and preserves accounts,
+  incidents, volumes and empty real release history. Worker mode is now
+  deterministic-evidence; legacy unconfigured P3 mode remains explicit.
+- Final measured run: 83 API tests passed, zero failures/skips with real PG/Redis,
+  collector and BullMQ; includes wrong collector key -> FAILED/no snapshots,
+  expired/replacement lease fencing, rollback, exact HTTP replay after API rebuild,
+  hash checks, existing auth/SSE/alert contracts. Runtime restart/outage checks passed.
+- Engine 16 tests passed; deployment reader real DB permissions passed; checkout
+  17 and payment 32 regressions passed. Payment's existing TestClient deprecation
+  warning remains; no failures. Ruff/format and final live P5 checks are recorded
+  in the completion record below.
+- Real integration caught PostgreSQL JSONB parameter inference reformatting canonical
+  bytes; fixed by casting the shared parameter to text first. Subsequent hash
+  round-trips passed. No old migration was edited.
+- Documentation: P5-LEARNING-GUIDE.md, MANUAL-SETUP.md, HOSTED-SETUP.md and README.
+  Hosted guide researched official Neon/Render docs, provides exact account/database
+  setup and grants, and lists binding/private transport/bootstrap/collector auth
+  work still required before public deployment. No hosted resource provisioned.
+- Learner checkpoints remain open. P5 software complete after final checks;
+  P6 implementation is not authorized.
+
+### P5 final completion checks
+
+- Final live Prometheus/Loki positive and unreachable-source checks passed again.
+- Ruff check and format check passed for all new engine/helper/verifier files;
+  repository Prettier check and git diff whitespace check passed.
+- `.env`, `.env.api` and `.env.evidence` are all Git-ignored. Example values are fake.
+- Current local preview is open at http://localhost:3000/auth-test with Saved
+  evidence controls; API/engine are loopback-only. Existing local credentials
+  were preserved and were not entered/read by the agent.
+- P3 runtime restart tests deliberately use workflow-check compatibility mode;
+  the same run's real database tests separately exercise the live P5 collector,
+  evidence worker and wrong-key failure path. The report labels that optional gate.
+- P5 software is verified. Hosted provisioning/public deployment and learner
+  explanations remain outstanding; proceed to no later phase without approval.

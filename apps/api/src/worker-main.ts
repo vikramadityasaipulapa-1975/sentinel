@@ -28,7 +28,9 @@ try {
     JSON.stringify({
       service: "sentinel-worker",
       event: "started",
-      mode: "workflow-check",
+      mode: process.env.SENTINEL_EVIDENCE_URL
+        ? "deterministic-evidence"
+        : "workflow-check",
     }),
   );
   while (!stopped) {
