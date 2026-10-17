@@ -1151,3 +1151,10 @@ P3.4 requires its own explanation/approval before implementation.
   evidence worker and wrong-key failure path. The report labels that optional gate.
 - P5 software is verified. Hosted provisioning/public deployment and learner
   explanations remain outstanding; proceed to no later phase without approval.
+
+## P6.1 task record
+
+- Approved after explanation; remaining P6.2-P6.5 separately approved together.
+- Added strict hypothesis/citation schema and optional loopback Ollama adapter; disabled by default, no remote calls or model installation.
+- 25 cumulative engine tests passed, including malformed/oversized output, unknown citations, unavailable and timeout paths. Ruff passed.
+- Fixtures are not live AI accuracy measurements. Manual model/cloud setup can wait. See P6-LEARNING-GUIDE.md for walkthrough and learner checks.
