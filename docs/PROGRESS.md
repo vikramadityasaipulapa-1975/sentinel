@@ -1102,3 +1102,9 @@ P3.4 requires its own explanation/approval before implementation.
 - Ten cumulative fixture tests passed. Real isolated PostgreSQL synthetic release read and EMPTY checks passed; DELETE, payment-table reads and DDL denied.
 - Real Windows test caught incompatible default async loop; verifier now selects Windows selector loop, also required by the engine launcher.
 - Local demo DB started on 55432, existing P2 migrations applied, reader provisioned. No real releases fabricated; hosted setup remains pending.
+
+## P5.4 task record
+
+- Implemented pure adjacent-window means, coverage and explicit missing/zero-baseline semantics. Approved with all P5.
+- Fourteen cumulative fixture tests passed; Ruff passed. No causal or AI claim made.
+- Manual setup: none. Learner questions and independent exercise remain in P5-LEARNING-GUIDE.md.

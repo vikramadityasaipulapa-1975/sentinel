@@ -173,3 +173,48 @@ P2's deployment/migration CLI deliberately supports only local demo URLs. See th
 final manual guide before configuring remote systems.
 
 **Commit summary.** `feat(P5.3): read deployment history with a restricted database role`.
+
+## P5.4 — Deterministic comparisons
+
+**Concept.** A baseline is a reference interval. Absolute delta is after minus
+before; relative percentage is delta divided by before times 100. A zero
+baseline makes that percentage undefined. Missing observations are not zero and
+correlation does not establish a cause.
+
+**Architecture/data flow.** Prometheus and Loki Evidence with identical service
+and time window → equal adjacent halves → per-metric sample means → absolute and
+relative changes plus coverage. At least three points and 50% expected coverage
+in each half are required. An insufficient series has null calculations and an
+explicit INSUFFICIENT_DATA status. NaN, duplicate/out-of-window timestamps and
+mismatched evidence windows are rejected.
+
+**File plan/implementation/walkthrough.** `evidence/calculations.py` exposes pure
+`compare_metrics(metrics, logs) -> Evidence`; no HTTP, SQL, clock-dependent query
+or AI decision happens inside the arithmetic. Coverage expects the fixed
+15-second sampling step. A point at the midpoint belongs only to the after half.
+Each metric reports both means, delta, relative percent, coverage and an explicit
+ZERO_BASELINE reason. p95 calculations compare means of pointwise histogram
+percentile estimates; they are not a recomputed percentile of raw requests.
+Absent logs yield null, and capped log counts remain labelled retrieved-only.
+`tests/test_calculations.py` contains known-value, sparse, non-finite, zero and
+UTC-offset cases. UTC offsets representing the same instants compare equally.
+
+**Approval checkpoint.** Covered by the combined all-P5 approval.
+
+**Run/test.** The existing engine pytest command passed fourteen cumulative
+tests; Ruff passed. Positive case: 2 → 4 gives delta 2 and 100%. Negative cases:
+missing/sparse data stays insufficient, NaN and mismatched windows are rejected;
+0 → 4 gives delta 4 with an undefined relative percentage. These are deterministic
+fixtures, not claims about the current service error rate.
+
+**Debug.** Inspect coverage before interpreting a delta. A recent startup lacks a
+full baseline. Stale data is insufficient even if historical numbers exist. Check
+units: request rate is per second, ratio is fractional and latency is seconds.
+
+**Understanding check.** Why is 0 → 4 not a 400% increase? Why can an apparently
+large change remain insufficient? Why do matching UTC instants matter more than
+matching display offsets? Exercise: add a negative-delta fixture (4 → 2).
+
+**Manual setup.** No manual setup required; this task is pure calculation.
+
+**Commit summary.** `feat(P5.4): calculate bounded before and after evidence changes`.
