@@ -241,3 +241,88 @@ requires its own explanation and approval before implementation.
 - [Prometheus naming and label guidance](https://prometheus.io/docs/practices/naming/)
 - [Official Node client](https://github.com/prometheus/client_js)
 - [Official Python histogram documentation](https://prometheus.github.io/client_python/instrumenting/histogram/)
+
+## P4.2 � Prometheus scraping and PromQL
+
+### Concept and prerequisites
+
+Approval: user approved the explained P4.2-P4.5 plan together. Docker Desktop,
+Node/Python dependencies and P4.1 metrics are prerequisites. Prometheus polls
+(scrapes) service endpoints and stores timestamped samples. PromQL queries those
+samples: rate handles counter resets, an error fraction compares 5xx to total,
+and histogram_quantile estimates a percentile from cumulative buckets. A percentile
+is approximate; no samples or insufficient history can produce an empty result/NaN.
+
+### Architecture/data flow and file plan
+
+The local supervisor owns native checkout/payment processes. Prometheus in Docker
+reaches their loopback endpoints through Docker Desktop's host.docker.internal.
+This host bridge is development plumbing, not the hosted architecture. In a hosted
+private network use internal service DNS and scrape every instance.
+
+- infrastructure/compose.observability.yaml pins Prometheus by release and digest,
+  publishes9090 only on127.0.0.1, uses a named volume and512MiB/one-CPU bound.
+- infrastructure/observability/prometheus.yaml sets a2-second scrape/evaluation
+  interval and1-second scrape timeout. These short values make the local lesson
+  quick; choose slower intervals/budgets for hosted operation.
+- infrastructure/observability/queries.promql explains availability, request rate,
+  error fraction and p95 with business-route filters.
+- scripts/observability_support.py provides bounded HTTP helpers, query polling and
+  a Demo context manager that starts/stops only its own processes. It refuses busy
+  ports, uses explicitly simulated memory-only payments, and strips Sentinel secrets
+  from demo child environments. Exceptions and context exit stop owned children.
+- scripts/observability-local.py supervises a continuing local preview. It stops at
+  a20MB-per-file log budget. Ctrl+C stops owned apps; collectors/volumes remain.
+- scripts/verify-p4.py runs real collector gates and writes ignored JSON evidence.
+
+### Implementation and walkthrough
+
+compose builds an argument list for the one fixed observability Compose file; it
+never executes shell text. run uses subprocess with a bounded deadline. http
+accepts only a local port/path, bounds response reads and HTTP time, and returns
+status plus parsedJSON/text. wait retries a condition for at most60seconds.
+query wraps Prometheus's read-only instant-query API and checks HTTP200.
+Demo.payment terminates only its owned payment child before selecting an allowlisted
+fault mode and starting a replacement. Application registries reset across that
+restart; Prometheus history persists independently. The verifier creates real normal
+traffic, switches its own payment child to the simulated error mode and measures
+nonzero checkout5xx rate. It also tests invalid PromQL and restarts only Prometheus,
+then reads the earlier sample at its original timestamp.
+
+Storage is bounded by24-hour retention and256MB target retention, with disk/WAL
+and head-block overhead possible. The memory/process limits are separate. The
+local UI has no public ingress/authentication: never publish these ports publicly.
+Metrics are evidence, not authorization to remediate. No database migration is added.
+
+### Run/test and debugging
+
+```powershell
+.venv\Scripts\python.exe scripts/verify-p4.py --task P4.2
+.venv\Scripts\python.exe scripts/observability-local.py
+```
+
+Expected verifier output: PASS: P4.2 real collector verification. Actual results
+are recorded in PROGRESS.md and .artifacts/observability/p4.2-verification.json.
+Open http://localhost:9090/query and paste expressions from queries.promql. A
+positive check finds two up=1 targets and saved counters; the negative test sends
+malformed PromQL and expects400/422. The fault check uses real HTTP502/503 from
+injected demo faults, not invented metric samples. Empty rate needs at least two
+scrapes; wait several seconds. up=0 usually means the app stopped, wrong port or
+Docker host bridge failure. A busy3001/3002 is deliberately rejected; stop the
+existing demo you own rather than killing arbitrary listeners. Use Compose down
+without -v when intentionally stopping collectors; never delete volumes to debug.
+
+### Manual setup, understanding check and commit summary
+
+No manual setup required for this verified Windows environment beyond running
+Docker Desktop. A fresh clone installs pinned dependencies/builds checkout and
+runs the commands above. Hosted setup remains unperformed: choose/approve a metric
+provider or host, persistent disks/retention, private target DNS, scrape identities,
+TLS/authentication and per-replica discovery. Local Docker Desktop DNS is not a
+hosted dependency or database replacement.
+
+Questions: Why use rate rather than counter subtraction? What does up=0 prove and
+what does it not prove? Why retain the le label while aggregating histogram buckets?
+Exercise: change the displayed PromQL window from1m to2m and explain the tradeoff
+between responsiveness and smoothing. Learner responses/exercise remain pending.
+Commit: feat(P4.2): collect and verify Prometheus service metrics.

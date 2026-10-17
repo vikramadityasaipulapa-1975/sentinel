@@ -942,3 +942,25 @@ P3.4 requires its own explanation/approval before implementation.
   are documented above; no failed test is being presented as a pass.
 - Commit summary: feat(P4.1): instrument checkout and payment HTTP metrics.
   Next task is P4.2 Prometheus scraping/PromQL, awaiting its learning checkpoint.
+
+## P4.2 task record
+
+- Approval: user approved the explained P4.2-P4.5 plan together. Full task concepts,
+  architecture, file/function walkthrough, commands, debug notes, hosted setup,
+  questions and independent exercise are in P4-LEARNING-GUIDE.md.
+- Implemented pinned Prometheus3.15.0 with immutable digest, loopback9090, named
+  volume,24h/256MB target retention and512MiB/oneCPU bounds; two native service
+  targets over Docker Desktop host bridge,2s scraping,1s deadline. Added annotated
+  PromQL and owned-process supervisor/verifier. No database/schema changes.
+- Actual scripts/verify-p4.py --task P4.2 PASSED against real processes and Docker:
+  both targets up=1; real valid traffic produced saved samples; injected payment
+  errors produced checkout502 and positive5xx rate; invalid query rejected;
+  historical sample at original timestamp survived Prometheus restart. Evidence:
+  .artifacts/observability/p4.2-verification.json. No metrics fabricated.
+- Tests use simulated memory-only payment semantics, not real financial operations.
+  Native demo listeners from the earlier owned preview were stopped by verified
+  process identity before replacing them. API/database/worker were preserved.
+- Manual setup: no additional local setup required. Hosted collector provisioning,
+  private service discovery, TLS/authentication and durable retention remain pending.
+- Learner responses/exercise pending. Commit: feat(P4.2): collect and verify
+  Prometheus service metrics. Next P4.3 is already approved.

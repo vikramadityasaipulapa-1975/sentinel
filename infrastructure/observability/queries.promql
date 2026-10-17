@@ -1,0 +1,8 @@
+# Availability of both scrape targets (1 = last scrape succeeded)
+up{job="sentinel-demo"}
+# Business request rate per second; counter resets handled by rate()
+sum by (service) (rate(sentinel_http_requests_total{route=~"/checkout|/payments"}[1m]))
+# 5xx fraction (empty numerator can be treated as zero by the dashboard)
+sum by (service) (rate(sentinel_http_requests_total{route=~"/checkout|/payments",status_code=~"5.."}[1m])) / sum by (service) (rate(sentinel_http_requests_total{route=~"/checkout|/payments"}[1m]))
+# Approximate p95 in seconds, aggregated across statuses/instances
+histogram_quantile(0.95, sum by (service, le) (rate(sentinel_http_request_duration_seconds_bucket{route=~"/checkout|/payments"}[1m])))

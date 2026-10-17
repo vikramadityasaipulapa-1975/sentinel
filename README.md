@@ -316,3 +316,9 @@ Use npm run verify:p1 to test metrics across real normal/faulted two-service tra
 The existing P2 Compose workflow verifies the same services with real PostgreSQL.
 Hosted metric endpoints must stay private to the collector; public deployment has
 not been configured. P4.1 is approved; later P4 tasks retain learning checkpoints.
+
+P4.2 adds Prometheus at http://localhost:9090 with bounded persistent storage.
+Run `.venv\Scripts\python.exe scripts/observability-local.py` for the supervised
+local demo or `scripts/verify-p4.py --task P4.2` with that Python interpreter for
+real scrape/fault/restart checks. See the P4 guide and annotated queries in
+infrastructure/observability/queries.promql. Hosted collectors remain unconfigured.

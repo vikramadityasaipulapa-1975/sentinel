@@ -1,0 +1,20 @@
+name: sentinel-observability
+services:
+  prometheus:
+    image: prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e
+    command:
+      [
+        --config.file=/etc/prometheus/prometheus.yaml,
+        --storage.tsdb.path=/prometheus,
+        --storage.tsdb.retention.time=24h,
+        --storage.tsdb.retention.size=256MB,
+      ]
+    ports: ["127.0.0.1:9090:9090"]
+    volumes:
+      - ./observability/prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
+      - prometheus-data:/prometheus
+    mem_limit: 512m
+    cpus: 1
+    security_opt: [no-new-privileges:true]
+volumes:
+  prometheus-data:
