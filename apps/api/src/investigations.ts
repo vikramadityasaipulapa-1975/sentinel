@@ -1,4 +1,9 @@
 import {
+  insertReport,
+  readReport,
+  validateReport,
+} from "./investigation-report.js";
+import {
   insertEvidence,
   validateEvidence,
   readSnapshot,
@@ -41,15 +46,22 @@ function metadata(
   const data = value as Record<string, unknown>;
   if (result) {
     if (
-      !["workflow-check", "deterministic-evidence"].includes(
-        String(data.mode),
-      ) ||
-      data.ai_performed !== false ||
+      ![
+        "workflow-check",
+        "deterministic-evidence",
+        "hypothesis-report",
+      ].includes(String(data.mode)) ||
+      typeof data.ai_performed !== "boolean" ||
+      (data.mode !== "hypothesis-report" && data.ai_performed) ||
       typeof data.message !== "string" ||
       data.message.length > 200
     )
       throw unavailable();
-    return { mode: data.mode, ai_performed: false, message: data.message };
+    return {
+      mode: data.mode,
+      ai_performed: data.ai_performed,
+      message: data.message,
+    };
   }
   if (
     typeof data.code !== "string" ||
@@ -275,7 +287,7 @@ export function postgresInvestigations(pool: Pool) {
               : null,
         };
       }),
-    claim: (id: string) =>
+    claim: (id: string, leaseSeconds: 15 | 30 = 15) =>
       transaction(async (client) => {
         const row = await locked(client, id);
         if (
@@ -299,8 +311,8 @@ export function postgresInvestigations(pool: Pool) {
         }
         const claimed = (
           await client.query(
-            "UPDATE sentinel_api.investigations SET status='RUNNING',attempts=attempts+1,lease_token=$2,lease_until=statement_timestamp()+interval '15 seconds',started_at=COALESCE(started_at,statement_timestamp()) WHERE id=$1 RETURNING *",
-            [id, randomUUID()],
+            "UPDATE sentinel_api.investigations SET status='RUNNING',attempts=attempts+1,lease_token=$2,lease_until=statement_timestamp()+$3*interval '1 second',started_at=COALESCE(started_at,statement_timestamp()) WHERE id=$1 RETURNING *",
+            [id, randomUUID(), leaseSeconds],
           )
         ).rows[0];
         await event(client, claimed, "RUNNING");
@@ -342,6 +354,7 @@ export function postgresInvestigations(pool: Pool) {
               : null,
         };
       }),
+    report: (id: string) => transaction((client) => readReport(client, id)),
     finish: (
       id: string,
       token: string,
@@ -350,6 +363,7 @@ export function postgresInvestigations(pool: Pool) {
       failureCode:
         | "WORKFLOW_CHECK_FAILED"
         | "EVIDENCE_COLLECTION_FAILED" = "WORKFLOW_CHECK_FAILED",
+      analysis?: unknown,
     ) =>
       transaction(async (client) => {
         const current = await locked(client, id);
@@ -370,9 +384,16 @@ export function postgresInvestigations(pool: Pool) {
           validateEvidence(evidence, service);
           await insertEvidence(client, id, current.attempts, evidence);
         }
-        const terminal = evidence?.some((row) => row.status !== "OK")
-          ? "PARTIAL"
-          : "COMPLETED";
+        if (analysis && !evidence) throw unavailable();
+        const report =
+          analysis && evidence ? validateReport(analysis, evidence) : undefined;
+        if (report && evidence)
+          await insertReport(client, id, current.attempts, report, evidence);
+        const terminal =
+          report?.status === "PARTIAL" ||
+          evidence?.some((row) => row.status !== "OK")
+            ? "PARTIAL"
+            : "COMPLETED";
         const status = success
           ? terminal
           : current.attempts >= 3
@@ -380,11 +401,17 @@ export function postgresInvestigations(pool: Pool) {
             : "QUEUED";
         const result = success
           ? {
-              mode: evidence ? "deterministic-evidence" : "workflow-check",
-              ai_performed: false,
-              message: evidence
-                ? "Read-only evidence snapshots stored; inspect source status and coverage. No AI investigation performed"
-                : "Queue and persistence workflow checked; no telemetry gathered or AI investigation performed",
+              mode: report
+                ? "hypothesis-report"
+                : evidence
+                  ? "deterministic-evidence"
+                  : "workflow-check",
+              ai_performed: report?.ai_performed ?? false,
+              message: report
+                ? "Cited hypothesis report and exact evidence stored; no cause is confirmed. Inspect limitations and model status."
+                : evidence
+                  ? "Read-only evidence snapshots stored; inspect source status and coverage. No AI investigation performed"
+                  : "Queue and persistence workflow checked; no telemetry gathered or AI investigation performed",
             }
           : null;
         const updated = (

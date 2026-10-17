@@ -12,8 +12,10 @@ from evidence.models import Window
 from evidence.prometheus import query_prometheus
 from fastapi import FastAPI, Request
 from investigation_graph import run_parallel
+from llm_adapter import configured_adapter
 from pydantic import ValidationError
 from starlette.responses import JSONResponse
+from synthesis import synthesize
 
 
 def create_app(settings=None, transport=None):
@@ -26,6 +28,7 @@ def create_app(settings=None, transport=None):
     dsn = env.get("SENTINEL_DEPLOYMENT_READ_URL", "")
     validate_dsn(dsn)
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+    adapter = configured_adapter(env)
     active = 0
 
     @app.get("/health")
@@ -63,10 +66,13 @@ def create_app(settings=None, transport=None):
                         "loki": lambda win: search_loki(client, loki, win),
                         "deployments": lambda win: query_deployments(dsn, win),
                     },
+                    adapter,
                 )
+            report = synthesize(state)
             return {
+                "analysis": report,
                 "mode": "deterministic-evidence",
-                "ai_performed": False,
+                "ai_performed": report["ai_performed"],
                 "evidence": [item.model_dump(mode="json") for item in state.evidence],
             }
         except (asyncio.TimeoutError, ValueError):

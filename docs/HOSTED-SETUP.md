@@ -94,7 +94,7 @@ npm run build --workspace=@sentinel/api
 node apps/api/dist/src/migrate.js
 ```
 
-Expected first run: `API migrations applied:` followed by the six pending SQL
+Expected first run: `API migrations applied:` followed by the seven pending SQL
 filenames. A replay reports no new migrations. Never hand-run copied migration SQL
 without the checksum ledger, and never edit an applied migration.
 
@@ -118,7 +118,7 @@ GRANT SELECT ON sentinel_api.services, sentinel_api.users TO sentinel_runtime;
 GRANT SELECT, INSERT, UPDATE ON sentinel_api.incidents,
   sentinel_api.investigations, sentinel_api.alert_episodes TO sentinel_runtime;
 GRANT SELECT, INSERT ON sentinel_api.incident_events,
-  sentinel_api.evidence_snapshots TO sentinel_runtime;
+  sentinel_api.evidence_snapshots, sentinel_api.investigation_reports TO sentinel_runtime;
 GRANT SELECT, INSERT, UPDATE, DELETE ON sentinel_api.investigation_outbox,
   sentinel_api.login_limits TO sentinel_runtime;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA sentinel_api TO sentinel_runtime;
@@ -276,3 +276,15 @@ For now, your manual action is to choose the provider/region/budget and prepare
 your own accounts if desired. You can provision staging PostgreSQL using steps
 1–3 when ready; doing so does not complete the application deployment. Share only
 non-secret choices and completion status. Keep credentials in your secret manager.
+
+## P6 additions
+
+Migration 007 adds immutable `sentinel_api.investigation_reports`; after upgrading
+with the migration identity, grant the runtime identity SELECT and INSERT on that
+table. No UPDATE/DELETE is required. The grants example above includes it.
+Deterministic reports need no model account. An optional Ollama process needs
+private compute, a locally installed suitable model and cloud routing disabled;
+its URL remains loopback under the current adapter. Hosted multi-process model
+networking or any remote provider needs separately reviewed transport/authorization.
+Manual cloud/model setup can wait during local P6 development. Graph tracing is
+explicitly disabled; no LangSmith account is required.

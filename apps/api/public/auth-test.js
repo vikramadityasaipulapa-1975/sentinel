@@ -327,3 +327,19 @@ document
 document
   .querySelector("#next-evidence")
   .addEventListener("click", () => loadEvidence(true));
+
+document.querySelector("#job-report").addEventListener("click", async () => {
+  try {
+    const { response, data } = await request(
+      `/api/v1/investigations/${encodeURIComponent(document.querySelector("#queue-id").value)}/report`,
+    );
+    result.textContent = JSON.stringify(
+      { status: response.status, ...data },
+      null,
+      2,
+    );
+  } catch {
+    result.textContent =
+      "Report request failed. Check status and session. Older P5 runs have no report.";
+  }
+});

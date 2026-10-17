@@ -1,4 +1,8 @@
-import { collectEvidence, evidenceConfig, type Evidence } from "./evidence.js";
+import {
+  collectInvestigation,
+  evidenceConfig,
+  type Evidence,
+} from "./evidence.js";
 import { Queue, Worker, UnrecoverableError } from "bullmq";
 import { Redis } from "ioredis";
 import type { Pool } from "pg";
@@ -137,11 +141,12 @@ export function startInvestigationWorker(
         Object.keys(job.data).length !== 1
       )
         throw new UnrecoverableError("Invalid job contract");
-      const claim = await store.claim(id);
+      const claim = await store.claim(id, collector ? 30 : 15);
       if (!claim) return;
       let timer: NodeJS.Timeout | undefined;
       try {
         let evidence: Evidence[] | undefined;
+        let analysis: unknown;
         await Promise.race([
           execute
             ? execute(id)
@@ -155,12 +160,14 @@ export function startInvestigationWorker(
                   ).rows[0];
                   const end = new Date();
                   const start = new Date(end.getTime() - 600000);
-                  evidence = await collectEvidence(
+                  const collected = await collectInvestigation(
                     collector,
                     row.name,
                     start.toISOString(),
                     end.toISOString(),
                   );
+                  evidence = collected.evidence;
+                  analysis = collected.analysis;
                 })()
               : (async () => {
                   await pool.query(
@@ -172,11 +179,18 @@ export function startInvestigationWorker(
           new Promise<never>((_resolve, reject) => {
             timer = setTimeout(
               () => reject(new Error("Workflow timeout")),
-              5000,
+              collector ? 17000 : 5000,
             );
           }),
         ]);
-        await store.finish(id, claim.token, true, evidence);
+        await store.finish(
+          id,
+          claim.token,
+          true,
+          evidence,
+          "WORKFLOW_CHECK_FAILED",
+          analysis,
+        );
       } catch {
         await store.finish(
           id,

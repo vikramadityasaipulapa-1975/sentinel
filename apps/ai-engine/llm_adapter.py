@@ -55,6 +55,8 @@ class OllamaAdapter:
             )
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:/-]{0,99}", model):
             raise ValueError("Invalid local model name")
+        if "cloud" in model.lower():
+            raise ValueError("Cloud model routing is not supported")
         self.url, self.model, self.transport = (
             url.rstrip("/") + "/api/chat",
             model,
@@ -121,6 +123,10 @@ def configured_adapter(env) -> ModelAdapter:
         return DisabledAdapter()
     if provider != "ollama":
         raise ValueError("Unsupported model provider")
+    if env.get("SENTINEL_LLM_LOCAL_ONLY") != "1":
+        raise ValueError(
+            "Confirm cloud-disabled local inference before enabling the adapter"
+        )
     return OllamaAdapter(
         env.get("SENTINEL_LLM_URL", ""), env.get("SENTINEL_LLM_MODEL", "")
     )

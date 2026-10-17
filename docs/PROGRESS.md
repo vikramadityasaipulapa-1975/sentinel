@@ -1171,3 +1171,27 @@ P3.4 requires its own explanation/approval before implementation.
 - 30 engine tests passed; real sequential and parallel local workflows passed. pip check passed; existing dependency versions constrained, full engine runtime closure pinned.
 - No hosted tracing/model call; graph memory is not represented as durable checkpoints. PG/queue remain the recovery boundary.
 - Manual: install engine requirements on future restarts/deployments; cloud setup can wait. See P6 guide.
+
+## P6.4 task record
+
+- Explicit combined approval covered graph, reports and migration 007.
+- Added deterministic ranked hypotheses, guarded model ranking, contradictions,
+  abstention, exact scalar citations, immutable canonical reports and authenticated
+  READ inspection. Facts bind to snapshot UUID/hash; report reads verify report,
+  snapshot hashes and exact referenced values. Unsupported categories/mislabeled
+  measurements are rejected at the backend boundary.
+- Report, four snapshots, terminal event/result and outbox cleanup commit atomically
+  under the current lease. Evidence jobs have 30-second leases and 17-second work
+  budgets; graph/model deadlines are 12/eight seconds. Legacy limits remain intact.
+- Final real PG/Redis/API run: 88 tests passed, zero failed/skipped, including live
+  Python collector/BullMQ report persistence, rollback, immutable rows, anonymous
+  rejection, viewer reads, API reconstruction and existing auth/alerts/SSE.
+  API/DB/Redis restart and outage/recovery runtime checks passed.
+- P6.4-specific engine suite: 34 tests passed (P6.5 evaluation test excluded);
+  current cumulative suite including the pending evaluation test passed 35.
+- Optional model remains disabled; local configuration requires confirmation that
+  Ollama cloud routing is disabled. Cloud-labelled tags/remote URLs are rejected.
+  No real model installed/called. Graph tracing explicitly disabled.
+- Updated local/manual/hosted instructions and fake .env.example variables. Hosted
+  runtime grants need SELECT/INSERT on investigation_reports after migration 007.
+  Cloud and real-model setup remain deferred by user preference.

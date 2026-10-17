@@ -60,5 +60,11 @@ export function investigationRoutes(store: InvestigationStore) {
         await store.evidence(parseId(request.params.id), request.query),
       ),
   );
+  router.get(
+    "/investigations/:id/report",
+    requirePermission("READ"),
+    async (request, response) =>
+      response.json(await store.report(parseId(request.params.id))),
+  );
   return router;
 }

@@ -298,6 +298,18 @@ export async function investigationDatabaseChecks(t: TestContext, pool: Pool) {
         );
         const evidenceUrl = `http://127.0.0.1:${address.port}/api/v1/investigations/${run.id}/evidence`;
         assert.equal((await fetch(evidenceUrl)).status, 401);
+        assert.equal(
+          (await fetch(evidenceUrl.replace("/evidence", "/report"))).status,
+          401,
+        );
+        assert.equal(
+          (
+            await fetch(evidenceUrl.replace("/evidence", "/report"), {
+              headers: { authorization: "Bearer " + viewer },
+            })
+          ).status,
+          404,
+        );
         const evidenceResponse = await fetch(evidenceUrl, {
           headers: { authorization: "Bearer " + viewer },
         });

@@ -99,3 +99,18 @@ def test_remote_or_unexpected_model_configuration_is_rejected():
         OllamaAdapter("https://remote.example", "model")
     with pytest.raises(ValueError):
         configured_adapter({"SENTINEL_LLM_PROVIDER": "unknown"})
+
+
+def test_local_model_requires_explicit_local_only_confirmation():
+    settings = {
+        "SENTINEL_LLM_PROVIDER": "ollama",
+        "SENTINEL_LLM_URL": "http://127.0.0.1:11434",
+        "SENTINEL_LLM_MODEL": "local-test",
+    }
+    with pytest.raises(ValueError):
+        configured_adapter(settings)
+    assert isinstance(
+        configured_adapter({**settings, "SENTINEL_LLM_LOCAL_ONLY": "1"}), OllamaAdapter
+    )
+    with pytest.raises(ValueError):
+        OllamaAdapter("http://127.0.0.1:11434", "example:cloud")

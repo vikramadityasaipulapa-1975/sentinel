@@ -6,6 +6,7 @@ from typing import TypedDict
 from evidence.calculations import compare_metrics
 from evidence.models import Evidence, Window
 from langgraph.graph import END, START, StateGraph
+from langsmith import tracing_context
 from llm_adapter import ModelAdapter
 from workflow import SOURCES, InvestigationState, Tool, finish_analysis, guarded_source
 
@@ -61,10 +62,11 @@ async def run_parallel(
     window: Window, tools: dict[str, Tool], adapter: ModelAdapter | None = None
 ):
     window = Window.model_validate(window.model_dump())
-    state = await asyncio.wait_for(
-        build_graph(tools, adapter).ainvoke(
-            {"window": window}, config={"recursion_limit": 6, "callbacks": []}
-        ),
-        12,
-    )
+    with tracing_context(enabled=False):
+        state = await asyncio.wait_for(
+            build_graph(tools, adapter).ainvoke(
+                {"window": window}, config={"recursion_limit": 6, "callbacks": []}
+            ),
+            12,
+        )
     return state["result"]

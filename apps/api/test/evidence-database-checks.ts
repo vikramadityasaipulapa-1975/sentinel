@@ -248,6 +248,14 @@ export async function evidenceDatabaseChecks(t: TestContext, pool: Pool) {
             (await store.evidence(pending.id, {})).snapshots.length,
             4,
           );
+          const savedReport = await store.report(pending.id);
+          assert.equal(savedReport.hash_verified, true);
+          assert.equal(savedReport.report.ai_performed, false);
+          assert.equal(savedReport.report.model_status, "DISABLED");
+          assert.equal(
+            (await store.get(pending.id)).result?.mode,
+            "hypothesis-report",
+          );
           await worker.close();
           process.env.SENTINEL_EVIDENCE_SECRET = "b".repeat(64);
           worker = startInvestigationWorker(

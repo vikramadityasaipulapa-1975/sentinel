@@ -171,7 +171,7 @@ export function evidenceConfig(env: NodeJS.ProcessEnv = process.env) {
     secret: env.SENTINEL_EVIDENCE_SECRET!,
   };
 }
-export async function collectEvidence(
+export async function collectInvestigation(
   config: NonNullable<ReturnType<typeof evidenceConfig>>,
   service: string,
   start: string,
@@ -180,7 +180,7 @@ export async function collectEvidence(
   const response = await fetch(config.url, {
     method: "POST",
     redirect: "error",
-    signal: AbortSignal.timeout(3500),
+    signal: AbortSignal.timeout(14000),
     headers: {
       "content-type": "application/json",
       authorization: `Bearer ${config.secret}`,
@@ -206,7 +206,27 @@ export async function collectEvidence(
     await reader.cancel();
   }
   const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-  if (body.mode !== "deterministic-evidence" || body.ai_performed !== false)
+  if (
+    body.mode !== "deterministic-evidence" ||
+    typeof body.ai_performed !== "boolean"
+  )
     throw new Error("Invalid collector response");
-  return validateEvidence(body.evidence, service, start, end);
+  const evidence = validateEvidence(body.evidence, service, start, end);
+  const { validateReport } = await import("./investigation-report.js");
+  const analysis =
+    body.analysis === undefined
+      ? undefined
+      : validateReport(body.analysis, evidence);
+  if ((analysis?.ai_performed ?? false) !== body.ai_performed)
+    throw new Error("Inconsistent AI status");
+  return { evidence, analysis };
+}
+
+export async function collectEvidence(
+  config: NonNullable<ReturnType<typeof evidenceConfig>>,
+  service: string,
+  start: string,
+  end: string,
+) {
+  return (await collectInvestigation(config, service, start, end)).evidence;
 }

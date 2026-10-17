@@ -65,8 +65,9 @@
       <p>
         This enqueues a real background investigation. With the P5 collector
         enabled, it saves metrics, logs, deployment history and descriptive
-        comparisons. It does not perform AI analysis. Reuse the same request key
-        to retry an uncertain submission.
+        comparisons. Reports label deterministic suggestions and optional
+        model-assisted rankings; no cause is confirmed. Reuse the same request
+        key to retry an uncertain submission.
       </p>
       <form id="investigation">
         <label
@@ -82,6 +83,7 @@
       <div id="actions-queue">
         <button id="job-status" type="button">Investigation status</button
         ><button id="job-list" type="button">Incident investigations</button>
+        <button id="job-report" type="button">Hypothesis report</button>
         <button id="job-evidence" type="button">Saved evidence</button>
         <button id="next-evidence" type="button" disabled>
           Next evidence page

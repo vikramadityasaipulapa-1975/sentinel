@@ -84,6 +84,14 @@ def prepare_reader():
         "SENTINEL_PROMETHEUS_URL": "http://127.0.0.1:9090",
         "SENTINEL_LOKI_URL": "http://127.0.0.1:3100",
     }
+    for name in (
+        "SENTINEL_LLM_PROVIDER",
+        "SENTINEL_LLM_URL",
+        "SENTINEL_LLM_MODEL",
+        "SENTINEL_LLM_LOCAL_ONLY",
+    ):
+        if name in settings:
+            values[name] = settings[name]
     path.write_text(
         "".join(f"{key}={value}\n" for key, value in values.items()), encoding="utf-8"
     )
