@@ -4,7 +4,6 @@ import time
 
 from observability_support import DATA, Demo, compose, run
 
-
 if __name__ == "__main__":
     try:
         with Demo() as demo:

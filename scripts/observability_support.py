@@ -8,7 +8,6 @@ import subprocess
 import sys
 import sysconfig
 import time
-from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
