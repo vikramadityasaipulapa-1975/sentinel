@@ -1080,3 +1080,12 @@ P3.4 requires its own explanation/approval before implementation.
   ingestion/storage, provider accounts/costs, retention and production threshold
   selection remain unprovisioned and task-by-task manual steps are in the guide.
 - Student explanations and independent exercises remain pending. P5 is not approved.
+
+## P5.1 task record
+
+- Approved with P5.1–P5.5 after the expanded explanation.
+- Implemented typed, fixed-template read-only Prometheus evidence; see P5-LEARNING-GUIDE.md.
+- Measured: 4 fixture tests passed; live local Prometheus returned request-rate samples; unavailable endpoint returned UNAVAILABLE. Ruff passed.
+- Live testing caught Prometheus timestamp precision rounding; query boundaries now round inward to whole seconds. No source timestamp outside the requested window is accepted.
+- Manual: existing P4 collectors required locally; hosted monitoring remains unprovisioned.
+- Learner questions/exercise remain open; proceeding within explicit all-P5 approval.
