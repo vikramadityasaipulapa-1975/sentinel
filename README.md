@@ -1,6 +1,9 @@
 # Sentinel
 
 Sentinel is a learning-first AI-assisted incident response and reliability project.
+Current local software: P1-P6 implemented and tested. Start with the
+[manual checklist](docs/MANUAL-SETUP.md) for the current stack; earlier sections
+record each phase. Model/cloud setup is optional and deferred.
 **P1 implementation is complete:** two local demo services, validated simulated
 payments, bounded checkout calls, request IDs, safe JSON logs, deterministic faults,
 and reproducible local tests/load checks. P2 adds PostgreSQL persistence,
@@ -8,7 +11,8 @@ idempotency/retries, container definitions, and local deployment version tooling
 See the progress log for separately measured native and Docker verification.
 **P2 implementation is verified:** native PostgreSQL and Docker/Compose checks
 passed, including restart persistence and container version switching/rollback.
-AI, centralized telemetry and remediation remain future phases.
+P4 adds centralized local telemetry; P5-P6 add evidence and cited hypothesis reports.
+Live model configuration, public deployment and remediation remain unperformed.
 
 **P3.1:** the main Sentinel API now has a PostgreSQL-backed service registry,
 explicit migrations, readiness checks and a reproducible local workflow. See the
@@ -25,8 +29,8 @@ checks and backend role permissions protect the API. No default accounts exist.
 resumes with Last-Event-ID. Watch/Stop/history controls are on the local test page.
 
 **P3.4:** operators can enqueue durable investigation workflow checks. PostgreSQL
-outbox/leases and Redis/BullMQ recover interrupted work. Results explicitly say no
-AI or telemetry investigation has been performed.
+outbox/leases and Redis/BullMQ recover interrupted work. Without collector settings,
+compatibility results explicitly say no AI or telemetry investigation was performed.
 
 ## Run the Sentinel API locally (P3.1-P3.5)
 
@@ -359,3 +363,21 @@ you explicitly configure the separate evidence URL/key; it does not gather
 telemetry in that compatibility mode. The shared deployment must use hosted
 storage/processes. Current loopback bindings and remote bootstrap restrictions
 still need the reviewed deployment work listed in the hosted guide.
+
+## P6 investigation reports
+
+P6 adds a bounded reference workflow, parallel LangGraph collection and ranked
+possible-cause reports with exact saved-evidence citations. Default reports use
+explicit deterministic heuristics with `ai_performed: false`. Optional local
+Ollama ranking requires manual setup; no model was installed or run during the
+phase. The ten-case synthetic baseline exposed a false deployment attribution,
+which is documented instead of being presented as production AI accuracy.
+
+- [P6 task-by-task learning guide](docs/P6-LEARNING-GUIDE.md)
+- [Measured evaluation and limitations](docs/P6-EVALUATION.md)
+- [Manual restart, report testing and optional model setup](docs/MANUAL-SETUP.md)
+
+After starting the current local stack, sign in at `/auth-test`, enqueue a fresh
+investigation and use **Hypothesis report** plus **Saved evidence**. Older P5 runs
+retain their evidence but have no report. All suggestions remain hypotheses;
+there is no automated remediation. Public/cloud setup can wait and is not deployed.

@@ -1,6 +1,6 @@
 # Sentinel manual setup checklist
 
-P5.1-P5.5 and P6.1-P6.4 are implemented locally. For provider-specific cloud database steps,
+P5.1-P5.5 and P6.1-P6.5 are implemented locally. For provider-specific cloud database steps,
 read [HOSTED-SETUP.md](HOSTED-SETUP.md). No external deployment or paid resource
 has been created. Keep credentials in ignored configuration or a secret manager;
 never paste them into chat or Git.
@@ -191,6 +191,21 @@ real local model-assisted ranking later:
 Remote inference needs a separately reviewed provider adapter, cost/data-policy
 choice and authorization to transmit selected evidence. A local HTTP URL alone
 must not be assumed to prevent a model server from forwarding requests.
+
+## P6 workflow and evaluation commands
+
+```powershell
+.venv\Scripts\python.exe scripts/verify-p6.py
+.venv\Scripts\python.exe scripts/evaluate-p6.py
+```
+
+The first reads actual local sources through sequential and parallel workflows,
+with no model inference. The second evaluates ten synthetic labelled scenarios
+with the deterministic baseline. See [P6-EVALUATION.md](P6-EVALUATION.md) for
+measured errors and denominators. Neither command mutates monitored services.
+After optional local model setup, `scripts/evaluate-p6.py --local-model` runs a
+separate model-on-fixtures comparison; it does not establish real-world accuracy.
+No model or cloud setup is required for the default commands.
 
 ## Manual cloud responsibilities
 

@@ -20,8 +20,8 @@
     "verify:p1": ".venv\\Scripts\\python.exe scripts/verify-p1.py",
     "verify:p2": ".venv\\Scripts\\python.exe scripts/verify-p2.py --backend native",
     "verify:p2:compose": ".venv\\Scripts\\python.exe scripts/verify-p2.py --backend compose",
-    "format": "prettier --write package.json \"services/checkout-service/**/*.ts\" \"services/checkout-service/*.json\" \"services/payment-service/*.json\" scripts/load-checkout.js README.md \"docs/*.md\" infrastructure/compose.yaml \"apps/api/**/*.ts\" \"apps/api/*.json\" infrastructure/compose.api.yaml \"apps/api/public/*\" infrastructure/compose.observability.yaml \"infrastructure/observability/*.yaml\"",
-    "format:check": "prettier --check package.json \"services/checkout-service/**/*.ts\" \"services/checkout-service/*.json\" \"services/payment-service/*.json\" scripts/load-checkout.js README.md \"docs/*.md\" infrastructure/compose.yaml \"apps/api/**/*.ts\" \"apps/api/*.json\" infrastructure/compose.api.yaml \"apps/api/public/*\" infrastructure/compose.observability.yaml \"infrastructure/observability/*.yaml\"",
+    "format": "prettier --write package.json \"services/checkout-service/**/*.ts\" \"services/checkout-service/*.json\" \"services/payment-service/*.json\" scripts/load-checkout.js README.md \"docs/*.md\" infrastructure/compose.yaml \"apps/api/**/*.ts\" \"apps/api/*.json\" infrastructure/compose.api.yaml \"apps/api/public/*\" infrastructure/compose.observability.yaml \"infrastructure/observability/*.yaml\" \"apps/ai-engine/evaluation/*.json\"",
+    "format:check": "prettier --check package.json \"services/checkout-service/**/*.ts\" \"services/checkout-service/*.json\" \"services/payment-service/*.json\" scripts/load-checkout.js README.md \"docs/*.md\" infrastructure/compose.yaml \"apps/api/**/*.ts\" \"apps/api/*.json\" infrastructure/compose.api.yaml \"apps/api/public/*\" infrastructure/compose.observability.yaml \"infrastructure/observability/*.yaml\" \"apps/ai-engine/evaluation/*.json\"",
     "test:api": "npm run test --workspace=@sentinel/api",
     "start:api": "node --env-file=.env.api apps/api/dist/src/server.js",
     "verify:p3.1": ".venv\\Scripts\\python.exe scripts/verify-p3.py --task P3.1",
@@ -29,7 +29,10 @@
     "verify:p3.3": ".venv\\Scripts\\python.exe scripts/verify-p3.py --task P3.3",
     "verify:p3.5": ".venv\\Scripts\\python.exe scripts/verify-p3.py --task P3.5",
     "verify:p3.4": ".venv\\Scripts\\python.exe scripts/verify-p3.py --task P3.4",
-    "start:worker": "node --env-file=.env.api apps/api/dist/src/worker-main.js"
+    "start:worker": "node --env-file=.env.api apps/api/dist/src/worker-main.js",
+    "test:engine": ".venv\\Scripts\\python.exe -m pytest -c apps/ai-engine/pytest.ini apps/ai-engine/tests -q",
+    "verify:p6": ".venv\\Scripts\\python.exe scripts/verify-p6.py",
+    "evaluate:p6": ".venv\\Scripts\\python.exe scripts/evaluate-p6.py"
   },
   "devDependencies": {
     "prettier": "3.9.10"

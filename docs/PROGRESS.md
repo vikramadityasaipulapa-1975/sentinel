@@ -1,8 +1,8 @@
 # Sentinel progress
 
-Current phase/task: P5.5 software verification complete; P5 software implemented
-Status: P5.1-P5.5 SOFTWARE VERIFIED; learner checkpoints remain open
-Last fully accepted software phase: P5 software acceptance verified; hosted deployment pending
+Current phase/task: P6.5 software and fixture evaluation complete; live model setup deferred
+Status: P6.1-P6.5 SOFTWARE VERIFIED; live model quality and learner checkpoints remain open
+Last fully accepted software phase: P6 software/fixture checks verified; live model quality and public hosting unmeasured
 Last completed learner checkpoint: none confirmed
 
 ## P1.1 task record
@@ -1195,3 +1195,35 @@ P3.4 requires its own explanation/approval before implementation.
 - Updated local/manual/hosted instructions and fake .env.example variables. Hosted
   runtime grants need SELECT/INSERT on investigation_reports after migration 007.
   Cloud and real-model setup remain deferred by user preference.
+
+## P6.5 task record and phase completion
+
+- Implemented ten versioned synthetic labelled scenarios and an evaluator using
+  the same graph/calculations/synthesis as the app. Ground truth is withheld from
+  model inputs. Separate deployment/nondeployment/no-cause cohorts and exact
+  denominators are reported, along with requested/validated model-call statuses.
+- Measured deterministic baseline: top-1 6/7, top-2 7/7, candidate precision 7/13,
+  false deployment attribution 1/6, no-cause abstention 3/3, citation validity 18/18.
+  Model disabled on all ten cases. The coincident-release/dependency scenario
+  deliberately exposes an incorrect deployment rank; valid citations do not prove
+  causation. These are not live AI or real-world performance claims.
+- Final engine suite: 35 passed. Final API/real PostgreSQL/Redis suite: 88 passed,
+  zero skips, including live local collector/worker/report integration and existing
+  auth/incident/queue/alert/SSE checks. Runtime API/DB/Redis outage/restart checks
+  passed. Checkout 17 and payment 32 regressions passed after graph dependencies.
+- Live sequential/parallel source verifier passed. P6 preview restarted on final
+  source; API, engine, Prometheus and Loki health/readiness returned 200. Anonymous
+  collector POST returned 401. Localhost page visibly includes Hypothesis report
+  and Saved evidence controls; no passwords were entered/read by the agent.
+- Repository Prettier, Python Ruff/check/format, pip check and diff whitespace checks
+  passed. .env/.env.api/.env.evidence remain ignored. Added npm test:engine,
+  verify:p6 and evaluate:p6 commands and included scenario JSON in formatting.
+- Documentation: complete task-by-task P6 guide, tracked P6-EVALUATION.md with
+  measured limitations, updated README and manual/hosted steps. Optional local
+  model setup and cloud provisioning are deferred at user request; no model was
+  installed/called, no remote evidence sent and no external deployment occurred.
+- P6.1 937a705; P6.2 b65d605; P6.3 264c87a; P6.4 14c4a61; P6.5 is this record's
+  feat(P6.5) commit. Sole configured account author; no co-author trailers.
+- P6 software/fixture acceptance complete. Live model quality, live model latency,
+  public hosting and learner comprehension checkpoints remain explicitly open.
+  P7 has not been started or approved.

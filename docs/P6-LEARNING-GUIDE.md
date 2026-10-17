@@ -241,3 +241,71 @@ private, and any future remote model requires a separate reviewed adapter and
 explicit telemetry-disclosure approval.
 
 **Commit summary.** `feat(P6.4): persist ranked hypotheses with verified evidence citations`.
+
+## P6.5 — Labelled scenario evaluation
+
+**Concept.** Ground truth is a separately supplied expected cause. Top-k accuracy
+asks whether that label appears in the first k candidates. Precision also counts
+extra wrong candidates. False attribution measures a harmful particular mistake:
+blaming a deployment when the labelled cause is something else. A correct citation
+is not the same as a correct causal hypothesis.
+
+**Architecture/data flow.** Versioned labelled fixture → normalized synthetic
+metrics/log/deployment sources → the same parallel graph, calculations and
+synthesis used by the application → rankings/citation checks → per-case results
+and cohort metrics. Only numeric facts reach an optional model; labels and
+scenario names stay outside its input. Default evaluation disables the model.
+
+**File plan / implementation / walkthrough.** `evaluation/scenarios.json` contains
+ten labelled cases, including healthy, missing and ambiguous evidence.
+`evaluation.py` constructs consistent synthetic time series, reuses run_parallel
+and synthesize, resolves every cited JSON pointer and calculates counts/metrics.
+`evaluate(adapter=None)` is async and performs no primary DB writes. The CLI
+`scripts/evaluate-p6.py` defaults to deterministic mode; --local-model explicitly
+requires a configured, cloud-disabled loopback Ollama adapter. Reports distinguish
+requested calls, validated model-assisted reports and per-case model failure
+statuses so fallback results cannot masquerade as model accuracy.
+`tests/test_evaluation.py` checks dataset/cohort counts, citation resolution,
+abstention and the reported false-attribution denominator. `P6-EVALUATION.md`
+records measured results and known weaknesses in the repository.
+
+**Approval checkpoint.** Included in the user's explicit P6.2-P6.5 approval.
+
+**Run/test.** Run the engine tests, then:
+
+```powershell
+.venv\Scripts\python.exe scripts/evaluate-p6.py
+```
+
+35 cumulative engine tests passed. Ten synthetic scenarios were evaluated:
+top-1 6/7, top-2 7/7, strict candidate precision 7/13, false deployment attribution
+1/6, no-cause abstention 3/3 and 18/18 structurally valid citations. Deployment
+cohort 1/1 and nondeployment cohort 5/6 top-1 are reported with their small counts.
+The coincident-release/dependency case is intentionally wrong at rank one;
+the evaluator reports that error rather than treating citation validity as causal
+correctness. No real model ran; these numbers must not be called AI accuracy.
+
+**Debug.** Inspect per-case outputs and denominators before percentages. A model
+that failed on every input has no measured model quality even if its deterministic
+fallback scored well. Compare dataset versions and modes before comparing runs.
+Avoid leaking labels or removing difficult scenarios merely to improve metrics.
+
+**Understanding check.** How can top-2 be perfect while precision is low? Why does
+one coincident release expose false attribution? Why is a ten-case hand-authored
+fixture set insufficient for a production quality claim? Exercise: add a separate
+unseen nondeployment scenario and explain the expected outcome before running it.
+
+**Manual setup.** None for default evaluation. Optional real local model setup and
+--local-model testing can wait; see MANUAL-SETUP.md. External hosting, remote model
+transmission and remediation remain unperformed. Real model quality and live
+fault-injection evaluation remain explicitly unmeasured until separately run.
+
+**Commit summary.** `feat(P6.5): evaluate labelled faults and document attribution limits`.
+
+## Phase completion
+
+P6.1-P6.5 software, deterministic fixture evaluation and local collector/backend
+integration are complete. Each task has its own commit and learning record.
+Student questions/exercises remain open; no model-quality or public-hosting claim
+is made. Cloud/model provisioning is deferred at the user's request. P7 requires
+its own explanation and approval.

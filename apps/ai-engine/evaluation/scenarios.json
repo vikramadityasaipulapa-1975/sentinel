@@ -1,0 +1,111 @@
+[
+  {
+    "id": "deployment-regression",
+    "cause": "deployment",
+    "before_error": 0.01,
+    "after_error": 0.6,
+    "before_rate": 2,
+    "after_rate": 2,
+    "before_latency": 0.1,
+    "after_latency": 0.8,
+    "verified_releases": 1,
+    "logs": { "500": 30 }
+  },
+  {
+    "id": "healthy-deployment",
+    "cause": null,
+    "before_error": 0.01,
+    "after_error": 0.01,
+    "before_rate": 2,
+    "after_rate": 2,
+    "before_latency": 0.1,
+    "after_latency": 0.1,
+    "verified_releases": 1,
+    "logs": { "200": 40 }
+  },
+  {
+    "id": "dependency-timeout",
+    "cause": "dependency",
+    "before_error": 0.01,
+    "after_error": 0.5,
+    "before_rate": 5,
+    "after_rate": 5,
+    "before_latency": 0.1,
+    "after_latency": 1,
+    "verified_releases": null,
+    "logs": { "504": 20 }
+  },
+  {
+    "id": "dependency-gateway",
+    "cause": "dependency",
+    "before_error": 0.01,
+    "after_error": 0.5,
+    "before_rate": 5,
+    "after_rate": 5,
+    "before_latency": 0.1,
+    "after_latency": 0.3,
+    "verified_releases": null,
+    "logs": { "502": 20 }
+  },
+  {
+    "id": "load-surge",
+    "cause": "load",
+    "before_error": 0.01,
+    "after_error": 0.2,
+    "before_rate": 5,
+    "after_rate": 30,
+    "before_latency": 0.1,
+    "after_latency": 0.8,
+    "verified_releases": null,
+    "logs": { "500": 5 }
+  },
+  {
+    "id": "application-errors",
+    "cause": "application",
+    "before_error": 0.01,
+    "after_error": 0.7,
+    "before_rate": 5,
+    "after_rate": 5,
+    "before_latency": 0.1,
+    "after_latency": 0.1,
+    "verified_releases": null,
+    "logs": { "500": 15 }
+  },
+  {
+    "id": "application-recovering",
+    "cause": "application",
+    "before_error": 0.8,
+    "after_error": 0.2,
+    "before_rate": 5,
+    "after_rate": 5,
+    "before_latency": 0.1,
+    "after_latency": 0.1,
+    "verified_releases": null,
+    "logs": { "500": 5 }
+  },
+  {
+    "id": "healthy-no-change",
+    "cause": null,
+    "before_error": 0,
+    "after_error": 0,
+    "before_rate": 5,
+    "after_rate": 5,
+    "before_latency": 0.1,
+    "after_latency": 0.1,
+    "verified_releases": null,
+    "logs": { "200": 40 }
+  },
+  { "id": "missing-telemetry", "cause": null, "missing": true },
+  {
+    "id": "coincident-release-dependency-fault",
+    "cause": "dependency",
+    "before_error": 0.01,
+    "after_error": 0.5,
+    "before_rate": 5,
+    "after_rate": 5,
+    "before_latency": 0.1,
+    "after_latency": 1,
+    "verified_releases": 1,
+    "logs": { "504": 20 }
+  }
+]
