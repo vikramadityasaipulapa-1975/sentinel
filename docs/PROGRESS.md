@@ -1227,3 +1227,10 @@ P3.4 requires its own explanation/approval before implementation.
 - P6 software/fixture acceptance complete. Live model quality, live model latency,
   public hosting and learner comprehension checkpoints remain explicitly open.
   P7 has not been started or approved.
+
+## P7.1 task record
+
+- User approved P7.1-P7.4 after the complete learning-first plan, including local embedding download and isolated pgvector storage.
+- Authored ten tailored runbooks and two explicitly fictional postmortems. Added versioned manifest and bounded, safe-path/metadata/required-section validator.
+- 40 cumulative engine tests passed; invalid/duplicate/traversal/missing-section/unlabelled-example cases rejected. No database/model call in this task.
+- P7 guide includes walkthrough, commands, debugging, learner questions/exercise. Manual setup: none. No remediation authorized by document content.

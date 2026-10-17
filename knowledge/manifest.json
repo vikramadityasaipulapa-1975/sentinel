@@ -1,0 +1,98 @@
+[
+  {
+    "id": "payment-timeout",
+    "version": 1,
+    "path": "runbooks/payment-timeout.md",
+    "kind": "runbook",
+    "services": ["checkout-service", "payment-service"],
+    "categories": ["dependency"]
+  },
+  {
+    "id": "upstream-gateway",
+    "version": 1,
+    "path": "runbooks/upstream-gateway.md",
+    "kind": "runbook",
+    "services": ["checkout-service", "payment-service"],
+    "categories": ["dependency"]
+  },
+  {
+    "id": "checkout-errors",
+    "version": 1,
+    "path": "runbooks/checkout-errors.md",
+    "kind": "runbook",
+    "services": ["checkout-service"],
+    "categories": ["application"]
+  },
+  {
+    "id": "load-surge",
+    "version": 1,
+    "path": "runbooks/load-surge.md",
+    "kind": "runbook",
+    "services": ["checkout-service", "payment-service"],
+    "categories": ["load"]
+  },
+  {
+    "id": "deployment-correlation",
+    "version": 1,
+    "path": "runbooks/deployment-correlation.md",
+    "kind": "runbook",
+    "services": ["checkout-service", "payment-service"],
+    "categories": ["deployment"]
+  },
+  {
+    "id": "postgres-contention",
+    "version": 1,
+    "path": "runbooks/postgres-contention.md",
+    "kind": "runbook",
+    "services": ["checkout-service", "payment-service"],
+    "categories": ["dependency", "application"]
+  },
+  {
+    "id": "queue-backlog",
+    "version": 1,
+    "path": "runbooks/queue-backlog.md",
+    "kind": "runbook",
+    "services": ["checkout-service", "payment-service"],
+    "categories": ["telemetry"]
+  },
+  {
+    "id": "missing-metrics",
+    "version": 1,
+    "path": "runbooks/missing-metrics.md",
+    "kind": "runbook",
+    "services": ["checkout-service", "payment-service"],
+    "categories": ["telemetry"]
+  },
+  {
+    "id": "missing-logs",
+    "version": 1,
+    "path": "runbooks/missing-logs.md",
+    "kind": "runbook",
+    "services": ["checkout-service", "payment-service"],
+    "categories": ["telemetry"]
+  },
+  {
+    "id": "incomplete-traces",
+    "version": 1,
+    "path": "runbooks/incomplete-traces.md",
+    "kind": "runbook",
+    "services": ["checkout-service", "payment-service"],
+    "categories": ["telemetry"]
+  },
+  {
+    "id": "example-payment-latency",
+    "version": 1,
+    "path": "postmortems/example-payment-latency.md",
+    "kind": "fictional-postmortem",
+    "services": ["checkout-service", "payment-service"],
+    "categories": ["dependency"]
+  },
+  {
+    "id": "example-coincident-release",
+    "version": 1,
+    "path": "postmortems/example-coincident-release.md",
+    "kind": "fictional-postmortem",
+    "services": ["checkout-service", "payment-service"],
+    "categories": ["deployment", "dependency"]
+  }
+]
