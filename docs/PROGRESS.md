@@ -1325,3 +1325,26 @@ P3.4 requires its own explanation/approval before implementation.
 - Initial test fixture used createUser's UUID return as an object; fixed before
   passing tests. No Docker mutation occurred in this task. Full walkthrough and
   manual requirements recorded in P8-LEARNING-GUIDE.md.
+
+## P8.3 task record
+
+- Separate memory-only Docker sandbox on loopback 4301/4302; good-image checkout
+  baseline verified before deliberately introducing payment-v3-error. Existing
+  demo/API databases and service processes are not mutation targets.
+- Independent executor uses fixed local Docker context/project/file/argument arrays,
+  exact container/image checks, live approval/role/token/incident/expiry rechecks,
+  committed execution token, fenced completion, no blind retries and a shared
+  setup/executor file lock. Durable approved work supports explicit one-shot/watch.
+- Actual real scenario PASSED: test-only HTTP login/RBAC and PostgreSQL ADMIN
+  approval; real faulty-to-payment-v1 container replacement; three successful
+  checkouts; immutable target/runtime match; duplicate execution NO_EXECUTION;
+  audit PENDING/APPROVED/EXECUTING/VERIFIED; incident remains OPEN.
+- Four synthetic executor boundary tests passed. API TypeScript build and Python
+  lint passed. Temporary verification DB removed; sandbox retained.
+- Corrected invalid deployment marker to a UUID and fixed test auth-key type.
+  Replaced blocking test subprocess with async execution after a stale HTTP
+  keep-alive socket reset; accepted full scenario reran successfully.
+- Runtime restoration: Docker had stopped during session interruption. Retained
+  API/demo/knowledge and observability services restarted; migration 009 applied.
+  No volumes/data reset. P8 guide records files, async/error paths, tests, debug,
+  comprehension exercises, Docker privilege boundary and manual launch commands.

@@ -117,6 +117,7 @@ export function postgresRemediations(pool: Pool) {
     propose: (input: unknown, actor: string) =>
       transaction(async (c) => {
         const req = parseProposal(input);
+        await c.query("SELECT pg_advisory_xact_lock(71628001)");
         await user(c, actor);
         const i = await incident(c, req.incident_id);
         const old = (
@@ -134,7 +135,6 @@ export function postgresRemediations(pool: Pool) {
             );
           return old;
         }
-        await c.query("SELECT pg_advisory_xact_lock(71628001)");
         await expire(c);
         const binding = await target(c);
         dryRun(i.service, i.status, binding);
@@ -157,6 +157,7 @@ export function postgresRemediations(pool: Pool) {
       }),
     decide: (id: string, decision: "APPROVE" | "REJECT", actor: string) =>
       transaction(async (c) => {
+        await c.query("SELECT pg_advisory_xact_lock(71628001)");
         const u = await user(c, actor, true);
         const row = await current(c, id);
         if (row.status !== "PENDING") return row;

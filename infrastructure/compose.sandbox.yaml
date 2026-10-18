@@ -1,0 +1,24 @@
+name: sentinel-remediation-sandbox
+services:
+  payment:
+    image: ${SANDBOX_PAYMENT_IMAGE:?Prepare sandbox first}
+    pull_policy: never
+    environment:
+      STORAGE_MODE: memory
+      DEPLOYMENT_ID: 88888888-8888-4888-8888-888888888888
+    ports: ["127.0.0.1:4302:3002"]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+  checkout:
+    image: ${SANDBOX_CHECKOUT_IMAGE:?Prepare sandbox first}
+    pull_policy: never
+    environment:
+      PAYMENT_URL: http://payment:3002
+      PAYMENT_TIMEOUT_MS: "1000"
+      PAYMENT_MAX_ATTEMPTS: "1"
+    ports: ["127.0.0.1:4301:3001"]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
