@@ -1449,3 +1449,26 @@ P3.4 requires its own explanation/approval before implementation.
   sign in again if the token expired. No investigation rerun is required.
 - No hosted deployment or remediation was performed; learner answers remain open.
 - Commit: `fix(P3.5): preserve history and streaming for partial investigations`.
+
+## P5.3 follow-up: Windows async deployment reader (2026-10-18)
+
+- Approval: user approved the explicit Uvicorn Windows loop-factory repair after
+  diagnosis and explanation. No new phase or hosted action is included.
+- Cause reproduced: global policy produced WindowsSelectorEventLoop, but Uvicorn
+  0.54.0's default factory produced ProactorEventLoop. Psycopg async raised
+  InterfaceError on that loop; the collector correctly hid details as UNAVAILABLE.
+- Changes: explicitly choose asyncio:SelectorEventLoop on Windows, preserve auto
+  elsewhere; add startup/factory and reader success/failure unit regressions.
+  File/function flow, commands, debugging and learner exercise are in P5 guide.
+- Before fix: Windows startup regression failed; non-Windows branch passed.
+- After fix: 50 engine tests passed; pip check found no broken requirements.
+  Reader mocks verify read-only/query deadline configuration and safe failures;
+  the non-Windows selection check is simulated, not a Linux execution claim.
+- Live verification: controlled restart of the owned API/worker/engine supervisor;
+  authenticated /collect HTTP 200, actual deployment reader EMPTY with zero matching
+  releases, API /ready 200 and engine /health 200. Earlier live collection returned
+  UNAVAILABLE. Prometheus/Loki/calculations remain PARTIAL for their existing
+  traffic/coverage/truncation limitations, unrelated to this repair.
+- No saved investigation/account/volume was deleted or rewritten. No investigation
+  was enqueued. No new manual setup is required; old snapshots remain immutable.
+- Commit: `fix(P5.3): select compatible Windows loop for deployment evidence`.

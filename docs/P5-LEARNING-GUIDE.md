@@ -334,3 +334,101 @@ explicitly. No LLM API key is needed for this phase.
 **Commit summary.** `feat(P5.5): persist fenced evidence snapshots with verified hashes`.
 P5.1-P5.4 already have separate pushed commits. This commit completes P5 software;
 P6 needs its own learning explanation and approval.
+
+## P5.3 follow-up: Windows deployment collection event loop (2026-10-18)
+
+### Concept
+
+An event loop schedules async network operations. Psycopg's async PostgreSQL
+connections on Windows require SelectorEventLoop. The engine set a global Windows
+Selector policy, but pinned Uvicorn 0.54.0 selects its own loop factory. With the
+normal single-process configuration it selected ProactorEventLoop, overriding the
+intended policy. Valid deployment-reader credentials therefore produced a driver
+InterfaceError, safely classified UNAVAILABLE. This is different from EMPTY,
+which means a successful query found no matching release records.
+
+### Architecture/data flow
+
+The API worker calls the authenticated private /collect endpoint. The graph runs
+read-only Prometheus, Loki and deployment branches, then calculations/analysis.
+The deployment branch connects using a SELECT-only database identity and bounded
+connection/query deadlines. Its existing error boundary hides driver details and
+credentials. Choosing the compatible loop at server startup repairs async DB
+access without weakening that boundary or moving database work into the API.
+
+### File plan and approval checkpoint
+
+The user explicitly approved this repair after the local loop-factory mismatch
+was reproduced. No dependency change, schema migration, account change, cloud
+provisioning or production action is included.
+
+### Implementation and walkthrough
+
+- `apps/ai-engine/engine_main.py`: pass `loop="asyncio:SelectorEventLoop"` on
+  Windows and `loop="auto"` elsewhere to uvicorn.run. Remove the ineffective global
+  policy. Uvicorn imports the specified class and calls it as its loop factory;
+  its server runner owns the loop lifetime. Keep loopback binding, authentication,
+  concurrency and keep-alive bounds unchanged. An explicit factory is smaller
+  than replacing the driver or downgrading Uvicorn.
+- `apps/ai-engine/tests/test_engine_main.py`: execute the actual startup script
+  with uvicorn.run intercepted. Assert Windows passes the explicit factory, and
+  the non-Windows branch keeps auto. Resolve the factory with the real installed
+  Uvicorn Config, create its loop, assert Selector type and close it in finally.
+  Environment values are fake; no server is started by this unit test. The
+  non-Windows branch is simulated on this Windows host, not a Linux runtime test.
+- `apps/ai-engine/tests/test_deployments.py`: synthetic async connection/cursor
+  fixtures check EMPTY on a successful empty query, parameterized service scope,
+  read-only/statement-timeout options, and UNAVAILABLE with no leaked error details
+  on a simulated connection failure. These are mocks; the live check below uses
+  actual PostgreSQL and the restarted HTTP engine.
+- Documentation: this guide and PROGRESS.md explain cause, validation and recovery.
+
+### Run/test
+
+From `V:\sentinel\sentinel`:
+
+```powershell
+.venv\Scripts\python.exe -m pytest -c apps/ai-engine/pytest.ini apps/ai-engine/tests -q
+.venv\Scripts\python.exe -m pip check
+npm run format:check
+```
+
+Before the source fix, the Windows startup regression failed because no explicit
+loop argument was supplied; the non-Windows case passed. After the fix all 50
+engine tests passed, and pip check reported no broken requirements.
+
+Live read-only verification after restarting the owned local supervisor returned
+HTTP 200, deployments EMPTY and zero releases in the latest ten-minute payment
+window. API /ready and engine /health both returned 200. Before the restart the
+same HTTP collection returned deployments UNAVAILABLE while a standalone Selector
+collector returned EMPTY. No new investigation was enqueued for this diagnostic.
+
+### Manual setup and debug
+
+No new installation, environment variable or manual database setup is required.
+The local supervisor was restarted to load the fix. On future starts use the
+normal `scripts/api-local.py` helper; do not start a second engine on port 8001.
+Existing saved evidence is immutable and still records the original UNAVAILABLE.
+A deliberately requested new investigation captures the corrected behavior.
+
+EMPTY is expected if no actual verified releases match the window. Sparse traffic
+can still produce partial Prometheus/calculation evidence, and a bounded 100-log
+retrieval can still be truncated. This repair does not invent release history or
+guarantee a COMPLETED report. If database access fails again, distinguish loop
+compatibility from credential, permission, connection and query-timeout failures;
+do not disable TLS or grant write access to the evidence reader.
+
+### Understanding check
+
+1. Why did a working SELECT-only login not guarantee the async collector worked?
+2. Why did the global asyncio policy fail to control Uvicorn's actual loop?
+3. Why should the previous investigation continue to say UNAVAILABLE after repair?
+
+Independent exercise: compare one old and one new deployment snapshot and explain
+why EMPTY is evidence of successful collection, while UNAVAILABLE is uncertainty.
+
+### Commit summary
+
+`fix(P5.3): select compatible Windows loop for deployment evidence` records this
+startup repair, positive/negative regressions and documentation. No hosting or
+production remediation was performed.

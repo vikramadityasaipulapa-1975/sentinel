@@ -1,14 +1,14 @@
-import asyncio
 import sys
 
 import uvicorn
 from engine import create_app
 
 if __name__ == "__main__":
-    if sys.platform == "win32":
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     uvicorn.run(
         create_app(),
+        # Uvicorn uses its own factory; a global loop policy is insufficient.
+        # Psycopg async connections require SelectorEventLoop on Windows.
+        loop="asyncio:SelectorEventLoop" if sys.platform == "win32" else "auto",
         host="127.0.0.1",
         port=8001,
         access_log=False,
