@@ -112,38 +112,75 @@ def assert_container(row, image, container_id=None):
         raise ValueError("Unexpected sandbox port")
 
 
+def read_json(client, method, url, **kwargs):
+    with client.stream(method, url, **kwargs) as response:
+        data = bytearray()
+        for chunk in response.iter_bytes(4096):
+            data.extend(chunk)
+            if len(data) > 16384:
+                raise ValueError("Sandbox response exceeds budget")
+        value = json.loads(data)
+        if not isinstance(value, dict):
+            raise ValueError("Expected sandbox object")
+        return response.status_code, value
+
+
 def probe(expected_version, samples=3):
+    if type(samples) is not int or not 1 <= samples <= 3:
+        raise ValueError("Probe sample budget exceeded")
     observations = {
         "version_matches": False,
         "ready": False,
         "successful_checkouts": 0,
         "samples": samples,
     }
+    started = time.monotonic()
     with httpx.Client(trust_env=False, timeout=2, follow_redirects=False) as client:
-        version = client.get("http://127.0.0.1:4302/version")
+        status, version = read_json(client, "GET", "http://127.0.0.1:4302/version")
         observations["version_matches"] = (
-            version.status_code == 200
-            and version.json().get("version") == expected_version
-            and version.json().get("deployment_id")
-            == "88888888-8888-4888-8888-888888888888"
+            status == 200
+            and version.get("service") == "payment-service"
+            and version.get("version") == expected_version
+            and version.get("deployment_id") == "88888888-8888-4888-8888-888888888888"
+            and version.get("fault_mode")
+            == ("normal" if expected_version == "payment-v1" else "error")
         )
+        status, ready = read_json(client, "GET", "http://127.0.0.1:4302/ready")
         observations["ready"] = (
-            client.get("http://127.0.0.1:4302/ready").status_code == 200
+            status == 200
+            and ready.get("status") == "ready"
+            and ready.get("storage") == "memory"
         )
-        for _ in range(samples):
+        for index in range(samples):
+            if index:
+                time.sleep(1)
             order = str(uuid4())
-            response = client.post(
+            status, data = read_json(
+                client,
+                "POST",
                 "http://127.0.0.1:4301/checkout",
                 headers={"Idempotency-Key": str(uuid4())},
                 json={"order_id": order, "amount_minor": 100, "currency": "INR"},
             )
-            data = response.json()
+            try:
+                from uuid import UUID
+
+                UUID(str(data.get("payment_id")))
+                valid = True
+            except ValueError:
+                valid = False
             if (
-                response.status_code == 201
+                status == 201
+                and set(data)
+                == {"payment_id", "order_id", "amount_minor", "currency", "status"}
                 and data.get("order_id") == order
                 and data.get("status") == "succeeded"
+                and data.get("amount_minor") == 100
+                and data.get("currency") == "INR"
+                and valid
             ):
                 observations["successful_checkouts"] += 1
+    observations["window_seconds"] = round(time.monotonic() - started, 3)
     return observations
 
 
@@ -154,8 +191,8 @@ def wait_version(version):
             with httpx.Client(
                 trust_env=False, timeout=1, follow_redirects=False
             ) as client:
-                r = client.get("http://127.0.0.1:4302/version")
-                if r.status_code == 200 and r.json().get("version") == version:
+                status, data = read_json(client, "GET", "http://127.0.0.1:4302/version")
+                if status == 200 and data.get("version") == version:
                     return
         except (httpx.HTTPError, ValueError):
             pass

@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import subprocess
 import time
 from uuid import UUID, uuid4
 
@@ -10,6 +11,7 @@ from filelock import FileLock
 from local_support import ROOT
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
+from remediation_verification import classify
 from sandbox_support import (
     Docker,
     assert_container,
@@ -148,18 +150,25 @@ def execute(dsn, identifier):
             assert_container(after, binding["target_image"])
             observations = probe(binding["target_version"])
             observations["image_matches"] = after["Image"] == binding["target_image"]
-            status = (
-                "VERIFIED"
-                if all(
-                    [
-                        observations["ready"],
-                        observations["version_matches"],
-                        observations["image_matches"],
-                        observations["successful_checkouts"] == 3,
-                    ]
+            final = docker.payment()
+            assert_container(final, binding["target_image"], after["Id"])
+            status = classify(observations)
+        except subprocess.CalledProcessError:
+            observations = {
+                "code": "COMMAND_FAILED_OUTCOME_UNKNOWN",
+                "outcome_uncertain": True,
+            }
+            try:
+                assert_container(
+                    docker.payment(), binding["current_image"], binding["container_id"]
                 )
-                else "UNVERIFIED"
-            )
+                observations = {
+                    "code": "COMMAND_FAILED_UNCHANGED",
+                    "command_failed_unchanged": True,
+                }
+            except Exception:
+                pass
+            status = classify(observations)
         except Exception:
             # A timed-out command might already have changed the container. Never retry blindly.
             status = "UNVERIFIED" if invoked else "FAILED"

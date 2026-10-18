@@ -209,3 +209,58 @@ start `--watch` in a separate terminal. Stop it with Ctrl+C. An ADMIN account is
 required to approve; account roles are never silently changed. Cloud setup can
 wait. Never expose this executor or Docker daemon publicly.
 **Commit summary:** `feat(P8.3): execute only approved isolated sandbox rollbacks`.
+
+## P8.4 — Recovery windows and conservative results
+
+**Concept.** A command exit is not recovery. Readiness proves only a narrow
+condition. We require the approved image/version and several valid synthetic
+checkouts over time; missing observations remain uncertainty. VERIFIED means the
+sandbox passed this bounded check, not a proven root cause or long-term recovery.
+
+**Architecture/data flow.** Fixed rollback → bounded version wait → target-image
+inspection → ready/version responses and three checkout samples spaced one second
+apart → same container/image inspection again → classify → fenced result/audit.
+The operational incident is never resolved automatically.
+
+**File plan / implementation / walkthrough.** `remediation_verification.py`
+contains pure `classify(observations)`: exact boolean/numeric checks and bounded
+sample/window sizes. All identity/readiness checks plus 3/3 successful samples
+and >=2 seconds are required for VERIFIED. Conclusive unhealthy responses or a
+failed command with the unchanged original container yield FAILED. Missing,
+malformed or incomplete observations and ambiguous timeouts yield UNVERIFIED.
+`probe` in sandbox_support uses fixed loopback URLs, verified response shapes,
+unique synthetic order/request IDs, at most three samples, two-second HTTP limits,
+16 KiB response bounds and no redirects/proxy inheritance. It verifies simulated
+memory storage, service/deployment/version/fault mode and exact payment response
+fields. `sandbox_executor` rechecks container identity after the window and uses
+the classifier. It never retries an external effect after timeout. If result
+persistence fails, the durable EXECUTING record requires explicit reconciliation.
+`scripts/tests/test_recovery.py` checks missing/short/invalid measurements, partial
+checkout failure, failed command and ambiguous timeout with no command retry.
+These failure fixtures are synthetic; actual success uses Docker/HTTP.
+
+**Approval checkpoint.** Covered by full P8 approval.
+
+**Run/test.** `.venv\Scripts\python.exe -m pytest scripts/tests -q` passed six tests.
+The real `scripts/verify-p8.py` scenario passed with three successful checkout
+samples over 2.781 seconds, exact target image/version, durable VERIFIED result,
+NO_EXECUTION on duplicate and an OPEN incident. The final phase verifier reruns
+all integration after security additions. Earlier tests without a time window do
+not substitute for this measured result.
+
+**Debug.** FAILED is a measured failure at the checked boundary; inspect its code
+and observations. UNVERIFIED must not be displayed as success. A CLI timeout can
+leave Docker working after the client exits, so inspect/reconcile rather than
+repeat. An abandoned EXECUTING action older than two minutes can be marked
+UNVERIFIED with `sandbox_executor.py --action ACTION_UUID --reconcile`; the shared
+lock must be free. This command never performs another Docker mutation.
+
+**Understanding check.** Why can readiness succeed while checkout fails? Why is
+UNVERIFIED different from FAILED? What does a two-second successful window fail
+to prove? Exercise: add a classifier test for too few successful samples.
+
+**Manual setup.** No additional manual setup required beyond P8.3. No metrics
+vendor account is needed: these are direct sandbox probes, not a claim that the
+sandbox has a production monitoring integration. Hosted recovery/SLO checks need
+separate environment-specific work. **Commit summary:**
+`feat(P8.4): verify bounded recovery and classify uncertain outcomes`.

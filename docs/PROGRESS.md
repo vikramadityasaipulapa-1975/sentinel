@@ -1348,3 +1348,17 @@ P3.4 requires its own explanation/approval before implementation.
   API/demo/knowledge and observability services restarted; migration 009 applied.
   No volumes/data reset. P8 guide records files, async/error paths, tests, debug,
   comprehension exercises, Docker privilege boundary and manual launch commands.
+
+## P8.4 task record
+
+- Added conservative recovery classifier, exact response validation, bounded
+  16 KiB HTTP responses, three checkout samples spaced one second apart, >=2s
+  verification window and stable target container/image across that window.
+- Actual Docker/HTTP scenario passed: 3/3 checkouts over 2.781s, correct image/
+  version/readiness, VERIFIED audit and duplicate NO_EXECUTION; incident OPEN.
+- Six Python boundary/recovery tests passed, including conclusive failed command
+  -> FAILED and uncertain timeout -> UNVERIFIED, with no retries. Partial/invalid
+  observations cannot produce VERIFIED. Failed persistence leaves reviewable
+  EXECUTING, not a blind retry. Manual reconcile does not mutate Docker.
+- Full learning walkthrough, result meaning, limits, exact commands, debug,
+  learner questions/exercise and manual setup recorded in P8 guide.
