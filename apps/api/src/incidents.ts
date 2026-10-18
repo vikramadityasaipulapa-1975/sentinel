@@ -26,7 +26,7 @@ export interface IncidentEvent {
   id: string;
   incident_id: string;
   sequence: string;
-  type: "CREATED" | "STATUS_CHANGED" | "INVESTIGATION";
+  type: "CREATED" | "STATUS_CHANGED" | "INVESTIGATION" | "REMEDIATION";
   payload: Record<string, string>;
   occurred_at: string;
   created_at: string;
@@ -263,13 +263,31 @@ export function readEvent(row: Record<string, unknown>): IncidentEvent {
       payload.event as string,
     ) &&
     /^[0-3]$/.test(payload.attempt as string);
+  const remediation =
+    row.type === "REMEDIATION" &&
+    payload &&
+    Object.keys(payload).length === 2 &&
+    typeof payload.remediation_id === "string" &&
+    uuidPattern.test(payload.remediation_id) &&
+    payload.remediation_id === row.remediation_id &&
+    [
+      "PENDING",
+      "APPROVED",
+      "REJECTED",
+      "EXPIRED",
+      "CANCELLED",
+      "EXECUTING",
+      "VERIFIED",
+      "FAILED",
+      "UNVERIFIED",
+    ].includes(payload.status as string);
   if (
     typeof row.id !== "string" ||
     !uuidPattern.test(row.id) ||
     typeof row.incident_id !== "string" ||
     !uuidPattern.test(row.incident_id) ||
     !isPosition(row.sequence) ||
-    (!created && !changed && !investigation)
+    (!created && !changed && !investigation && !remediation)
   )
     throw new Error("Invalid stored incident event");
   return {

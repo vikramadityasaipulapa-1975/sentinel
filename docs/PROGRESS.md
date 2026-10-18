@@ -1312,3 +1312,16 @@ P3.4 requires its own explanation/approval before implementation.
 - Synthetic identities only in these tests; no Docker operation performed.
 - Concepts, walkthrough, debugging, learner questions/exercise and manual setup
   recorded in P8-LEARNING-GUIDE.md. No manual setup required for this task.
+
+## P8.2 task record
+
+- Added migration 009, immutable proposal identity/audit, one-active-sandbox index,
+  atomic approve/reject and ten-minute expiry with idempotent decision replay.
+- Authenticated routes enforce WRITE_INCIDENT/APPROVE_ACTION; repository checks
+  live roles again. Incident history/SSE accepts validated remediation events.
+- Actual verification: 94 API tests passed, zero skips; real PostgreSQL/Redis,
+  concurrent replay/approval, permission revocation, mutation denial and old
+  functionality. Full restart/outage verifier reports PASSED.
+- Initial test fixture used createUser's UUID return as an object; fixed before
+  passing tests. No Docker mutation occurred in this task. Full walkthrough and
+  manual requirements recorded in P8-LEARNING-GUIDE.md.

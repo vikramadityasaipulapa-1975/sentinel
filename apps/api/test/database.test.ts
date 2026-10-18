@@ -1,3 +1,4 @@
+import { remediationDatabaseChecks } from "./remediation-database-checks.js";
 import { reportDatabaseChecks } from "./report-database-checks.js";
 import { evidenceDatabaseChecks } from "./evidence-database-checks.js";
 import { alertDatabaseChecks } from "./alert-database-checks.js";
@@ -63,6 +64,7 @@ test(
           "006_evidence_snapshots.sql",
           "007_investigation_reports.sql",
           "008_investigation_knowledge.sql",
+          "009_remediation_actions.sql",
         ]);
         assert.deepEqual(await migrate(pool), []);
         assert.equal(await registry.ready(), true);
@@ -110,6 +112,12 @@ test(
               join(migrationDirectory, "008_investigation_knowledge.sql"),
             ),
           );
+          await writeFile(
+            join(directory, "009_remediation_actions.sql"),
+            await readFile(
+              join(migrationDirectory, "009_remediation_actions.sql"),
+            ),
+          );
           await writeFile(join(directory, "001_services.sql"), "SELECT 1;");
           await assert.rejects(migrate(pool, directory), /checksum/);
           await writeFile(
@@ -117,7 +125,7 @@ test(
             await readFile(join(migrationDirectory, "001_services.sql")),
           );
           await writeFile(
-            join(directory, "009_invalid.sql"),
+            join(directory, "010_invalid.sql"),
             "CREATE TABLE sentinel_api.must_rollback (id integer); SELECT * FROM sentinel_api.does_not_exist;",
           );
           await assert.rejects(migrate(pool, directory));
@@ -135,7 +143,7 @@ test(
                 "SELECT count(*)::int AS n FROM sentinel_api.schema_migrations",
               )
             ).rows[0].n,
-            8,
+            9,
           );
         },
       );
@@ -222,6 +230,7 @@ test(
       await reportDatabaseChecks(t, pool);
       await streamDatabaseChecks(t, pool);
       await alertDatabaseChecks(t, pool);
+      await remediationDatabaseChecks(t, pool);
     } finally {
       await pool.end();
     }

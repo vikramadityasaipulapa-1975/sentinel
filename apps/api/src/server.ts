@@ -1,3 +1,4 @@
+import { postgresRemediations } from "./remediation-repository.js";
 import { postgresAlerts, readWebhookSecret } from "./alert-ingestion.js";
 import { createApp } from "./app.js";
 import { readConfig } from "./config.js";
@@ -21,6 +22,7 @@ try {
     readWebhookSecret()
       ? postgresAlerts(pool, readWebhookSecret()!)
       : undefined,
+    postgresRemediations(pool),
   ).listen(config.port, "127.0.0.1", () => {
     console.log(
       JSON.stringify({

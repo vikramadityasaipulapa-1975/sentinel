@@ -1,3 +1,5 @@
+import { remediationRoutes } from "./remediation-routes.js";
+import type { RemediationStore } from "./remediation-repository.js";
 import express from "express";
 import { alertRoutes, type AlertStore } from "./alert-ingestion.js";
 import { streamRoute } from "./incident-stream.js";
@@ -30,6 +32,7 @@ export function createApp(
   auth?: AuthService,
   investigations?: InvestigationStore,
   alerts?: AlertStore,
+  remediations?: RemediationStore,
 ) {
   const app = express();
   app.disable("x-powered-by");
@@ -181,6 +184,12 @@ export function createApp(
       "/api/v1",
       express.json({ limit: "8kb" }),
       investigationRoutes(investigations),
+    );
+  if (remediations)
+    app.use(
+      "/api/v1",
+      express.json({ limit: "8kb" }),
+      remediationRoutes(remediations),
     );
   app.use((_request, response) =>
     response.status(404).json({
