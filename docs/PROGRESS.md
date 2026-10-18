@@ -1472,3 +1472,49 @@ P3.4 requires its own explanation/approval before implementation.
 - No saved investigation/account/volume was deleted or rewritten. No investigation
   was enqueued. No new manual setup is required; old snapshots remain immutable.
 - Commit: `fix(P5.3): select compatible Windows loop for deployment evidence`.
+
+## Cumulative local recheck after P3.5/P5.3 fixes (2026-10-18; resumed 2026-10-19 IST)
+
+- Authorization: user requested remaining tests, then asked to continue after an
+  interruption. No new feature implementation, hosted deployment or real payment
+  was authorized or performed.
+- Unit suites actually run: checkout 17 passed; payment 32 passed; engine 50
+  passed; executor/security 9 passed. These are separate suites, not a claim that
+  every earlier phase's standalone load/container verifier was rerun.
+- Cumulative API verification: 97 passed, zero skipped/failed, with real isolated
+  PostgreSQL/Redis, TEST_KNOWLEDGE_REQUIRED=1 and --with-evidence. Full P3.5 verifier
+  exited successfully, including HTTP auth/RBAC, live evidence persistence,
+  PARTIAL history/SSE/reconnect, API/database restart, worker crash recovery and
+  Redis outage/outbox recovery. Project sentinel-p3-5-70edfb51 test containers
+  removed; volumes retained. Evidence: .artifacts/p3-5-verification.json.
+- P5 live metrics/logs and unreachable-source checks passed. Isolated PostgreSQL
+  deployment-reader tests read an explicitly synthetic verified release, returned
+  EMPTY for another service, and denied DELETE, payment SELECT and CREATE TABLE.
+  Test database/role cleanup completed.
+- P6 live sequential/parallel workflows passed with model DISABLED. Ten synthetic
+  evaluation scenarios completed: labelled top-1 6/7, top-2 7/7, candidate precision
+  7/13, false deployment attribution 1/6, citation validity 1.0. These small
+  hand-authored fixtures are not measured real-world or chat-model quality.
+- P7 real CPU embeddings/pgvector verification passed: 12 documents/72 chunks,
+  replay no-op, version integrity/history, reader write denial, irrelevant-query
+  abstention, overflow/profile rejection and injection treated as source data.
+  Its disposable database was removed. See .artifacts/p7-knowledge-verification.json.
+- P8 interruption: the child scenario saved a PASSED artifact on 2026-10-18:
+  actual HTTP login/RBAC/decisions, VERIFIED image/version/readiness and 3/3
+  synthetic checkouts over 3.016 seconds; duplicate NO_EXECUTION; one concurrent
+  attempt verified; revocation/disable/reset/expiry/forged approval/stale binding
+  checks; abandoned attempt reconciled without mutation; token immutable; incident
+  not auto-resolved. Artifact: .artifacts/p8-sandbox-verification.json. The outer
+  wrapper's final cleanup and outside-container assertion were not captured, so
+  full P8 wrapper completion is NOT claimed for this interrupted run.
+- Resume on 2026-10-19: no verifier/executor process found, API port refused
+  connections, Docker Linux engine pipe absent. Docker Desktop launch attempted;
+  backend log reports Secrets Engine startup failure accessing/renaming its local
+  engine.sock. No reset, volume deletion, secret/socket modification, WSL reset
+  or production action was performed. P8 final rerun/cleanup check and restoring
+  live services remain pending Docker recovery.
+- Manual recovery: Quit Docker Desktop's error dialog and reopen it; do not use
+  Reset to factory defaults. Once docker info succeeds, inspect retained state,
+  restore local dependencies, rerun scripts/verify-p8.py through its final success
+  line and check no disposable verification DB remains. Public hosting, optional
+  chat-model testing and learner comprehension checks remain unperformed.
