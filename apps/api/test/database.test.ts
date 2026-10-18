@@ -65,6 +65,7 @@ test(
           "007_investigation_reports.sql",
           "008_investigation_knowledge.sql",
           "009_remediation_actions.sql",
+          "010_remediation_fencing.sql",
         ]);
         assert.deepEqual(await migrate(pool), []);
         assert.equal(await registry.ready(), true);
@@ -118,6 +119,12 @@ test(
               join(migrationDirectory, "009_remediation_actions.sql"),
             ),
           );
+          await writeFile(
+            join(directory, "010_remediation_fencing.sql"),
+            await readFile(
+              join(migrationDirectory, "010_remediation_fencing.sql"),
+            ),
+          );
           await writeFile(join(directory, "001_services.sql"), "SELECT 1;");
           await assert.rejects(migrate(pool, directory), /checksum/);
           await writeFile(
@@ -125,7 +132,7 @@ test(
             await readFile(join(migrationDirectory, "001_services.sql")),
           );
           await writeFile(
-            join(directory, "010_invalid.sql"),
+            join(directory, "011_invalid.sql"),
             "CREATE TABLE sentinel_api.must_rollback (id integer); SELECT * FROM sentinel_api.does_not_exist;",
           );
           await assert.rejects(migrate(pool, directory));
@@ -143,7 +150,7 @@ test(
                 "SELECT count(*)::int AS n FROM sentinel_api.schema_migrations",
               )
             ).rows[0].n,
-            9,
+            10,
           );
         },
       );

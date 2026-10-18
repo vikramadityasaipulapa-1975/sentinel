@@ -39,7 +39,7 @@ export interface AuthService {
   }>;
   authenticate(
     header: string | undefined,
-  ): Promise<Profile & { expires_at?: number }>;
+  ): Promise<Profile & { expires_at?: number; authorization_version?: number }>;
 }
 export class AuthError extends Error {
   constructor(
@@ -227,7 +227,11 @@ export function createAuth(store: UserStore, secret: Uint8Array): AuthService {
       const user = await store.byId(id);
       if (!validUser(user) || user.token_version !== version)
         throw unauthorized();
-      return { ...profile(user), expires_at: expires };
+      return {
+        ...profile(user),
+        expires_at: expires,
+        authorization_version: version,
+      };
     },
   };
 }
@@ -247,6 +251,7 @@ export const authenticated =
     const user = await auth.authenticate(request.get("authorization"));
     response.locals.user = { id: user.id, email: user.email, role: user.role };
     response.locals.authExpiresAt = user.expires_at;
+    response.locals.authorizationVersion = user.authorization_version;
     next();
   };
 export const requirePermission =

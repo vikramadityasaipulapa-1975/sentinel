@@ -20,8 +20,8 @@
     "verify:p1": ".venv\\Scripts\\python.exe scripts/verify-p1.py",
     "verify:p2": ".venv\\Scripts\\python.exe scripts/verify-p2.py --backend native",
     "verify:p2:compose": ".venv\\Scripts\\python.exe scripts/verify-p2.py --backend compose",
-    "format": "prettier --write package.json \"services/checkout-service/**/*.ts\" \"services/checkout-service/*.json\" \"services/payment-service/*.json\" scripts/load-checkout.js README.md \"docs/*.md\" infrastructure/compose.yaml \"apps/api/**/*.ts\" \"apps/api/*.json\" infrastructure/compose.api.yaml \"apps/api/public/*\" infrastructure/compose.observability.yaml \"infrastructure/observability/*.yaml\" \"apps/ai-engine/evaluation/*.json\" \"knowledge/**/*.md\" \"knowledge/*.json\" infrastructure/compose.knowledge.yaml",
-    "format:check": "prettier --check package.json \"services/checkout-service/**/*.ts\" \"services/checkout-service/*.json\" \"services/payment-service/*.json\" scripts/load-checkout.js README.md \"docs/*.md\" infrastructure/compose.yaml \"apps/api/**/*.ts\" \"apps/api/*.json\" infrastructure/compose.api.yaml \"apps/api/public/*\" infrastructure/compose.observability.yaml \"infrastructure/observability/*.yaml\" \"apps/ai-engine/evaluation/*.json\" \"knowledge/**/*.md\" \"knowledge/*.json\" infrastructure/compose.knowledge.yaml",
+    "format": "prettier --write package.json \"services/checkout-service/**/*.ts\" \"services/checkout-service/*.json\" \"services/payment-service/*.json\" scripts/load-checkout.js README.md \"docs/*.md\" infrastructure/compose.yaml \"apps/api/**/*.ts\" \"apps/api/*.json\" infrastructure/compose.api.yaml \"apps/api/public/*\" infrastructure/compose.observability.yaml \"infrastructure/observability/*.yaml\" \"apps/ai-engine/evaluation/*.json\" \"knowledge/**/*.md\" \"knowledge/*.json\" infrastructure/compose.knowledge.yaml infrastructure/compose.sandbox.yaml",
+    "format:check": "prettier --check package.json \"services/checkout-service/**/*.ts\" \"services/checkout-service/*.json\" \"services/payment-service/*.json\" scripts/load-checkout.js README.md \"docs/*.md\" infrastructure/compose.yaml \"apps/api/**/*.ts\" \"apps/api/*.json\" infrastructure/compose.api.yaml \"apps/api/public/*\" infrastructure/compose.observability.yaml \"infrastructure/observability/*.yaml\" \"apps/ai-engine/evaluation/*.json\" \"knowledge/**/*.md\" \"knowledge/*.json\" infrastructure/compose.knowledge.yaml infrastructure/compose.sandbox.yaml",
     "test:api": "npm run test --workspace=@sentinel/api",
     "start:api": "node --env-file=.env.api apps/api/dist/src/server.js",
     "verify:p3.1": ".venv\\Scripts\\python.exe scripts/verify-p3.py --task P3.1",
@@ -34,7 +34,9 @@
     "verify:p6": ".venv\\Scripts\\python.exe scripts/verify-p6.py",
     "evaluate:p6": ".venv\\Scripts\\python.exe scripts/evaluate-p6.py",
     "verify:p7": ".venv\\Scripts\\python.exe scripts/verify-p7.py",
-    "setup:knowledge": ".venv\\Scripts\\python.exe scripts/knowledge-local.py"
+    "setup:knowledge": ".venv\\Scripts\\python.exe scripts/knowledge-local.py",
+    "verify:p8": ".venv\\Scripts\\python.exe scripts/verify-p8.py",
+    "test:sandbox": ".venv\\Scripts\\python.exe -m pytest scripts/tests -q"
   },
   "devDependencies": {
     "prettier": "3.9.10"

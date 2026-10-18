@@ -125,8 +125,8 @@ compromised local administrator or executor host.
 checkout baseline → faulty payment image → server-owned binding + local trusted
 config → ADMIN-approved DB row → independent executor → identity/auth recheck →
 fixed Compose operation replacing only sandbox payment → saved observations.
-The executor is a separate manually started process; API/worker/AI engine never
-receive a Docker socket or a command-execution endpoint. PostgreSQL is the durable
+The executor is a separate manually started process. No HTTP/AI tool exposes Docker. Native development processes share one OS
+account; this is application separation, not OS-level Docker permission isolation. PostgreSQL is the durable
 work source: APPROVED records wait for this executor even across API restarts.
 No additional queue is needed for this one-active-sandbox workflow.
 
@@ -264,3 +264,128 @@ vendor account is needed: these are direct sandbox probes, not a claim that the
 sandbox has a production monitoring integration. Hosted recovery/SLO checks need
 separate environment-specific work. **Commit summary:**
 `feat(P8.4): verify bounded recovery and classify uncertain outcomes`.
+
+## P8.5 — Security review, adversarial tests and local controls
+
+**Concept.** A proposal is data; authorization is a backend decision tied to an
+identity and an immutable action. Even plausible AI advice cannot grant access.
+Replay, SSRF and command injection require architectural boundaries, not keyword
+filters. A crash between database and Docker is an uncertainty to record.
+
+**Architecture/data flow.** Browser sends a fixed action/incident/key, not a
+command. Backend records an immutable proposal; an ADMIN reviews the exact saved
+binding and decides; the independent executor rechecks current authorization and
+runtime scope. Observations, not model text, determine the recorded result.
+The original incident history/SSE carries action changes; report synthesis and
+knowledge retrieval do not gain any write capability.
+
+**File plan / implementation / walkthrough.** `P8-THREAT-MODEL.md` lists threats,
+controls, tests and residual trust assumptions. Migration 010 additively strengthens
+009 with decision/start links and immutable decision/execution identities; applied
+migrations are not edited. API responses omit internal execution tokens and user
+token versions. The executor also validates checkout's exact image/project/ports,
+fixed payment URL and no mounts. A terminal attempt invalidates its matching
+sandbox registry binding so subsequent proposals require explicit fresh setup.
+The verifier removes only its own matching temporary main registration.
+
+`auth-test.html/js` adds dry run, proposal, saved action/audit, explicit review
+checkbox, ADMIN approve/reject and incident list. Changing the action ID clears
+review; approval requires the exact loaded pending proposal and checkbox. Backend
+permissions remain authoritative even if a client changes the UI. Responses use
+textContent; tokens remain memory-only. An uncertain decision response instructs
+loading saved state before retry. Approving never directly calls Docker from HTTP.
+
+`remediation-database-checks.ts` tests expiry and atomic rollback when audit insert
+fails. `remediation-sandbox-scenario.ts` tests actual HTTP RBAC/schema rejection,
+reject/no-execution, concurrent approval/executor delivery, terminal replay, hidden
+internal tokens and live executor cancellation for expired/demoted/disabled/reset/
+changed-binding/forged-viewer fixtures. A stale container fails before mutation.
+Synthetic approved rows in this disposable DB model adversarial persisted state;
+they are not real human decisions. The normal success path uses actual HTTP
+login and ADMIN approval under the user's explicit sandbox-test authorization.
+An abandoned EXECUTING fixture demonstrates no-mutation reconciliation and
+immutable execution tokens. `verify-p8.py` compares all non-sandbox container
+IDs/images/states before/after; it drops only its own randomly named DB.
+
+**Approval checkpoint.** Included in approved P8. No production/cloud action.
+
+**Run/test.** From `V:\sentinel\sentinel`:
+
+```powershell
+npm run build --workspace=@sentinel/api
+$env:TEST_KNOWLEDGE_REQUIRED="1"
+.venv\Scripts\python.exe scripts/verify-p3.py --task P3.5 --with-evidence
+.venv\Scripts\python.exe scripts/verify-p8.py
+.venv\Scripts\python.exe -m pytest scripts/tests -q
+npm run test:engine
+npm run test:payment
+npm run test --workspace=@sentinel/checkout-service
+npm run format:check
+```
+
+Run the Docker verifiers sequentially: the outside-container stability assertion
+would correctly notice another verifier starting/stopping unrelated containers.
+The main API/collector and local knowledge/observability stack must be running for
+live-evidence checks. Actual final results are in PROGRESS and the measured record
+below. Unit failure fixtures are distinguished from real Docker success tests.
+
+**Debug.** Never respond to a failed security check by adding arbitrary command,
+URL, actor or image overrides. Rebuild before the scenario; TypeScript failures
+must stop execution. A test server must remain asynchronous while invoking the
+executor, or HTTP keep-alive tests can fail independently of rollback. A complete
+scenario is accepted only after it reruns successfully. Credentials/test tokens
+are not printed. Inspect ignored p8-failure.log locally if a scenario fails.
+
+**Understanding check.** Why does the backend ignore claimed roles in a body?
+Why can't a retrieved document approve a change? What remains uncertain after a
+Docker client times out? Exercise: add a rejected metadata-service URL proposal
+and assert no action/audit row is created.
+
+**Manual setup.** Follow MANUAL-SETUP's P8 checklist for Docker, local ADMIN account,
+explicit sandbox preparation, private executor startup, reviewed approval,
+verification and clean shutdown/reconciliation. No new cloud account is needed.
+A public production executor is outside this phase; HOSTED-SETUP documents the
+remaining boundaries and review requirements. **Commit summary:**
+`test(P8.5): harden action authorization and verify sandbox boundaries`.
+
+System/executor audit events have a null actor_id; decided_by on the immutable
+action identifies the approving human. The executor must not impersonate that
+human as the person who performed a later automatic check or reconciliation.
+Native development shares the OS user and Docker trust; hosted OS separation is
+explicitly pending. The matching sandbox registry is invalidated on terminal
+execution so another proposal cannot reuse a stale runtime preview.
+
+Final concurrency review: the verified JWT's internal version and expiry are
+carried to the action transaction. After locking the live user, proposal/decision
+checks compare that captured version and DB-clock session expiry again. This
+closes a password-reset/expiry race between middleware authentication and a
+blocked transaction. These internal fields are not added to public profiles.
+The saved approval then has its own proposal expiry; ordinary JWT expiry after
+a valid decision does not silently revoke that approval. Account disable, role
+demotion and token-version reset are still checked by the executor before dispatch.
+
+## Final measured record
+
+P8.1–P8.5 local software is complete. Final API regression: 95 passed, zero
+skips/failures, actual PostgreSQL/Redis and live retrieval required. Other suites:
+46 engine, 32 payment, 17 checkout and 9 executor/recovery/security unit tests
+passed. The real sandbox scenario uses HTTP login/RBAC and actual Docker, with
+only simulated memory payments and disposable verifier accounts/database. It
+passed 3/3 checkouts over 2.672 seconds, correct runtime identity, one competing
+verified attempt, no duplicate execution, all nine adversarial/reconciliation
+checks and no outside-container changes. Incident status stayed OPEN.
+
+Formatting, Python lint and dependency checks are recorded in PROGRESS. Runtime
+migrations are additive through 010. A separate P7.3 follow-up corrected a measured
+5.58s local cold start by retaining a bounded eight-second retrieval budget and
+outer 24/27s limits inside the 30s lease; required-live regressions passed afterward.
+No cloud resource, production rollback, external payment or chat-model inference
+was performed. Learner checkpoints are not marked complete without your answers.
+
+The local lock uses `filelock`, already pinned through the P7 engine requirements,
+so Windows/Linux use their supported process locks. A persistent lock filename is
+not permission to delete a live lock; OS process lifetime controls ownership.
+For interactive testing, explicitly use your own ADMIN account and the manual
+sandbox/executor checklist. Existing account roles were not silently modified.
+'Maintaining public access' still requires the deferred hosting work; the current
+app and executor remain local and the executor remains sandbox-only.

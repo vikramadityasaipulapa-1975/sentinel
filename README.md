@@ -1,7 +1,7 @@
 # Sentinel
 
 Sentinel is a learning-first AI-assisted incident response and reliability project.
-Current local software: P1-P7 implemented and tested. Start with the
+Current local software: P1-P8 implemented and tested. Start with the
 [manual checklist](docs/MANUAL-SETUP.md) for the current stack; earlier sections
 record each phase. Optional chat-model/cloud setup is deferred; P7 uses verified local embeddings.
 **P1 implementation is complete:** two local demo services, validated simulated
@@ -12,7 +12,7 @@ See the progress log for separately measured native and Docker verification.
 **P2 implementation is verified:** native PostgreSQL and Docker/Compose checks
 passed, including restart persistence and container version switching/rollback.
 P4 adds centralized local telemetry; P5-P6 add evidence and cited hypothesis reports.
-Live chat-model configuration, public deployment and remediation remain unperformed.
+Live chat-model configuration, public deployment and production remediation remain unperformed.
 
 **P7:** twelve reviewed runbooks/fictional examples are indexed as 72 versioned
 passages in a separate pgvector development DB. Local CPU embeddings retrieve up
@@ -38,6 +38,15 @@ resumes with Last-Event-ID. Watch/Stop/history controls are on the local test pa
 **P3.4:** operators can enqueue durable investigation workflow checks. PostgreSQL
 outbox/leases and Redis/BullMQ recover interrupted work. Without collector settings,
 compatibility results explicitly say no AI or telemetry investigation was performed.
+
+**P8:** a human ADMIN may approve an immutable rollback proposal for a separate
+local simulated payment sandbox. An independent executor rechecks authorization
+and exact runtime identity; recovery requires a bounded successful probe window.
+Actions and decisions are audited, retries do not double-execute, and AI/retrieved
+text cannot authorize actions. Production remediation remains unimplemented.
+See the [P8 learning guide](docs/P8-LEARNING-GUIDE.md),
+[threat model](docs/P8-THREAT-MODEL.md) and
+[manual setup](docs/MANUAL-SETUP.md#p8-human-approved-local-sandbox-actions).
 
 ## Run the Sentinel API locally (P3.1-P3.5)
 

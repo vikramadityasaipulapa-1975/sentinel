@@ -1,9 +1,16 @@
-import { Router } from "express";
+import { Router, type Response } from "express";
 import { requirePermission } from "./auth.js";
 import { IncidentError, parseId } from "./incidents.js";
 import type { RemediationStore } from "./remediation-repository.js";
 export function remediationRoutes(store: RemediationStore) {
   const r = Router();
+  function authority(res: Response) {
+    const version = res.locals.authorizationVersion,
+      expires_at = res.locals.authExpiresAt;
+    if (!Number.isSafeInteger(version) || !Number.isSafeInteger(expires_at))
+      throw new IncidentError(401, "UNAUTHORIZED", "Verified session required");
+    return { version, expires_at };
+  }
   r.get(
     "/incidents/:id/remediations",
     requirePermission("READ"),
@@ -33,7 +40,11 @@ export function remediationRoutes(store: RemediationStore) {
           "UNSUPPORTED_MEDIA_TYPE",
           "Use application/json",
         );
-      res.status(201).json(await store.propose(req.body, res.locals.user.id));
+      res
+        .status(201)
+        .json(
+          await store.propose(req.body, res.locals.user.id, authority(res)),
+        );
     },
   );
   r.get("/remediations/:id", requirePermission("READ"), async (req, res) =>
@@ -60,6 +71,7 @@ export function remediationRoutes(store: RemediationStore) {
           parseId(req.params.id),
           b.decision,
           res.locals.user.id,
+          authority(res),
         ),
       );
     },

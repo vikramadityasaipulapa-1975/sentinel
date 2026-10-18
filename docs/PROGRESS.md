@@ -1,8 +1,8 @@
 # Sentinel progress
 
-Current phase/task: P7.1-P7.4 local software complete; hosted setup deferred
-Status: P1-P7 LOCAL SOFTWARE VERIFIED; chat-model quality, cloud deployment and learner checkpoints remain open
-Last fully accepted software phase: P7 local ingestion/retrieval/citation boundaries verified; public hosting and chat-model quality unmeasured
+Current phase/task: P8.1-P8.5 local sandbox software complete; hosted setup deferred
+Status: P1-P8 LOCAL SOFTWARE VERIFIED; cloud deployment, chat-model quality and learner checkpoints remain open
+Last fully accepted software phase: P8 local human-approval/sandbox boundaries verified; production remediation and public hosting unperformed
 Last completed learner checkpoint: none confirmed
 
 ## P1.1 task record
@@ -1375,3 +1375,52 @@ P3.4 requires its own explanation/approval before implementation.
 - Actual verification: 46 engine tests passed; serial real API/PG/Redis run passed
   95 tests, zero skips, with TEST_KNOWLEDGE_REQUIRED=1 and real context persisted.
   This is a measured local reliability fix, not a claim that all hardware fits.
+
+## P8.5 task record
+
+- Added local dry-run/proposal/review/ADMIN decision/audit controls with text-only
+  rendering and backend-authoritative permissions. Existing user credentials and
+  roles were not read or changed. Browser opened localhost and reported no JS
+  errors; authenticated approval tests use disposable test-only accounts.
+- Added threat model and residual trust limits: native OS account/Docker sharing,
+  trusted DB/API/executor hosts, dispatch-time revocation limit, finite recovery
+  window and local-only process fencing. No production/cloud executor claim.
+- Migration 010 adds decision/start links and immutable decision/execution tokens
+  without editing applied 009. Public responses hide internal fencing/version
+  fields. Verified session version/expiry is rechecked under the live user lock
+  inside proposal/decision transactions; reset/expiry races fail closed.
+- Executor checks both sandbox services' identity/ports/network/hardening, uses
+  consistent project lock ordering, records automatic events with null actor_id
+  (approving human remains decided_by), and invalidates matching stale registry
+  bindings after terminal attempts. Abandoned attempts never repeat a mutation.
+- Final actual API regression: 95 passed, zero skips/failures, real PostgreSQL/
+  Redis/live P7 retrieval required, including migrations through 010, auth/SSE,
+  audit rollback, concurrent approval, expiry and session-version checks. Full
+  API/DB/Redis restart and outage verifier reports PASSED.
+- Final real Docker/HTTP security scenario PASSED: faulty sandbox -> exact v1;
+  readiness/version/image correct; 3/3 synthetic checkouts over 2.672s; exactly
+  one competing executor verified; duplicate NO_EXECUTION; incident remains OPEN.
+  Revoked role, disabled account, token reset, expired approval, changed binding,
+  forged viewer approval and stale container blocked. Abandoned execution
+  reconciled UNVERIFIED without mutation; token replacement rejected. All outside
+  container IDs/images/states remained unchanged. Temporary API DB removed.
+- Other actual checks: engine 46 passed; payment 32 passed; checkout 17 passed;
+  executor/security/recovery unit fixtures 9 passed. Python lint/format, Prettier
+  and pip compatibility checked. Secrets/local manifests/model weights ignored.
+- Test development failures (fixture types/imports and blocking HTTP test process)
+  were corrected before accepted reruns. A real P7 cold-start budget regression
+  was diagnosed/fixed separately as 4d3d7fd; tests were not weakened to accept it.
+- Task-by-task walkthroughs, exact commands, debug, comprehension questions and
+  exercises in P8 guide; full local ADMIN/executor/manual/cloud responsibilities
+  in MANUAL-SETUP/HOSTED-SETUP. No cloud setup is required to continue locally.
+- P8 commits: P8.1 f117d45; P8.2 f4dd6cb; P8.3 04c660e; P8.4 127cb5a;
+  P8.5 uses the final task-labelled security/documentation commit. All pushed
+  under the configured sole author, without co-author trailers.
+
+- Final runtime handoff: API/worker/engine restarted with current code/migrations;
+  main API, engine, checkout, payment and Prometheus returned HTTP 200. Anonymous
+  action read returned 401. A fresh separate payment-v3-error sandbox was prepared
+  for interactive testing and its private approval-only watcher started. This
+  deliberately faulty training sandbox does not alter the healthy monitored demo.
+  Localhost page remains open; your own ADMIN choice is the remaining interactive
+  account step. Startup/shutdown/reconcile commands are in MANUAL-SETUP.

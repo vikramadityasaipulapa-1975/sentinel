@@ -1,6 +1,7 @@
 """Real approved sandbox rollback verification with an owned disposable API DB."""
 
 import importlib.util
+import json
 import os
 import shutil
 import subprocess
@@ -9,8 +10,9 @@ from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
 
 import psycopg
-from local_support import ROOT
+from local_support import ROOT, docker_executable
 from psycopg import sql
+from sandbox_support import CONFIG, PROJECT, Docker
 
 
 def main():
@@ -19,7 +21,29 @@ def main():
     )
     setup = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(setup)
+    context = subprocess.run(
+        [docker_executable(), "context", "show"],
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=5,
+    ).stdout.strip()
+    docker = Docker(context)
+
+    def outside_snapshot():
+        return sorted(
+            line
+            for line in docker.run(
+                "ps", "-a", "--format", "{{.Names}}|{{.ID}}|{{.Image}}|{{.State}}"
+            ).splitlines()
+            if not line.startswith(PROJECT + "-")
+        )
+
+    before = outside_snapshot()
     setup.prepare()
+    binding_id = json.loads(CONFIG.read_text(encoding="utf-8"))["binding"][
+        "container_id"
+    ]
     values = setup.api_settings()
     url = urlsplit(values["SENTINEL_DATABASE_URL"])
     name = "sentinel_p8_verify_" + uuid4().hex[:12]
@@ -64,6 +88,13 @@ def main():
             print(result.stdout, flush=True)
         finally:
             admin.execute(sql.SQL("DROP DATABASE {}").format(sql.Identifier(name)))
+            admin.execute(
+                "DELETE FROM sentinel_api.sandbox_binding WHERE project=%s AND binding_json->>'container_id'=%s",
+                (PROJECT, binding_id),
+            )
+    assert outside_snapshot() == before, (
+        "An outside container changed during verification"
+    )
     print(
         "P8 real sandbox verification passed; disposable API DB removed; sandbox retained; credentials omitted"
     )

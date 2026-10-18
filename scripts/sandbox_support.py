@@ -107,6 +107,12 @@ def assert_container(row, image, container_id=None):
         or env.get("DATABASE_URL")
     ):
         raise ValueError("Sandbox must use disposable simulated memory storage")
+    if (
+        row["Config"].get("User") != "10001:10001"
+        or set(row["NetworkSettings"]["Networks"]) != {PROJECT + "_default"}
+        or "no-new-privileges:true" not in (row["HostConfig"].get("SecurityOpt") or [])
+    ):
+        raise ValueError("Sandbox user/network/security policy changed")
     ports = row["HostConfig"]["PortBindings"]
     if ports != {"3002/tcp": [{"HostIp": "127.0.0.1", "HostPort": "4302"}]}:
         raise ValueError("Unexpected sandbox port")
@@ -225,3 +231,27 @@ def write_images(payment, checkout):
         f"SANDBOX_PAYMENT_IMAGE={payment}\nSANDBOX_CHECKOUT_IMAGE={checkout}\n",
         encoding="utf-8",
     )
+
+
+def assert_checkout(docker, config):
+    identifier = docker.compose("ps", "-q", "checkout").strip()
+    if not identifier:
+        raise ValueError("Sandbox checkout missing")
+    row = docker.json("inspect", identifier)[0]
+    labels = row["Config"].get("Labels", {})
+    env = dict(item.split("=", 1) for item in row["Config"]["Env"] if "=" in item)
+    expected_ports = {"3001/tcp": [{"HostIp": "127.0.0.1", "HostPort": "4301"}]}
+    if (
+        row["Image"] != config["checkout_image"]
+        or labels.get("com.docker.compose.project") != PROJECT
+        or labels.get("com.docker.compose.service") != "checkout"
+        or env.get("PAYMENT_URL") != "http://payment:3002"
+        or row["HostConfig"]["PortBindings"] != expected_ports
+        or row["Mounts"]
+        or row["HostConfig"].get("Privileged")
+        or not row["HostConfig"].get("ReadonlyRootfs")
+        or set(row["NetworkSettings"]["Networks"]) != {PROJECT + "_default"}
+        or set(row["HostConfig"].get("CapDrop") or []) != {"ALL"}
+        or "no-new-privileges:true" not in (row["HostConfig"].get("SecurityOpt") or [])
+    ):
+        raise ValueError("Unexpected checkout identity or sandbox scope")

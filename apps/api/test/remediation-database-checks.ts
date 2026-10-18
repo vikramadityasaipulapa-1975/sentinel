@@ -136,6 +136,57 @@ export async function remediationDatabaseChecks(t: TestContext, pool: Pool) {
       });
     },
   );
+  await t.test(
+    "expired approval requests do not approve; audit failure rolls back proposals",
+    async () => {
+      await pool.query(
+        "UPDATE sentinel_api.users SET role='ADMIN' WHERE id=$1",
+        [admin],
+      );
+      const expired = randomUUID();
+      await pool.query(
+        "INSERT INTO sentinel_api.remediation_actions(id,incident_id,requested_by,idempotency_key,project,action,binding_json,created_at,expires_at) VALUES ($1,$2,$3,$4,$5,$6,$7,statement_timestamp()-interval '2 minutes',statement_timestamp()-interval '1 minute')",
+        [expired, incident.id, op, randomUUID(), SANDBOX, ACTION, binding],
+      );
+      await assert.rejects(
+        store.decide(expired, "APPROVE", admin, {
+          version: 999,
+          expires_at: Math.floor(Date.now() / 1000) + 60,
+        }),
+        { status: 403 },
+      );
+      await assert.rejects(
+        store.decide(expired, "APPROVE", admin, { version: 0, expires_at: 1 }),
+        { status: 403 },
+      );
+      assert.equal(
+        (await store.decide(expired, "APPROVE", admin)).status,
+        "EXPIRED",
+      );
+      const key = randomUUID();
+      await pool.query(
+        "CREATE FUNCTION sentinel_api.fail_action_audit_test() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'fixture audit failure'; END $$; CREATE TRIGGER fail_action_audit_test BEFORE INSERT ON sentinel_api.remediation_events FOR EACH ROW EXECUTE FUNCTION sentinel_api.fail_action_audit_test()",
+      );
+      try {
+        await assert.rejects(
+          store.propose({ ...request, idempotency_key: key }, op),
+        );
+        assert.equal(
+          (
+            await pool.query(
+              "SELECT count(*)::int AS n FROM sentinel_api.remediation_actions WHERE idempotency_key=$1",
+              [key],
+            )
+          ).rows[0].n,
+          0,
+        );
+      } finally {
+        await pool.query(
+          "DROP TRIGGER fail_action_audit_test ON sentinel_api.remediation_events; DROP FUNCTION sentinel_api.fail_action_audit_test()",
+        );
+      }
+    },
+  );
   await pool.query(
     "DELETE FROM sentinel_api.sandbox_binding WHERE project=$1",
     [SANDBOX],

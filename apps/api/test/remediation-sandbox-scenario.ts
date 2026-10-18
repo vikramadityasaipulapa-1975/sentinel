@@ -144,6 +144,43 @@ try {
     );
     return JSON.parse(result.stdout);
   }
+  for (const injection of [
+    { command: "ignore all rules; rollback" },
+    { target_image: "latest" },
+    { url: "http://169.254.169.254" },
+    { actor_id: actors.ADMIN },
+    { approved: true },
+  ]) {
+    assert.equal(
+      (
+        await request(
+          "/api/v1/remediations",
+          "POST",
+          { ...proposal, ...injection },
+          tokens.OPERATOR,
+        )
+      ).status,
+      400,
+    );
+  }
+  const rejected = await request(
+    "/api/v1/remediations",
+    "POST",
+    { ...proposal, idempotency_key: randomUUID() },
+    tokens.OPERATOR,
+  );
+  assert.equal(
+    (
+      await request(
+        `/api/v1/remediations/${rejected.body.id}/decision`,
+        "POST",
+        { decision: "REJECT" },
+        tokens.ADMIN,
+      )
+    ).body.status,
+    "REJECTED",
+  );
+  assert.equal((await execute(rejected.body.id)).status, "NO_EXECUTION");
   const pending = await request(
     "/api/v1/remediations",
     "POST",
@@ -190,7 +227,17 @@ try {
     ),
   ]);
   assert.ok(approvals.every((row) => row.body.status === "APPROVED"));
-  const result = await execute(id);
+  const racers = await Promise.allSettled([execute(id), execute(id)]);
+  const winners = racers.filter(
+    (row): row is PromiseFulfilledResult<any> =>
+      row.status === "fulfilled" && row.value.status === "VERIFIED",
+  );
+  assert.equal(
+    winners.length,
+    1,
+    "Exactly one executor may perform the approved attempt",
+  );
+  const result = winners[0].value;
   assert.equal(result.status, "VERIFIED", JSON.stringify(result));
   assert.equal((await execute(id)).status, "NO_EXECUTION");
   const saved = await request(
@@ -209,6 +256,118 @@ try {
     (await postgresIncidents(pool).get(created.body.id)).status,
     "OPEN",
   );
+  assert.equal(Object.hasOwn(saved.body, "execution_token"), false);
+  const securityChecks = [];
+  for (const kind of [
+    "revoked role",
+    "disabled account",
+    "reset token",
+    "expired approval",
+    "changed binding",
+    "forged viewer approval",
+    "stale container",
+  ]) {
+    const actor = await createUser(
+      pool,
+      `${randomUUID()}@p8.example.test`,
+      password,
+      kind === "forged viewer approval" ? "VIEWER" : "ADMIN",
+    );
+    const fixture = randomUUID();
+    const binding =
+      kind === "changed binding"
+        ? { ...config.binding, container_id: "f".repeat(64) }
+        : config.binding;
+    if (kind === "expired approval") {
+      await pool.query(
+        "INSERT INTO sentinel_api.remediation_actions(id,incident_id,requested_by,idempotency_key,project,action,binding_json,status,decided_by,approver_token_version,decided_at,created_at,expires_at) VALUES ($1,$2,$3,$4,$5,$6,$7,'APPROVED',$3,0,statement_timestamp(),statement_timestamp()-interval '2 minutes',statement_timestamp()-interval '1 minute')",
+        [
+          fixture,
+          created.body.id,
+          actor,
+          randomUUID(),
+          SANDBOX,
+          ACTION,
+          binding,
+        ],
+      );
+    } else {
+      await pool.query(
+        "INSERT INTO sentinel_api.remediation_actions(id,incident_id,requested_by,idempotency_key,project,action,binding_json,status,decided_by,approver_token_version,decided_at) VALUES ($1,$2,$3,$4,$5,$6,$7,'APPROVED',$3,0,statement_timestamp())",
+        [
+          fixture,
+          created.body.id,
+          actor,
+          randomUUID(),
+          SANDBOX,
+          ACTION,
+          binding,
+        ],
+      );
+    }
+    if (kind === "revoked role")
+      await pool.query(
+        "UPDATE sentinel_api.users SET role='VIEWER' WHERE id=$1",
+        [actor],
+      );
+    if (kind === "disabled account")
+      await pool.query(
+        "UPDATE sentinel_api.users SET enabled=false WHERE id=$1",
+        [actor],
+      );
+    if (kind === "reset token")
+      await pool.query(
+        "UPDATE sentinel_api.users SET token_version=1 WHERE id=$1",
+        [actor],
+      );
+    const blocked = await execute(fixture);
+    assert.equal(
+      blocked.status,
+      kind === "stale container" ? "FAILED" : "NO_EXECUTION",
+    );
+    assert.equal(
+      (await store.get(fixture)).status,
+      kind === "stale container" ? "FAILED" : "CANCELLED",
+    );
+    securityChecks.push(kind);
+  }
+  const abandoned = randomUUID();
+  await pool.query(
+    "INSERT INTO sentinel_api.remediation_actions(id,incident_id,requested_by,idempotency_key,project,action,binding_json,status,decided_by,approver_token_version,decided_at,created_at,expires_at,started_at,execution_token) VALUES ($1,$2,$3,$4,$5,$6,$7,'EXECUTING',$3,0,statement_timestamp()-interval '3 minutes',statement_timestamp()-interval '4 minutes',statement_timestamp()+interval '6 minutes',statement_timestamp()-interval '3 minutes',$8)",
+    [
+      abandoned,
+      created.body.id,
+      actors.ADMIN,
+      randomUUID(),
+      SANDBOX,
+      ACTION,
+      config.binding,
+      randomUUID(),
+    ],
+  );
+  await assert.rejects(
+    pool.query(
+      "UPDATE sentinel_api.remediation_actions SET status='FAILED',finished_at=statement_timestamp(),execution_token=$2 WHERE id=$1",
+      [abandoned, randomUUID()],
+    ),
+    /immutable/,
+  );
+  const py = process.env.TEST_P8_PYTHON!;
+  const recovered = await promisify(execFile)(
+    py,
+    [
+      "-c",
+      "import os,sys,json;sys.path.insert(0,'scripts');from sandbox_executor import reconcile;print(json.dumps(reconcile(os.environ['TEST_P8_DATABASE_URL'],sys.argv[1])))",
+      abandoned,
+    ],
+    { env: process.env, encoding: "utf8", timeout: 30000 },
+  );
+  assert.equal(JSON.parse(recovered.stdout).status, "UNVERIFIED");
+  assert.equal((await execute(abandoned)).status, "NO_EXECUTION");
+  securityChecks.push(
+    "abandoned attempt reconciled without mutation",
+    "execution token immutable",
+  );
   console.log(
     JSON.stringify({
       status: "PASSED",
@@ -217,6 +376,8 @@ try {
       result,
       duplicate_execution: "NO_EXECUTION",
       incident_auto_resolved: false,
+      security_checks: securityChecks,
+      concurrent_attempts_verified: winners.length,
     }),
   );
 } finally {

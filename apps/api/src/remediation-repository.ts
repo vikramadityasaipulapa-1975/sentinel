@@ -10,6 +10,19 @@ import {
   type SandboxBinding,
 } from "./remediation-policy.js";
 
+export interface ActionAuthority {
+  version: number;
+  expires_at: number;
+}
+
+function publicAction(row: Record<string, unknown>) {
+  const {
+    execution_token: _executionToken,
+    approver_token_version: _tokenVersion,
+    ...safe
+  } = row;
+  return { ...safe, id: row.id as string, status: row.status as string };
+}
 export function postgresRemediations(pool: Pool) {
   async function transaction<T>(
     fn: (client: PoolClient) => Promise<T>,
@@ -44,7 +57,12 @@ export function postgresRemediations(pool: Pool) {
     if (!row) throw new IncidentError(404, "NOT_FOUND", "Incident not found");
     return row;
   }
-  async function user(c: PoolClient, id: string, admin = false) {
+  async function user(
+    c: PoolClient,
+    id: string,
+    admin = false,
+    authority?: ActionAuthority,
+  ) {
     const row = (
       await c.query(
         "SELECT id,role,enabled,token_version FROM sentinel_api.users WHERE id=$1 FOR SHARE",
@@ -57,6 +75,21 @@ export function postgresRemediations(pool: Pool) {
       !(admin ? row.role === "ADMIN" : ["OPERATOR", "ADMIN"].includes(row.role))
     )
       throw new IncidentError(403, "FORBIDDEN", "Action permission denied");
+    if (
+      authority &&
+      (row.token_version !== authority.version ||
+        !(
+          await c.query(
+            "SELECT $1::bigint>extract(epoch from statement_timestamp()) AS valid",
+            [authority.expires_at],
+          )
+        ).rows[0].valid)
+    )
+      throw new IncidentError(
+        403,
+        "FORBIDDEN",
+        "Session changed or expired before action transaction",
+      );
     return row;
   }
   async function audit(
@@ -114,11 +147,11 @@ export function postgresRemediations(pool: Pool) {
         const i = await incident(c, req.incident_id);
         return dryRun(i.service, i.status, await target(c));
       }),
-    propose: (input: unknown, actor: string) =>
+    propose: (input: unknown, actor: string, authority?: ActionAuthority) =>
       transaction(async (c) => {
         const req = parseProposal(input);
         await c.query("SELECT pg_advisory_xact_lock(71628001)");
-        await user(c, actor);
+        await user(c, actor, false, authority);
         const i = await incident(c, req.incident_id);
         const old = (
           await c.query(
@@ -133,7 +166,7 @@ export function postgresRemediations(pool: Pool) {
               "KEY_CONFLICT",
               "Request key was used for another incident",
             );
-          return old;
+          return publicAction(old);
         }
         await expire(c);
         const binding = await target(c);
@@ -153,14 +186,19 @@ export function postgresRemediations(pool: Pool) {
           )
         ).rows[0];
         await audit(c, row, actor);
-        return row;
+        return publicAction(row);
       }),
-    decide: (id: string, decision: "APPROVE" | "REJECT", actor: string) =>
+    decide: (
+      id: string,
+      decision: "APPROVE" | "REJECT",
+      actor: string,
+      authority?: ActionAuthority,
+    ) =>
       transaction(async (c) => {
         await c.query("SELECT pg_advisory_xact_lock(71628001)");
-        const u = await user(c, actor, true);
+        const u = await user(c, actor, true, authority);
         const row = await current(c, id);
-        if (row.status !== "PENDING") return row;
+        if (row.status !== "PENDING") return publicAction(row);
         if (
           (
             await c.query(
@@ -176,7 +214,7 @@ export function postgresRemediations(pool: Pool) {
             )
           ).rows[0];
           await audit(c, expired, actor);
-          return expired;
+          return publicAction(expired);
         }
         const updated = (
           await c.query(
@@ -190,7 +228,7 @@ export function postgresRemediations(pool: Pool) {
           )
         ).rows[0];
         await audit(c, updated, actor);
-        return updated;
+        return publicAction(updated);
       }),
     get: (id: string) =>
       transaction(async (c) => {
@@ -201,17 +239,16 @@ export function postgresRemediations(pool: Pool) {
             [id],
           )
         ).rows;
-        return { ...row, events };
+        return { ...publicAction(row), events };
       }),
     list: (id: string) =>
-      transaction(
-        async (c) =>
-          (
-            await c.query(
-              "SELECT * FROM sentinel_api.remediation_actions WHERE incident_id=$1 ORDER BY created_at DESC,id DESC LIMIT 20",
-              [id],
-            )
-          ).rows,
+      transaction(async (c) =>
+        (
+          await c.query(
+            "SELECT * FROM sentinel_api.remediation_actions WHERE incident_id=$1 ORDER BY created_at DESC,id DESC LIMIT 20",
+            [id],
+          )
+        ).rows.map(publicAction),
       ),
   };
 }

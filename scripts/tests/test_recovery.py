@@ -68,6 +68,7 @@ def test_executor_distinguishes_failed_command_from_uncertain_timeout(
     )
     monkeypatch.setattr(executor, "claim", lambda *args: {"id": "fixture"})
     monkeypatch.setattr(executor, "assert_authorized", lambda *args: None)
+    monkeypatch.setattr(executor, "assert_checkout", lambda *args: None)
     monkeypatch.setattr(executor, "write_images", lambda *args: None)
     monkeypatch.setattr(executor, "finish", lambda *args: True)
 

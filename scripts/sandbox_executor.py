@@ -14,6 +14,7 @@ from psycopg.types.json import Jsonb
 from remediation_verification import classify
 from sandbox_support import (
     Docker,
+    assert_checkout,
     assert_container,
     load_config,
     probe,
@@ -37,7 +38,7 @@ def audit(conn, row, observations=None):
         (
             row["id"],
             row["status"],
-            row["decided_by"],
+            None,
             Jsonb(observations) if observations is not None else None,
         ),
     )
@@ -106,17 +107,23 @@ def claim(dsn, identifier, config):
 
 def finish(dsn, row, status, observations):
     with connection(dsn) as conn:
+        conn.execute("SELECT pg_advisory_xact_lock(71628001)")
         saved = conn.execute(
             "UPDATE sentinel_api.remediation_actions SET status=%s,finished_at=statement_timestamp(),result_json=%s WHERE id=%s AND status='EXECUTING' AND execution_token=%s RETURNING *",
             (status, Jsonb(observations), row["id"], row["execution_token"]),
         ).fetchone()
         if saved:
             audit(conn, saved, observations)
+            conn.execute(
+                "DELETE FROM sentinel_api.sandbox_binding WHERE project=%s AND binding_json=%s",
+                (saved["project"], Jsonb(saved["binding_json"])),
+            )
         return bool(saved)
 
 
 def assert_authorized(dsn, row):
     with connection(dsn) as conn:
+        conn.execute("SELECT pg_advisory_xact_lock(71628001)")
         current = conn.execute(
             "SELECT * FROM sentinel_api.remediation_actions WHERE id=%s AND status='EXECUTING' AND execution_token=%s FOR UPDATE",
             (row["id"], row["execution_token"]),
@@ -136,6 +143,7 @@ def execute(dsn, identifier):
         binding = config["binding"]
         invoked = False
         try:
+            assert_checkout(docker, config)
             before = docker.payment()
             assert_container(before, binding["current_image"], binding["container_id"])
             # Recheck live backend authorization immediately before the external effect.
@@ -150,6 +158,7 @@ def execute(dsn, identifier):
             assert_container(after, binding["target_image"])
             observations = probe(binding["target_version"])
             observations["image_matches"] = after["Image"] == binding["target_image"]
+            assert_checkout(docker, config)
             final = docker.payment()
             assert_container(final, binding["target_image"], after["Id"])
             status = classify(observations)
@@ -243,6 +252,10 @@ def main():
 if __name__ == "__main__":
     try:
         main()
+    except KeyboardInterrupt:
+        print(
+            "Executor stopped; inspect any EXECUTING action before restarting/reconciling"
+        )
     except Exception:
         raise SystemExit(
             "Executor failed closed; inspect action history and sandbox setup (credentials omitted)"

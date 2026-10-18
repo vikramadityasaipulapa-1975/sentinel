@@ -91,6 +91,42 @@
           Next evidence page
         </button>
       </div>
+      <h2>Human-approved sandbox rollback</h2>
+      <p>
+        Only the separate simulated payment sandbox can change. Preview and
+        inspect the exact image/container binding before approving. ADMIN is
+        required for decisions. Approval queues work for the separate local
+        sandbox executor; an AI report or runbook cannot approve it.
+      </p>
+      <label
+        >Payment incident UUID <input id="action-incident" maxlength="36"
+      /></label>
+      <label
+        >Proposal request key <input id="action-key" maxlength="36"
+      /></label>
+      <button id="action-new-key" type="button">New proposal key</button>
+      <button id="action-preview" type="button">Dry-run rollback</button>
+      <button id="action-propose" type="button">
+        Propose sandbox rollback
+      </button>
+      <label>Action UUID <input id="action-id" maxlength="36" /></label>
+      <button id="action-load" type="button">
+        Load exact proposal and audit
+      </button>
+      <pre id="action-review">No proposal loaded.</pre>
+      <label
+        ><input id="action-reviewed" type="checkbox" />I reviewed this exact
+        pending proposal and its sandbox image/container binding.</label
+      >
+      <button id="action-approve" type="button">
+        ADMIN: approve reviewed proposal
+      </button>
+      <button id="action-reject" type="button">ADMIN: reject proposal</button>
+      <button id="action-list" type="button">List incident actions</button>
+      <p>
+        VERIFIED covers a short sandbox check only. FAILED and UNVERIFIED
+        require inspection; the incident is never automatically resolved.
+      </p>
       <h2>Live incident history</h2>
       <p>
         Uses the Incident UUID above. Watch reloads saved history, then follows

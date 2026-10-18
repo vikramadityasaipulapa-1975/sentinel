@@ -262,3 +262,103 @@ reader secret and runtime table grants. Keep connection strings in provider
 secret settings. Do not paste them in chat. Accounts, billing, public DNS/TLS,
 hosted API/worker/Redis/collectors and recovery verification remain manual work
 until a separately approved deployment is actually performed.
+
+## P8: human-approved local sandbox actions
+
+P8 local software can be used without cloud setup. It changes only a separate
+memory-only simulated payment sandbox, never the existing payment/demo DB or a
+production service. Do not treat its VERIFIED result as a root-cause diagnosis.
+
+1. Keep Docker Desktop (Linux containers), API/worker/engine, knowledge DB and
+   observability running. From `V:\sentinel\sentinel`, install existing pinned
+   requirements/dependencies if this is a fresh checkout, then build:
+
+   ```powershell
+   npm run build --workspace=@sentinel/api
+   .venv\Scripts\python.exe scripts/api-local.py
+   ```
+
+   The helper applies migrations 009 and 010 without resetting data. If the API
+   is already running with these changes, do not start a second copy on 3000.
+   The existing P2 images payment-v1, payment-v3-error and checkout local-p2 must
+   exist; preparation refuses missing/unrecognized images instead of downloading
+   an arbitrary substitute. See the P2 guide for the approved image build process.
+
+2. If you want to approve actions yourself, use your own ADMIN account. No default
+   ADMIN or password is created. In an interactive terminal, choose one:
+
+   ```powershell
+   .venv\Scripts\python.exe scripts/api-user.py create --email YOUR_EMAIL --role ADMIN
+   # Or explicitly change your existing account's role:
+   .venv\Scripts\python.exe scripts/api-user.py role --email YOUR_EMAIL --role ADMIN
+   ```
+
+   ADMIN can approve/reject backend actions, so grant it only intentionally. The
+   create command prompts for a hidden password; never put it in commands/chat.
+   Sign in again after account changes. Your account was not silently promoted
+   by the implementation or tests; verifier accounts exist only in disposable DBs.
+
+3. Prepare a new disposable faulty sandbox before proposing:
+
+   ```powershell
+   .venv\Scripts\python.exe scripts/sandbox-local.py
+   ```
+
+   It checks good-version synthetic payments, introduces payment-v3-error and
+   registers exact image/container identities. Ports 4301/4302 must be free.
+   `.env.sandbox` and `.artifacts/p8-sandbox.json` are ignored. Preparation refuses
+   active main proposals; reject a pending proposal or inspect an active attempt
+   first. The existing monitored demo remains on 3001/3002.
+
+4. In a separate trusted terminal start the executor explicitly:
+
+   ```powershell
+   .venv\Scripts\python.exe scripts/sandbox_executor.py --watch
+   ```
+
+   Leave it running for durable APPROVED work, or omit the watcher and run one
+   explicit `--action ACTION_UUID` after approval. The regular API helper never
+   starts a privileged executor automatically. Native local processes share your
+   OS account: application separation is not OS-level Docker permission isolation.
+
+5. Open `http://localhost:3000/auth-test`. Sign in, obtain the payment service UUID
+   using Services and create/select an OPEN payment incident. In the sandbox
+   section enter that incident UUID. Click Dry-run, inspect the fixed sandbox/
+   current container/current image/target image, then Propose. Reuse the proposal
+   key if a response was uncertain; New proposal key starts a different request.
+6. Load the exact pending action and audit. As ADMIN, review its immutable binding,
+   check the explicit review box and Approve; or Reject. VIEWER cannot propose or
+   decide, OPERATOR may propose but cannot decide. Backend authorization remains
+   enforced even if someone edits the page. Approval expires ten minutes after
+   proposal creation and does not extend on retry.
+7. Watch the incident history/SSE or reload action/audit. Expect EXECUTING then
+   VERIFIED only after correct runtime identity and 3/3 valid synthetic checkout
+   responses over >=2 seconds. FAILED is a measured failure; UNVERIFIED means
+   insufficient/ambiguous evidence. The incident remains open for human judgment.
+   The matching sandbox registry binding is invalidated after a terminal attempt;
+   prepare a fresh sandbox before another proposal.
+8. Stop the executor with Ctrl+C. If stopped during an attempt or a crash left
+   EXECUTING, inspect actual sandbox state. After two minutes, with no live
+   executor holding the shared lock, record uncertainty without repeating rollback:
+
+   ```powershell
+   .venv\Scripts\python.exe scripts/sandbox_executor.py --action ACTION_UUID --reconcile
+   ```
+
+   Do not delete the lock file to bypass a live owner. Reconciliation never runs
+   Docker mutation. A DB/Docker timeout is not permission to repeat the action.
+
+9. To stop only the disposable sandbox while preserving every persistent DB:
+
+   ```powershell
+   docker compose --project-name sentinel-remediation-sandbox --env-file .env.sandbox -f infrastructure/compose.sandbox.yaml stop
+   ```
+
+   Do not use broad Docker cleanup or delete volumes. To repeat the automated real
+   test, build then run `npm run verify:p8`; it uses an owned temporary API DB,
+   verifies outside containers stay unchanged and leaves no interactive ADMIN.
+
+Cloud setup can still wait. For public deployment, keep this sandbox executor
+private/off until a separate hosting/security review. A cloud DB alone does not
+provide the executor, API/worker, Redis, collectors, TLS or account bootstrap.
+See HOSTED-SETUP's P8 section for pending role/host boundaries.

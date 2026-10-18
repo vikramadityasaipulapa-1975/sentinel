@@ -343,3 +343,120 @@ document.querySelector("#job-report").addEventListener("click", async () => {
       "Report request failed. Check status and session. Older P5 runs have no report.";
   }
 });
+
+let loadedAction = null;
+const actionId = document.querySelector("#action-id");
+const actionKey = document.querySelector("#action-key");
+const reviewed = document.querySelector("#action-reviewed");
+const review = document.querySelector("#action-review");
+actionKey.value = crypto.randomUUID();
+function clearActionReview() {
+  loadedAction = null;
+  reviewed.checked = false;
+  review.textContent = "Load the exact proposal before a decision.";
+}
+actionId.addEventListener("input", clearActionReview);
+document.querySelector("#action-new-key").addEventListener("click", () => {
+  actionKey.value = crypto.randomUUID();
+});
+function proposalBody() {
+  return {
+    action: "ROLLBACK_SANDBOX_PAYMENT",
+    incident_id: document.querySelector("#action-incident").value,
+    idempotency_key: actionKey.value,
+  };
+}
+function showAction(data) {
+  loadedAction = data;
+  actionId.value = data.id;
+  reviewed.checked = false;
+  review.textContent = JSON.stringify(data, null, 2);
+}
+for (const [id, path] of [
+  ["action-preview", "/api/v1/remediations/dry-run"],
+  ["action-propose", "/api/v1/remediations"],
+]) {
+  document.querySelector(`#${id}`).addEventListener("click", async (event) => {
+    event.currentTarget.disabled = true;
+    try {
+      const { response, data } = await request(path, "POST", proposalBody());
+      result.textContent = JSON.stringify(
+        { http_status: response.status, ...data },
+        null,
+        2,
+      );
+      if (response.ok && data.id) showAction(data);
+    } catch {
+      result.textContent =
+        "Proposal request did not complete. Reuse its request key to check/retry safely.";
+    } finally {
+      event.target.disabled = false;
+    }
+  });
+}
+document.querySelector("#action-load").addEventListener("click", async () => {
+  clearActionReview();
+  try {
+    const { response, data } = await request(
+      `/api/v1/remediations/${encodeURIComponent(actionId.value)}`,
+    );
+    result.textContent = JSON.stringify(
+      { http_status: response.status, ...data },
+      null,
+      2,
+    );
+    if (response.ok) showAction(data);
+  } catch {
+    result.textContent = "Action read failed. Check session and UUID.";
+  }
+});
+for (const decision of ["APPROVE", "REJECT"]) {
+  document
+    .querySelector(`#action-${decision.toLowerCase()}`)
+    .addEventListener("click", async (event) => {
+      if (
+        !loadedAction ||
+        loadedAction.id !== actionId.value ||
+        loadedAction.status !== "PENDING" ||
+        (decision === "APPROVE" && !reviewed.checked)
+      ) {
+        result.textContent =
+          "Load a pending proposal and review its exact binding before deciding.";
+        return;
+      }
+      event.currentTarget.disabled = true;
+      try {
+        const { response, data } = await request(
+          `/api/v1/remediations/${encodeURIComponent(actionId.value)}/decision`,
+          "POST",
+          { decision },
+        );
+        result.textContent = JSON.stringify(
+          { http_status: response.status, ...data },
+          null,
+          2,
+        );
+        if (response.ok) showAction(data);
+      } catch {
+        clearActionReview();
+        result.textContent =
+          "Decision outcome unknown. Load saved status before retrying.";
+      } finally {
+        event.target.disabled = false;
+      }
+    });
+}
+document.querySelector("#action-list").addEventListener("click", async () => {
+  try {
+    const { response, data } = await request(
+      `/api/v1/incidents/${encodeURIComponent(document.querySelector("#action-incident").value)}/remediations`,
+    );
+    result.textContent = JSON.stringify(
+      { http_status: response.status, ...data },
+      null,
+      2,
+    );
+  } catch {
+    result.textContent = "Action list failed. Check session and incident UUID.";
+  }
+});

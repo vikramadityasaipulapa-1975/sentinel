@@ -340,3 +340,52 @@ These are pending hosting responsibilities, not completed setup. Current API and
 engine remain loopback-bound; host binding/private networking, domain/TLS/SSE,
 process packaging and provider-specific secret/bootstrap work still need review.
 Manual cloud work can wait during subsequent approved local development phases.
+
+## P8 additions: approvals do not authorize public production execution
+
+Local sandbox support is complete; a production action adapter is not implemented.
+The current executor rejects remote Docker engines, fixes project/service/image
+scope and requires disposable memory storage. Do not loosen these checks or point
+it at real payment infrastructure to make a deployment work.
+
+When public hosting is separately approved:
+
+1. Use a migration identity to apply 009 and 010. Grant API runtime SELECT/INSERT
+   on remediation_actions, SELECT on sandbox_binding, SELECT/INSERT on
+   remediation_events and usage on its identity sequence. Grant UPDATE only on
+   required decision/expiry columns (status, decided_by, approver_token_version,
+   decided_at); never grant DELETE or binding/identity changes. Existing incident
+   event INSERT/sequence privileges remain necessary. Keep DB owners out of API
+   runtime. Review the complete migration/runtime grant set in staging.
+2. Keep the executor disabled for the initial public read/investigation app.
+   No hosted account can operate this developer's loopback Docker sandbox. If a
+   hosted training sandbox is later desired, provision it deliberately on an
+   isolated trusted host with no production credentials, data, mounts or network.
+   Provider/region/cost and any deployment require separate approval.
+3. Separate OS/host identities: public API, investigation worker and AI engine
+   must have no Docker daemon/socket permissions. A narrow private executor may
+   access only its approved training host. The current native Windows development
+   setup shares one OS account and does not provide that OS security isolation.
+   Do not mount Docker sockets in public app/AI containers. Docker access can
+   control the host; application allowlists alone are insufficient host isolation.
+4. Give the private executor its own DB identity and only the columns/tables needed
+   for claim/result/audit and read-only live users/incidents/services. It must not
+   change proposal bindings, decisions, users or roles. Setup/registry publishing
+   needs a separate trusted identity; executor may invalidate only its matching
+   registry binding. Exact remote identity/credential loading and private transport
+   need an environment-specific adapter: the current CLI intentionally accepts
+   only the local developer configuration.
+5. Provision/assign ADMIN through an authenticated, auditable administrator
+   bootstrap; never ship default admin credentials or grant anonymous approval.
+   Verify VIEWER/OPERATOR/ADMIN boundaries, current-user revocation, expiry,
+   immutable bindings and audit completeness from a second device over HTTPS.
+6. Before any real operational remediation, separately design target provenance,
+   OS/network isolation, action-specific safety policy, human approval semantics,
+   backups/recovery and per-environment probes. A multi-host executor needs a
+   reviewed distributed fencing design; the current shared file lock is local.
+   PostgreSQL/Docker cannot commit atomically; do not replace uncertainty handling
+   with blind retries. Test all of this in staging before enabling any action.
+
+No cloud changes, hosted privileged executor, paid service, real payment or
+production rollback were performed. Public app provisioning and the existing
+P5-P7 hosted responsibilities remain pending; manual cloud setup can wait.
