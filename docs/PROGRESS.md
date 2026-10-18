@@ -1362,3 +1362,16 @@ P3.4 requires its own explanation/approval before implementation.
   EXECUTING, not a blind retry. Manual reconcile does not mutate Docker.
 - Full learning walkthrough, result meaning, limits, exact commands, debug,
   learner questions/exercise and manual setup recorded in P8 guide.
+
+## P7.3 follow-up during P8 regression
+
+- Required-live API check initially failed because knowledge returned UNAVAILABLE.
+  Diagnosis using the engine's exact interpreter/environment measured a successful
+  local child at 5.58s, beyond the original 5s cold-start budget. No citation or
+  authority validation was weakened.
+- Raised killable retrieval to 8s, collector to 24s and worker to 27s within the
+  existing 30s DB lease. Two-child cap, read-only SQL, no retries and explicit
+  failure statuses remain. Updated the timeout boundary fixture and P7 guide.
+- Actual verification: 46 engine tests passed; serial real API/PG/Redis run passed
+  95 tests, zero skips, with TEST_KNOWLEDGE_REQUIRED=1 and real context persisted.
+  This is a measured local reliability fix, not a claim that all hardware fits.

@@ -180,7 +180,7 @@ export async function collectInvestigation(
   const response = await fetch(config.url, {
     method: "POST",
     redirect: "error",
-    signal: AbortSignal.timeout(21000),
+    signal: AbortSignal.timeout(24000),
     headers: {
       "content-type": "application/json",
       authorization: `Bearer ${config.secret}`,

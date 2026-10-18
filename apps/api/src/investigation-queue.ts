@@ -181,7 +181,7 @@ export function startInvestigationWorker(
           new Promise<never>((_resolve, reject) => {
             timer = setTimeout(
               () => reject(new Error("Workflow timeout")),
-              collector ? 24000 : 5000,
+              collector ? 27000 : 5000,
             );
           }),
         ]);

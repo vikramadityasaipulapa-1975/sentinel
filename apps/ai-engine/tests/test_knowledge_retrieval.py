@@ -34,12 +34,12 @@ def test_disabled_and_subprocess_failure_are_explicit(monkeypatch):
     assert asyncio.run(retrieve({}, "checkout-service", report)) == context("DISABLED")
 
     def timeout(*args, **kwargs):
-        assert kwargs["timeout"] == 5
+        assert kwargs["timeout"] == 8
         assert (
             set(kwargs["env"]) & {"SENTINEL_KNOWLEDGE_OWNER_URL", "SENTINEL_JWT_SECRET"}
             == set()
         )
-        raise subprocess.TimeoutExpired("fixture", 5)
+        raise subprocess.TimeoutExpired("fixture", 8)
 
     monkeypatch.setattr(subprocess, "run", timeout)
     assert asyncio.run(

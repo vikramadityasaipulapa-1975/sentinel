@@ -42,7 +42,7 @@ def _run(env, service, category):
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
             env=child_env,
-            timeout=5,
+            timeout=8,
             check=True,
         )
         if len(result.stdout) > 16384:

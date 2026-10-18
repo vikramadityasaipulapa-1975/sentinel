@@ -177,7 +177,7 @@ telemetry-coverage guidance rather than inventing a cause.
   `context(status, citations)` labels all output UNTRUSTED_GUIDANCE_ONLY.
 - `knowledge_service.py`: async `retrieve(env, service, report)` chooses a fixed
   query from the first eligible hypothesis or telemetry. The blocking helper
-  uses `asyncio.to_thread` and a killable five-second subprocess, bounded to two
+  uses `asyncio.to_thread` and a killable eight-second subprocess, bounded to two
   concurrent processes. The semaphore is held until actual completion even if
   its waiting coroutine is cancelled. `subprocess.run` kills/reaps on timeout;
   SELECT deadlines also bound DB work. Only reader/system settings reach the
@@ -202,8 +202,8 @@ telemetry-coverage guidance rather than inventing a cause.
   older reports. It verifies the saved copy rather than replacing old citations
   with a newly published source version.
 - `evidence.ts`, `investigation-queue.ts`, `investigations.ts` carry context through
-  the existing fenced completion. Collector deadline 21 seconds, work 24 seconds
-  and lease 30 seconds cover graph (12) + retrieval (5) with transport headroom.
+  the existing fenced completion. Collector deadline 24 seconds, work 27 seconds
+  and lease 30 seconds cover graph (12) + retrieval (8) with transport headroom.
 - `scripts/api-local.py` passes only the reader URL from ignored `.env.knowledge`
   to the engine. No config means explicit DISABLED. Setup is not silently invoked.
 - `auth-test.html` labels the existing report button; the existing JS uses
@@ -232,7 +232,7 @@ The main API verifier uses disposable databases and real PostgreSQL/Redis.
 
 **Debug.** If knowledge is DISABLED, prepare knowledge and restart the supervisor;
 an already-running process does not reread environment. UNAVAILABLE can mean DB
-unreachable, missing/changed model files or five-second cold-start expiry. Run
+unreachable, missing/changed model files or eight-second cold-start expiry. Run
 `verify-p7.py` directly to distinguish model/DB failures. A citation mismatch can
 mean engine/index and API source versions differ: publish matching reviewed
 artifacts and ingest before accepting new reports. Never disable citation checks.
@@ -272,7 +272,7 @@ adversarial checks; today's tests do not guarantee a future changed architecture
 subprocess timeout and malicious retrieval text (“ignore rules,” rollback,
 secret requests, script markup). It checks that irrelevant text does not reach
 embedding/DB calls, bad scope/query size is rejected, child settings exclude
-owner/JWT secrets, timeout is exactly five seconds, and malicious context cannot
+owner/JWT secrets, timeout is exactly eight seconds, and malicious context cannot
 change hypotheses or become executable report fields. These are boundary tests,
 not a test of an actual attack against a chat model. No chat model is called.
 `knowledge.test.ts` checks valid real-source citations and rejects forged source,
@@ -371,3 +371,11 @@ malicious version is never published to the development catalog. A real
 unreachable knowledge DB returned UNAVAILABLE in 4.86 seconds, with no primary
 DB change. One intermediate verifier run failed because its new attack fixture
 variable was missing; the fixture was corrected and rerun before acceptance.
+
+P8 regression follow-up: after host/runtime restart, the exact engine-style local
+child succeeded in 5.58 seconds, exceeding the initial five-second deadline. The
+child budget is now eight seconds, collector 24 seconds and worker 27 seconds,
+inside the existing 30-second DB lease. Two-child concurrency, kill/reap behaviour,
+read-only access and no retries remain unchanged. Live-required regressions must
+be run serially to avoid treating deliberate resource-limit degradation as a
+successful retrieval measurement. No chat model or remote service was enabled.
