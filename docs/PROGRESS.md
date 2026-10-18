@@ -1424,3 +1424,28 @@ P3.4 requires its own explanation/approval before implementation.
   deliberately faulty training sandbox does not alter the healthy monitored demo.
   Localhost page remains open; your own ADMIN choice is the remaining interactive
   account step. Startup/shutdown/reconcile commands are in MANUAL-SETUP.
+
+## P3.5 follow-up: PARTIAL history/SSE reader repair (2026-10-18)
+
+- Approval: user explicitly approved after explanation and reproduction.
+- Cause: the worker persisted a valid PARTIAL terminal event, but readEvent's
+  event-name allowlist omitted PARTIAL. Both HTTP history and SSE rejected the
+  saved event and the repository returned sanitized DATABASE_UNAVAILABLE.
+- Changes: add the missing name; add positive/negative stored-row coverage and
+  real PostgreSQL/HTTP/live-SSE/reconnect regression coverage; document the flow,
+  failure, safe recovery and learner checks in P3-LEARNING-GUIDE.md.
+- Before fix: the targeted PARTIAL regression failed with Invalid stored incident
+  event. After fix: all 97 cumulative API tests passed, zero failures/skips.
+- Full verification: `TEST_KNOWLEDGE_REQUIRED=1` with
+  `scripts/verify-p3.py --task P3.5 --with-evidence` PASSED. Real evidence collection,
+  HTTP contracts, persisted history, API/database restart, worker crash recovery,
+  and Redis outage/restart checks passed. Test containers removed, volumes kept.
+  Evidence: ignored `.artifacts/p3-5-verification.json`, project p3-5-c9c277b1.
+- Local recovery: restarted only the owned API supervisor processes. Main API
+  readiness returned ready. The fixed repository reader loaded all four events
+  of the learner's existing incident, including sequence 10 PARTIAL. No incident,
+  investigation, account or database volume was deleted or rewritten.
+- Manual action: no setup changes. Use Load history page and Watch progress again;
+  sign in again if the token expired. No investigation rerun is required.
+- No hosted deployment or remediation was performed; learner answers remain open.
+- Commit: `fix(P3.5): preserve history and streaming for partial investigations`.

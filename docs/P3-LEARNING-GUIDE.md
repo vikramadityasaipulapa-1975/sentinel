@@ -1270,3 +1270,77 @@ history. Learner explanations and this exercise remain pending your own completi
 `feat(P3.5): stream persisted investigation progress with SSE` contains this task.
 P3 software acceptance is complete only after the recorded tests pass. Learner
 mastery is separate; P4 requires a new explicit approval.
+
+## P3.5 follow-up: PARTIAL terminal events break history (2026-10-18)
+
+### Concept and architecture/data flow
+
+A valid investigation can finish PARTIAL when evidence or analysis is incomplete.
+The worker saves that terminal event in PostgreSQL. Both the history endpoint and
+SSE replay pass stored rows through `readEvent`. Its event-name allowlist omitted
+PARTIAL although its status allowlist already included it. The reader threw and
+the repository's sanitized error boundary returned DATABASE_UNAVAILABLE (503).
+Consequently a healthy database could serve readiness while this incident's
+history and live stream failed. Retrying could not repair a deterministic reader
+validation error. Existing records need no migration or rewriting.
+
+### File plan and approval checkpoint
+
+The user approved this repair after the root cause and proposed regression checks
+were explained. Scope: the event reader, incident unit tests, PostgreSQL/HTTP/SSE
+integration tests, this walkthrough and the progress record. No account, schema,
+secret, deployment or remediation change is needed.
+
+### Implementation and walkthrough
+
+- `apps/api/src/incidents.ts`: add PARTIAL to the accepted investigation event
+  names. `readEvent(row)` still validates stored IDs, linkage, payload fields,
+  status, attempt and timestamps before returning a public `IncidentEvent`.
+- `apps/api/test/incidents.test.ts`: a synthetic stored PARTIAL fixture must be
+  readable; unknown event/status, mismatched investigation ID and attempt 4 must
+  still throw. The positive check failed before the source fix.
+- `apps/api/test/stream-database-checks.ts`: use the actual repository to enqueue,
+  claim and finish a test investigation with explicitly synthetic EMPTY evidence.
+  Await its PARTIAL event over live authenticated SSE, read all four events over
+  HTTP, then reconnect from the pre-completion cursor and receive PARTIAL again.
+  The test uses isolated verifier PostgreSQL, not the learner's incident database.
+  Readers are cancelled in finally blocks to release streaming connections.
+
+### Run/test and manual setup
+
+From `V:\sentinel\sentinel`, run:
+
+```powershell
+$env:TEST_KNOWLEDGE_REQUIRED='1'
+.venv\Scripts\python.exe scripts/verify-p3.py --task P3.5 --with-evidence
+npm run format:check
+```
+
+The full verifier requires Docker and the existing local evidence/knowledge stack.
+It creates a separate test project, runs cumulative API/database tests, and checks
+streaming/recovery. It retains test volumes and removes its test containers.
+No new manual installation or configuration is required. Restart the existing API
+supervisor once to load the rebuilt reader, then use Load history page / Watch
+progress on the same incident. Do not enqueue another job merely to recover its
+history. Sign in again if the token expired; reloading clears the in-memory token.
+
+### Debug
+
+Readiness checks connectivity/schema, not every stored event. If one incident's
+history fails while readiness passes, inspect the stored event type and reader
+contract before restarting databases. Keep SQL errors and credentials out of HTTP
+responses. Never delete valid events to bypass reader validation.
+
+### Understanding check
+
+1. Why did a valid PARTIAL event cause both history and SSE to fail?
+2. Why did retrying or database readiness not resolve this failure?
+3. Why must the unknown-event negative test still fail after this change?
+
+Independent exercise: explain how a reconnect cursor retrieves a completion event
+saved while the browser was disconnected, without rerunning the investigation.
+
+### Commit summary
+
+`fix(P3.5): preserve history and streaming for partial investigations` records this
+repair and regression coverage. Verification results are recorded in PROGRESS.md.

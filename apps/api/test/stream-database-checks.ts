@@ -9,6 +9,8 @@ import { createAuth } from "../src/auth.js";
 import { createUser, postgresUsers } from "../src/auth-store.js";
 import { postgresIncidents } from "../src/incident-repository.js";
 import { postgresInvestigations } from "../src/investigations.js";
+import { sources, type Evidence } from "../src/evidence.js";
+import { encodeCursor, eventScope } from "../src/incidents.js";
 import { postgresRegistry } from "../src/services.js";
 
 export async function streamDatabaseChecks(t: TestContext, pool: Pool) {
@@ -92,6 +94,76 @@ export async function streamDatabaseChecks(t: TestContext, pool: Pool) {
         assert.equal(next.data.type, "STATUS_CHANGED");
         assert.ok(BigInt(next.data.sequence) > BigInt(live.data.sequence));
         await resumed.cancel();
+      },
+    );
+    await t.test(
+      "PARTIAL completion remains readable through HTTP history, live SSE and replay",
+      async () => {
+        const target = await incidents.create({
+          service_id: "22222222-2222-4222-8222-222222222222",
+          title: "DEMO: partial timeline regression",
+          severity: "HIGH",
+        });
+        const store = postgresInvestigations(pool);
+        const run = await store.enqueue(target.id, user, randomUUID());
+        const claim = await store.claim(run.id);
+        assert.ok(claim);
+        const before = await incidents.events(target.id, { limit: 50 });
+        const cursor = encodeCursor(
+          before.events.at(-1)!.sequence,
+          eventScope(target.id),
+        );
+        const streamUrl = url.replace(incident.id, target.id);
+        const live = await open(cursor, bearer, streamUrl);
+        assert.equal(live.status, 200);
+        const reader = live.body!.getReader();
+        try {
+          const end = new Date();
+          const fixture: Evidence[] = sources.map((source) => ({
+            source,
+            status: "EMPTY",
+            window: {
+              service: "payment-service",
+              start: new Date(end.getTime() - 600000).toISOString(),
+              end: end.toISOString(),
+            },
+            collected_at: end.toISOString(),
+            locator: { kind: "synthetic-test-fixture" },
+            data: {},
+          }));
+          assert.equal(
+            await store.finish(run.id, claim.token, true, fixture),
+            true,
+          );
+          assert.equal((await store.get(run.id)).status, "PARTIAL");
+          assert.equal((await event(reader)).data.payload.event, "PARTIAL");
+        } finally {
+          await reader.cancel();
+        }
+        const history = await open(
+          undefined,
+          bearer,
+          streamUrl.replace("/stream", "/events"),
+        );
+        assert.equal(history.status, 200);
+        const page = await history.json();
+        assert.equal(page.events.at(-1).payload.event, "PARTIAL");
+        assert.deepEqual(
+          page.events.map(
+            (entry: { payload: { event?: string } }) => entry.payload.event,
+          ),
+          [undefined, "QUEUED", "RUNNING", "PARTIAL"],
+        );
+        const replay = await open(cursor, bearer, streamUrl);
+        const replayReader = replay.body!.getReader();
+        try {
+          assert.equal(
+            (await event(replayReader)).data.payload.event,
+            "PARTIAL",
+          );
+        } finally {
+          await replayReader.cancel();
+        }
       },
     );
     await t.test(

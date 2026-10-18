@@ -259,9 +259,14 @@ export function readEvent(row: Record<string, unknown>): IncidentEvent {
     ["QUEUED", "RUNNING", "COMPLETED", "PARTIAL", "FAILED"].includes(
       payload.status as string,
     ) &&
-    ["QUEUED", "RUNNING", "RETRY_SCHEDULED", "COMPLETED", "FAILED"].includes(
-      payload.event as string,
-    ) &&
+    [
+      "QUEUED",
+      "RUNNING",
+      "RETRY_SCHEDULED",
+      "COMPLETED",
+      "PARTIAL",
+      "FAILED",
+    ].includes(payload.event as string) &&
     /^[0-3]$/.test(payload.attempt as string);
   const remediation =
     row.type === "REMEDIATION" &&

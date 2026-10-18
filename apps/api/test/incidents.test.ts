@@ -13,6 +13,7 @@ import {
   parseId,
   parseList,
   parseTransition,
+  readEvent,
   statuses,
   type Incident,
   type IncidentStore,
@@ -276,4 +277,34 @@ test("incident HTTP contracts validate bodies, errors, limits, correlation and l
       server.closeAllConnections();
     });
   }
+});
+
+test("stored PARTIAL investigation events are readable and invalid events stay rejected", () => {
+  const investigationId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const row = {
+    id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    incident_id: incidentId,
+    investigation_id: investigationId,
+    sequence: "10",
+    type: "INVESTIGATION",
+    payload_json: {
+      investigation_id: investigationId,
+      status: "PARTIAL",
+      event: "PARTIAL",
+      attempt: "1",
+    },
+    occurred_at: new Date("2026-10-18T08:38:52Z"),
+    created_at: new Date("2026-10-18T08:38:52Z"),
+  };
+  assert.equal(readEvent(row).payload.event, "PARTIAL");
+  for (const payload of [
+    { ...row.payload_json, event: "UNKNOWN" },
+    { ...row.payload_json, status: "UNKNOWN" },
+    { ...row.payload_json, investigation_id: serviceId },
+    { ...row.payload_json, attempt: "4" },
+  ])
+    assert.throws(
+      () => readEvent({ ...row, payload_json: payload }),
+      /Invalid stored incident event/,
+    );
 });
