@@ -93,6 +93,7 @@ export function parseCreate(value: unknown): CreateIncident {
     typeof input.title !== "string" ||
     input.title.trim().length < 1 ||
     input.title.trim().length > 200 ||
+    // eslint-disable-next-line no-control-regex -- Deliberately reject ASCII control characters in incident titles.
     /[\u0000-\u001f\u007f]/.test(input.title) ||
     !severities.includes(input.severity as Severity)
   )
@@ -217,6 +218,7 @@ export function readIncident(row: Record<string, unknown>): Incident {
     typeof row.title !== "string" ||
     row.title.trim().length < 1 ||
     row.title.length > 200 ||
+    // eslint-disable-next-line no-control-regex -- Deliberately reject ASCII control characters in incident titles.
     /[\u0000-\u001f\u007f]/.test(row.title) ||
     !severities.includes(row.severity as Severity) ||
     !statuses.includes(row.status as IncidentStatus) ||

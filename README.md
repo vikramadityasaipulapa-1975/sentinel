@@ -415,3 +415,13 @@ approval/audit review. Use `npm run test:web` for component checks and `npm run 
 for isolated browser/accessibility checks. The latter requires the local DB/evidence
 stack and Edge (or installed Playwright Chromium). It never uses your account or
 executes Docker actions. See [manual setup](docs/MANUAL-SETUP.md) for detailed steps.
+
+## Portable checks and CI (P10.1)
+
+Run `.venv\Scripts\python.exe scripts/check.py fast` for formatting, lint, builds
+and unit/component checks. With the existing local dependency stack running, use
+`.venv\Scripts\python.exe scripts/check.py integration` for real database, queue,
+evidence, knowledge, sandbox and browser checks. CI runs fast checks on Windows
+and Linux, then integration on a fresh Linux runner. See the
+[P10 learning guide](docs/P10-LEARNING-GUIDE.md) for scope, debugging and safety
+controls. Never run the CI-only bootstrap against your development environment.

@@ -1,4 +1,4 @@
-import { useEffect, useState, type DependencyList } from "react";
+import { useEffect, useRef, useState } from "react";
 import { message } from "../api/client";
 export function Notice({ children }: { children: React.ReactNode }) {
   return (
@@ -29,18 +29,25 @@ export function When({ value }: { value: string | null | undefined }) {
 }
 export function useLoad<T>(
   load: (signal: AbortSignal) => Promise<T>,
-  deps: DependencyList,
+  deps: readonly (string | number | null | undefined)[],
 ) {
   const [data, setData] = useState<T | null>(null),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(true),
     [revision, setRevision] = useState(0);
+  // Callers supply primitive request identity, not unstable inline callback identity.
+  const requestKey = JSON.stringify(deps);
+  const loader = useRef(load);
+  useEffect(() => {
+    loader.current = load;
+  }, [load]);
   useEffect(() => {
     const controller = new AbortController();
     setData(null);
     setLoading(true);
     setError("");
-    load(controller.signal)
+    loader
+      .current(controller.signal)
       .then((value) => {
         if (!controller.signal.aborted) setData(value);
       })
@@ -51,7 +58,7 @@ export function useLoad<T>(
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [...deps, revision]);
+  }, [requestKey, revision]);
   return {
     data,
     error,

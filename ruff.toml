@@ -1,0 +1,7 @@
+target-version = "py311"
+exclude = [".venv", ".tools", ".artifacts", "node_modules"]
+
+[lint]
+# Syntax, invalid statements/comparisons and undefined/exported names.
+# Existing style is preserved; this is not a repository-wide formatting migration.
+select = ["E9", "F63", "F7", "F82"]

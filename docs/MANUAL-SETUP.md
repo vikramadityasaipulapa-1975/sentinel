@@ -409,3 +409,29 @@ keep frontend/backend same origin over HTTPS, support /dashboard deep links and 
 and perform the existing hosted bootstrap/DB/worker/collector setup. No frontend
 configuration needs a database password or JWT signing secret. Cloud provisioning
 can still wait until the separately approved deployment phase.
+
+## P10.1 — Local checks and GitHub Actions
+
+1. Open PowerShell at `V:\sentinel\sentinel`. After pulling dependency changes,
+   run `npm ci` using Node 24.11.1. Keep the existing Python requirements installed
+   in `.venv`; no new database, cloud account or repository secret is required.
+2. Run `.venv\Scripts\python.exe scripts/check.py fast`. Expect CHECK/PASS lines
+   and an ignored `.artifacts/ci-fast.json` summary. Database tests are excluded
+   explicitly here; this result alone does not verify the running backend.
+3. Start the existing local API/evidence/knowledge/observability stack and ensure
+   the training sandbox images exist. Run
+   `.venv\Scripts\python.exe scripts/check.py integration`. This includes an
+   actual simulated-payment rollback in the separate training sandbox. Do not
+   run `scripts/ci-bootstrap.py` locally; it is guarded for fresh Linux CI only.
+4. Open the repository on GitHub → Actions → Sentinel checks → latest commit.
+   Review both Fast checks jobs and Integration and browser. Open a failed step
+   for its error; download summary artifacts if present. Never upload your .env
+   files or credentials to diagnose a failure. Public hosting is still pending.
+5. Optional, after a successful run: Settings → Rules → Rulesets → New branch
+   ruleset → target main → Require status checks to pass → select both fast
+   matrix checks and Integration and browser → save if your GitHub plan permits.
+   Requiring pull requests changes your current direct-push workflow; decide that
+   separately. These repository rules are not changed automatically by P10.1.
+
+No manual cloud provisioning is needed for P10.1. GitHub Actions was confirmed
+enabled; account allowance or organization policy can still prevent runner use.

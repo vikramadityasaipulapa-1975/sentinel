@@ -21,8 +21,8 @@
     "verify:p1": ".venv\\Scripts\\python.exe scripts/verify-p1.py",
     "verify:p2": ".venv\\Scripts\\python.exe scripts/verify-p2.py --backend native",
     "verify:p2:compose": ".venv\\Scripts\\python.exe scripts/verify-p2.py --backend compose",
-    "format": "prettier --write package.json \"services/checkout-service/**/*.ts\" \"services/checkout-service/*.json\" \"services/payment-service/*.json\" scripts/load-checkout.js README.md \"docs/*.md\" infrastructure/compose.yaml \"apps/api/**/*.ts\" \"apps/api/*.json\" infrastructure/compose.api.yaml \"apps/api/public/*\" infrastructure/compose.observability.yaml \"infrastructure/observability/*.yaml\" \"apps/ai-engine/evaluation/*.json\" \"knowledge/**/*.md\" \"knowledge/*.json\" infrastructure/compose.knowledge.yaml infrastructure/compose.sandbox.yaml \"apps/web/**/*.{ts,tsx,css,html,json}\"",
-    "format:check": "prettier --check package.json \"services/checkout-service/**/*.ts\" \"services/checkout-service/*.json\" \"services/payment-service/*.json\" scripts/load-checkout.js README.md \"docs/*.md\" infrastructure/compose.yaml \"apps/api/**/*.ts\" \"apps/api/*.json\" infrastructure/compose.api.yaml \"apps/api/public/*\" infrastructure/compose.observability.yaml \"infrastructure/observability/*.yaml\" \"apps/ai-engine/evaluation/*.json\" \"knowledge/**/*.md\" \"knowledge/*.json\" infrastructure/compose.knowledge.yaml infrastructure/compose.sandbox.yaml \"apps/web/**/*.{ts,tsx,css,html,json}\"",
+    "format": "prettier --write package.json \"services/checkout-service/**/*.ts\" \"services/checkout-service/*.json\" \"services/payment-service/*.json\" scripts/load-checkout.js README.md \"docs/*.md\" infrastructure/compose.yaml \"apps/api/**/*.ts\" \"apps/api/*.json\" infrastructure/compose.api.yaml \"apps/api/public/*\" infrastructure/compose.observability.yaml \"infrastructure/observability/*.yaml\" \"apps/ai-engine/evaluation/*.json\" \"knowledge/**/*.md\" \"knowledge/*.json\" infrastructure/compose.knowledge.yaml infrastructure/compose.sandbox.yaml \"apps/web/**/*.{ts,tsx,css,html,json}\" eslint.config.mjs \".github/workflows/*.yml\" \"infrastructure/ci/*.yaml\"",
+    "format:check": "prettier --check package.json \"services/checkout-service/**/*.ts\" \"services/checkout-service/*.json\" \"services/payment-service/*.json\" scripts/load-checkout.js README.md \"docs/*.md\" infrastructure/compose.yaml \"apps/api/**/*.ts\" \"apps/api/*.json\" infrastructure/compose.api.yaml \"apps/api/public/*\" infrastructure/compose.observability.yaml \"infrastructure/observability/*.yaml\" \"apps/ai-engine/evaluation/*.json\" \"knowledge/**/*.md\" \"knowledge/*.json\" infrastructure/compose.knowledge.yaml infrastructure/compose.sandbox.yaml \"apps/web/**/*.{ts,tsx,css,html,json}\" eslint.config.mjs \".github/workflows/*.yml\" \"infrastructure/ci/*.yaml\"",
     "test:api": "npm run test --workspace=@sentinel/api",
     "start:api": "node --env-file=.env.api apps/api/dist/src/server.js",
     "verify:p3.1": ".venv\\Scripts\\python.exe scripts/verify-p3.py --task P3.1",
@@ -41,9 +41,16 @@
     "dev:web": "npm run dev --workspace=@sentinel/web",
     "test:web": "npm run test --workspace=@sentinel/web",
     "test:web:browser": "npm run test:browser --workspace=@sentinel/web",
-    "verify:p9": "npm run build --workspace=@sentinel/web && npm run build --workspace=@sentinel/api && .venv\\Scripts\\python.exe scripts/verify-p9.py"
+    "verify:p9": "npm run build --workspace=@sentinel/web && npm run build --workspace=@sentinel/api && .venv\\Scripts\\python.exe scripts/verify-p9.py",
+    "lint:js": "eslint apps/api/src apps/api/test services/checkout-service/src services/checkout-service/test apps/web/src apps/web/browser apps/web/vite.config.ts apps/web/playwright.config.ts",
+    "check": "python scripts/check.py fast",
+    "check:integration": "python scripts/check.py integration"
   },
   "devDependencies": {
-    "prettier": "3.9.10"
+    "@eslint/js": "10.0.1",
+    "eslint": "10.13.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "prettier": "3.9.10",
+    "typescript-eslint": "8.71.2"
   }
 }

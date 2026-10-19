@@ -1,0 +1,7 @@
+# CI-only Linux host-network override. Native demo listeners remain loopback-only.
+services:
+  prometheus:
+    ports: !reset []
+    network_mode: host
+    extra_hosts:
+      - "host.docker.internal:127.0.0.1"

@@ -1,0 +1,96 @@
+name: Sentinel checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fast:
+    name: Fast checks (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    env:
+      PYTHONUTF8: "1"
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.11.1
+          cache: npm
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            services/payment-service/requirements.txt
+            apps/ai-engine/requirements.txt
+      - run: npm ci
+      - run: python -m pip install -r services/payment-service/requirements.txt -r apps/ai-engine/requirements.txt
+      - run: python scripts/check.py fast
+      - name: Upload safe check summary
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fast-summary-${{ runner.os }}
+          path: .artifacts/ci-fast.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+  integration:
+    name: Integration and browser
+    runs-on: ubuntu-24.04
+    needs: fast
+    timeout-minutes: 30
+    env:
+      PYTHONUTF8: "1"
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.11.1
+          cache: npm
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            services/payment-service/requirements.txt
+            apps/ai-engine/requirements.txt
+      - run: npm ci
+      - run: python -m pip install -r services/payment-service/requirements.txt -r apps/ai-engine/requirements.txt
+      - run: npx playwright install --with-deps chromium
+        working-directory: apps/web
+      - run: python scripts/ci-bootstrap.py
+      - name: Upload safe verification summaries
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: integration-summaries
+          path: |
+            .artifacts/ci-integration.json
+            .artifacts/p3-5-verification.json
+            .artifacts/p6-workflow-verification.json
+            .artifacts/p7-knowledge-verification.json
+            .artifacts/p8-sandbox-verification.json
+            .artifacts/p9-browser-verification.json
+          if-no-files-found: ignore
+          retention-days: 7

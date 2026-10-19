@@ -1,6 +1,6 @@
 # Sentinel progress
 
-Current phase/task: P9.1-P9.6 local React dashboard software complete; hosted setup deferred
+Current phase/task: P10.1 portable test/lint/CI implementation in progress; hosted setup deferred
 Status: P1-P9 LOCAL SOFTWARE VERIFIED; cloud deployment, chat-model quality and learner checkpoints remain open
 Last fully accepted software phase: P9 local dashboard with role/evidence/streaming/browser checks; public hosting and production remediation unperformed
 Last completed learner checkpoint: none confirmed
@@ -1650,3 +1650,27 @@ P3.4 requires its own explanation/approval before implementation.
   positive/negative tests, debugging and learner questions/exercise for each task.
 - Public hosting/model quality and learner checkpoints remain open; P10 not started.
 - Commit: feat(P9.6): verify accessible responsive dashboard with isolated browser tests.
+
+## P10.1 — Portable checks and CI (2026-10-19 IST, in progress)
+
+- Approval: user continued after detailed P10.1 concepts/files/risks/tests plan.
+- Added pinned JS lint tooling, existing-Ruff safety rules, portable fail-fast tiers,
+  stdin positive/negative controls and separate fast vs required integration checks.
+- Workflow: official full-SHA action pins, read-only permissions, Windows/Linux fast
+  matrix, Linux integration, time limits/cancellation and safe summary artifacts.
+  Fresh-runner bootstrap guards existing state; CI-only Prometheus host override
+  preserves local loopback bindings. No schema/API/production deployment changes.
+- Lint baseline found six issues; intentional control rejection retained with local
+  comments, useLoad dependency handling and dialog cleanup improved, unused parameter
+  renamed. New stale-response and fail-fast/developer-state regressions added.
+- Actions API availability confirmed enabled. Compose override config validation
+  passed without starting/changing local containers. Negative/positive lint probes
+  and failure propagation passed. Local acceptance passed; remote acceptance pending.
+- Local fast: checkout 17, API non-DB 42, React 20, payment 32 and engine 50
+  passed. Updated scripts suite: 13 passed. Format, lint and stdin controls passed.
+- Local integration: cumulative API 98 passed (zero skips), deployment-reader
+  permission checks, sequential/parallel live evidence, real embeddings/pgvector,
+  real isolated Docker rollback/security checks and all 9 browser checks passed.
+  Test databases/containers cleaned; developer records and persistent volumes retained.
+- Walkthrough, commands, test scope, security, manual steps and learner questions
+  are in docs/P10-LEARNING-GUIDE.md. No P10.2 work started.

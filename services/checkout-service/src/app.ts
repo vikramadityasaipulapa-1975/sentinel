@@ -58,7 +58,7 @@ export function createApp(
   });
 
   // Registered last so only requests without a matching route reach this handler.
-  app.use((_request, response) => {
+  app.use((_request, _response) => {
     throw new HttpError(404, "NOT_FOUND", "Route not found");
   });
   app.use(handleError);
