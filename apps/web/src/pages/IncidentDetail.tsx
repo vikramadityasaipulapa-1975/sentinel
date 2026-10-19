@@ -1,3 +1,4 @@
+import { EvidenceWorkspace } from "../components/EvidenceWorkspace";
 import { useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { message, services } from "../api/client";
@@ -101,13 +102,7 @@ export function IncidentDetail() {
                 </div>
               )}
           </section>
-          <section className="panel">
-            <h2>Investigation workspace</h2>
-            <p className="muted">
-              Evidence, saved reports and live investigation progress will be
-              added in the next approved tasks.
-            </p>
-          </section>
+          <EvidenceWorkspace key={id} incidentId={id} />
         </>
       )}
     </>

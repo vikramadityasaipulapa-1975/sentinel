@@ -331,3 +331,111 @@ textarea:focus-visible {
   text-align: center;
   padding: 44px;
 }
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 30px 0 18px;
+}
+.section-heading h2,
+.section-heading h3 {
+  margin: 0;
+}
+.panel .section-heading {
+  margin: 0 0 16px;
+}
+.run-picker {
+  max-width: 650px;
+  margin: 20px 0;
+}
+.charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+}
+.metric {
+  margin: 0;
+  background: #111c20;
+  border: 1px solid var(--line);
+  padding: 15px;
+  border-radius: 8px;
+  min-width: 0;
+}
+.metric figcaption {
+  display: grid;
+  gap: 4px;
+}
+.metric svg {
+  width: 100%;
+  height: auto;
+  margin-top: 15px;
+}
+.metric details {
+  font-size: 12px;
+}
+details {
+  border-top: 1px solid var(--line);
+  padding: 12px 0;
+}
+summary {
+  cursor: pointer;
+  color: var(--accent);
+  padding: 4px 0;
+}
+.raw {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  background: #0c1619;
+  padding: 16px;
+  border-radius: 6px;
+  max-height: 350px;
+  overflow: auto;
+}
+.provenance dt {
+  font-size: 12px;
+  color: var(--muted);
+}
+.provenance dd {
+  margin: 6px 0 14px;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.hash {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+}
+.citation {
+  white-space: pre-wrap;
+  border-left: 2px solid var(--accent);
+  padding-left: 16px;
+}
+.table-scroll {
+  max-width: 100%;
+  overflow: auto;
+  max-height: 260px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+th,
+td {
+  text-align: left;
+  padding: 9px;
+  border-bottom: 1px solid var(--line);
+}
+caption {
+  text-align: left;
+  color: var(--muted);
+  padding: 8px;
+}
+.hypothesis {
+  border-left: 2px solid var(--accent);
+  padding-left: 20px;
+  margin: 20px 0;
+}

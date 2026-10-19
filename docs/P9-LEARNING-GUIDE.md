@@ -142,3 +142,55 @@ Exercise: add a clear-filters control using URL search parameters and test it.
 ### Commit summary
 
 feat(P9.2): add incident workspace with filters and server-confirmed status
+
+## P9.3 — Saved metrics, logs, evidence and knowledge
+
+### Concept → Architecture/data flow → File plan
+
+A chart is a view of samples, not proof of causation. Missing observations stay
+missing. The screen reads saved /investigations/:id/evidence and /report responses;
+it never queries arbitrary collector URLs from browser input.
+
+- src/api/evidence.ts reads bounded investigation/snapshot pages, rejects unverified
+  evidence and filters/sorts finite metric pairs. chartPaths splits intervals when
+  samples are farther apart than the recorded step; numeric zero is preserved.
+- MetricChart.tsx renders SVG charts without a chart dependency, plus accessible
+  sample tables. Error ratios are scaled to percent; rate and latency keep their
+  recorded units. Pointwise p95 is not an aggregate raw-request percentile.
+- EvidenceWorkspace.tsx loads paged run history, allows selecting a run in the URL,
+  and mounts EvidenceView keyed by run ID so old results cannot cross runs.
+  Evidence pages merge by snapshot ID, while reports are loaded independently.
+  SnapshotCard displays source/window/hash/query, explicit EMPTY/UNAVAILABLE,
+  bounded log samples and raw descriptive calculations. Report renders facts with
+  snapshot anchors, hypotheses, limitations, model status and exact guidance quotes.
+  Retrieved text is React text, never executable HTML; similarity is not confidence.
+- IncidentDetail.tsx embeds the workspace; CSS adds responsive charts/tables and
+  provenance. Reader/chart tests exercise zero/gaps, malformed integrity and units.
+
+### Approval checkpoint → Implementation → Run/test
+
+Included in approved P9 plan. No schema/API change or manual configuration.
+Production build and 12 frontend tests passed. An intermediate JSX syntax error
+was fixed before the passing run. These chart tests use synthetic samples; final
+browser tests read stored backend snapshots to compare displayed sample values.
+Commands remain `npm run build --workspace=@sentinel/web` and `npm run test:web`.
+
+### Walkthrough → Debug
+
+Queued/older runs may return no report: that error is shown without hiding other
+snapshots. Refresh saved results rereads immutable records; it does not enqueue a
+job. Non-finite values are not plotted as zeros. Browser API errors remain visible.
+Hashes are backend-verified integrity checks, not assertions that evidence is true.
+No cloud setup is required. Sparse local traffic can still produce PARTIAL reports.
+
+### Understanding check
+
+1. Why must a chart leave a gap rather than join distant observations?
+2. Why are retrieved log counts not total request counts?
+3. Why does a valid citation not establish a cause?
+
+Exercise: add an explanatory tooltip to one metric unit without changing its data.
+
+### Commit summary
+
+feat(P9.3): visualize saved evidence with provenance and report citations

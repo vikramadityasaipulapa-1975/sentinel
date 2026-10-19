@@ -1588,3 +1588,14 @@ P3.4 requires its own explanation/approval before implementation.
 - No schema migration or manual setup required. File walkthrough, async/error flow,
   run/debug commands and learner questions/exercise are in P9 learning guide.
 - Commit: feat(P9.2): add incident workspace with filters and server-confirmed status.
+
+## P9.3 — Evidence presentation (2026-10-19 IST)
+
+- Approved P9 scope: saved metric SVG/sample tables, log truncation, deployment
+  states, calculations, exact provenance, reports/fact anchors and knowledge quotes.
+- Build passed; 12 frontend tests passed. Missing samples remain missing, numeric
+  zero preserved, large gaps split, units labelled and unverified snapshots rejected.
+  Intermediate JSX syntax failure corrected before acceptance. Fixtures are synthetic.
+- No manual setup, database migration or collector credentials in browser required.
+  P9 guide records file/function walkthrough, error paths, commands and learner checks.
+- Commit: feat(P9.3): visualize saved evidence with provenance and report citations.
