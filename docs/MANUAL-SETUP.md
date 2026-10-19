@@ -1,6 +1,6 @@
 # Sentinel manual setup checklist
 
-P5.1-P5.5 and P6.1-P6.5 are implemented locally. For provider-specific cloud database steps,
+P1–P9 are implemented locally. For provider-specific cloud database steps,
 read [HOSTED-SETUP.md](HOSTED-SETUP.md). No external deployment or paid resource
 has been created. Keep credentials in ignored configuration or a secret manager;
 never paste them into chat or Git.
@@ -362,3 +362,50 @@ Cloud setup can still wait. For public deployment, keep this sandbox executor
 private/off until a separate hosting/security review. A cloud DB alone does not
 provide the executor, API/worker, Redis, collectors, TLS or account bootstrap.
 See HOSTED-SETUP's P8 section for pending role/host boundaries.
+
+## P9 dashboard: use the application without copying UUIDs
+
+No new account, cloud DB or paid service is needed. Existing accounts and records
+remain valid. On a fresh pull run npm ci once to install the pinned web dependencies.
+
+1. Start Docker Desktop and wait until docker info succeeds with Linux containers.
+2. From the repo root start knowledge-local.py --database-only, then keep
+   api-local.py and observability-local.py in their separate terminals as before.
+3. For the built same-origin dashboard:
+
+   ```powershell
+   npm run build --workspace=@sentinel/web
+   npm run build --workspace=@sentinel/api
+   ```
+
+   Restart only the existing API supervisor to load new server code, then open
+   http://localhost:3000/dashboard/. Do not launch a second supervisor on 3000/8001.
+
+4. For development instead, leave the backend running and run npm run dev:web.
+   Open http://localhost:5173/dashboard/. Vite proxies /api to 127.0.0.1:3000.
+5. Sign in with your existing email/password. A page refresh requires login again;
+   no token is stored in localStorage, sessionStorage, URL parameters or cookies.
+6. Overview → View incidents, or the Incidents navigation item. Filter by service
+   and status. Open an incident; start an investigation if your role permits it.
+   Retrying the same submission keeps its key; New investigation key is deliberate.
+7. Timeline replays saved history and follows updates. Pause stops this browser's
+   connection only. Evidence/report views label saved collection windows, missing
+   data, partial results and model status. Refresh saved results does not enqueue.
+8. Sandbox review still requires fresh sandbox-local.py and the separate executor
+   watcher for real execution. Read the full binding and expiry, check the review
+   box and confirm explicitly as ADMIN. Never expose a Docker socket to the UI.
+
+Browser regression checks (developer use): npm run verify:p9 builds both apps and
+creates/removes its own local test DB with generated temporary accounts. It uses
+installed Edge on Windows. If unavailable, install Playwright's Chromium using
+`npx playwright install chromium`, set `$env:SENTINEL_WEB_BROWSER_CHANNEL='chromium'`
+and rerun. On non-Windows it defaults to Playwright Chromium. Tests never need your
+password. Traces/videos are off; screenshots/logs are in ignored .artifacts only.
+The test-only background harness collects real engine evidence without a production
+BullMQ worker; the cumulative API verifier separately tests the real queue.
+
+Public hosting is still pending. Package apps/web/dist with the API deployment,
+keep frontend/backend same origin over HTTPS, support /dashboard deep links and SSE,
+and perform the existing hosted bootstrap/DB/worker/collector setup. No frontend
+configuration needs a database password or JWT signing secret. Cloud provisioning
+can still wait until the separately approved deployment phase.

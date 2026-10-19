@@ -3,6 +3,7 @@ export function Confirmation({
   title,
   children,
   busy,
+  disabled = false,
   onCancel,
   onConfirm,
   label,
@@ -10,6 +11,7 @@ export function Confirmation({
   title: string;
   children: ReactNode;
   busy: boolean;
+  disabled?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
   label: string;
@@ -38,7 +40,11 @@ export function Confirmation({
         <button autoFocus disabled={busy} onClick={onCancel}>
           Cancel
         </button>
-        <button className="primary" disabled={busy} onClick={onConfirm}>
+        <button
+          className="primary"
+          disabled={busy || disabled}
+          onClick={onConfirm}
+        >
           {busy ? "Submitting decision…" : label}
         </button>
       </div>

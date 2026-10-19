@@ -296,7 +296,7 @@ export function Remediations({
                   Actor: {String(event.actor_id ?? "Executor/system")}
                 </p>
                 {event.observations !== null && (
-                  <pre className="raw">
+                  <pre className="raw" tabIndex={0}>
                     {JSON.stringify(event.observations, null, 2)}
                   </pre>
                 )}
@@ -306,7 +306,7 @@ export function Remediations({
           {detail.data.result != null && (
             <details>
               <summary>Recorded verification result</summary>
-              <pre className="raw">
+              <pre className="raw" tabIndex={0}>
                 {JSON.stringify(detail.data.result, null, 2)}
               </pre>
             </details>
@@ -326,6 +326,7 @@ export function Remediations({
               : "Reject this exact proposal?"
           }
           busy={busy}
+          disabled={!eligible}
           onCancel={() => setConfirm(null)}
           onConfirm={() => void decide()}
           label={

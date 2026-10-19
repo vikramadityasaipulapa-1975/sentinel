@@ -6,7 +6,11 @@ import { useSession } from "../auth/Session";
 import { Badge, Notice, useLoad, When } from "./Common";
 import { MetricCharts } from "./MetricChart";
 function Json({ value }: { value: unknown }) {
-  return <pre className="raw">{JSON.stringify(value, null, 2)}</pre>;
+  return (
+    <pre className="raw" tabIndex={0}>
+      {JSON.stringify(value, null, 2)}
+    </pre>
+  );
 }
 function SnapshotCard({ item }: { item: Snapshot }) {
   return (
@@ -80,7 +84,58 @@ function SnapshotCard({ item }: { item: Snapshot }) {
                 "Descriptive comparisons only; not causal proof.",
             )}
           </p>
-          <Json value={item.data.comparisons ?? item.data} />
+          <div
+            className="table-scroll"
+            tabIndex={0}
+            role="region"
+            aria-label="Scrollable evidence table"
+          >
+            <table>
+              <caption>Adjacent-window descriptive comparisons</caption>
+              <thead>
+                <tr>
+                  <th>Measurement</th>
+                  <th>Before</th>
+                  <th>After</th>
+                  <th>Change</th>
+                  <th>Coverage/status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(record(item.data.comparisons ?? {})).map(
+                  ([key, value]) => {
+                    const r = record(value);
+                    const scale = key === "error_ratio" ? 100 : 1;
+                    const format = (v: unknown) =>
+                      typeof v === "number" && Number.isFinite(v)
+                        ? Number((v * scale).toPrecision(5)).toString()
+                        : "Unavailable";
+                    return (
+                      <tr key={key}>
+                        <th>
+                          {key.replaceAll("_", " ")}
+                          {key === "error_ratio"
+                            ? " (%)"
+                            : key === "p95_seconds"
+                              ? " (seconds)"
+                              : " (requests/s)"}
+                        </th>
+                        <td>{format(r.before_mean)}</td>
+                        <td>{format(r.after_mean)}</td>
+                        <td>{format(r.absolute_delta)}</td>
+                        <td>
+                          {String(r.status).replaceAll("_", " ")}
+                          {r.relative_reason
+                            ? ` · ${String(r.relative_reason).replaceAll("_", " ")}`
+                            : ""}
+                        </td>
+                      </tr>
+                    );
+                  },
+                )}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
       <details>
@@ -138,7 +193,28 @@ function Report({ value }: { value: unknown }) {
           return (
             <article className="hypothesis" key={i}>
               <h3>{String(h.title ?? h.category ?? "Hypothesis")}</h3>
-              <Json value={h} />
+              <p className="small muted">
+                Rank {String(h.rank)} · uncertainty: {String(h.uncertainty)}{" "}
+                (not a calibrated probability)
+              </p>
+              <p>
+                Supporting facts:{" "}
+                {array(h.supporting_fact_ids ?? []).map((id, i) => (
+                  <span key={i}>
+                    <a href={`#fact-${text(id)}`}>{text(id)}</a>
+                    {i < array(h.supporting_fact_ids ?? []).length - 1
+                      ? ", "
+                      : ""}
+                  </span>
+                ))}
+              </p>
+              <p className="small muted">
+                Contradicting facts:{" "}
+                {array(h.contradicting_fact_ids ?? [])
+                  .map(text)
+                  .join(", ") ||
+                  "None cited; this does not prove there are none."}
+              </p>
             </article>
           );
         })
@@ -148,7 +224,7 @@ function Report({ value }: { value: unknown }) {
         {array(report.facts).map((value, i) => {
           const fact = record(value);
           return (
-            <li key={i}>
+            <li key={i} id={`fact-${text(fact.id)}`}>
               <a href={`#snapshot-${text(fact.snapshot_id)}`}>
                 {text(fact.id)}
               </a>

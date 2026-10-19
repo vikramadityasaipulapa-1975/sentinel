@@ -1,8 +1,8 @@
 # Sentinel progress
 
-Current phase/task: P9.1 dashboard foundation complete; P9.2-P9.6 approved and in progress
-Status: P1-P8 LOCAL SOFTWARE VERIFIED; cloud deployment, chat-model quality and learner checkpoints remain open
-Last fully accepted software phase: P8 local human-approval/sandbox boundaries verified; production remediation and public hosting unperformed
+Current phase/task: P9.1-P9.6 local React dashboard software complete; hosted setup deferred
+Status: P1-P9 LOCAL SOFTWARE VERIFIED; cloud deployment, chat-model quality and learner checkpoints remain open
+Last fully accepted software phase: P9 local dashboard with role/evidence/streaming/browser checks; public hosting and production remediation unperformed
 Last completed learner checkpoint: none confirmed
 
 ## P1.1 task record
@@ -1622,3 +1622,31 @@ P3.4 requires its own explanation/approval before implementation.
   fresh sandbox preparation, separate watcher and explicit human approval. Full
   file/function walkthrough, errors/security and learner exercise are in P9 guide.
 - Commit: feat(P9.5): add exact sandbox approval review and audit interface.
+
+## P9.6 — Responsive accessible dashboard acceptance (2026-10-19 IST)
+
+- Approved six-task scope completed: responsive layout, route focus/skip link,
+  recoverable invalid data, keyboard-scrollable evidence, bounded idle streams,
+  disabled stale confirmation, and clear loading/empty/error/partial states.
+- Final production builds passed. 19 frontend tests passed. 9 real Edge browser
+  tests passed (29.9s), including exact saved sample comparison, persisted incidents,
+  investigation progression/replay, real backend role denial/approval, duplicate-click
+  guard, mobile URL pagination/evidence, escaped text and injected failure/expiry.
+- Axe reported zero A/AA violations on tested overview/evidence/modal/mobile views;
+  keyboard/390px overflow checks passed. No full screen-reader/device audit claimed.
+- Test fixture uses generated accounts and a guarded disposable local API DB; real
+  engine evidence is stored/read. Its test-only poller is not BullMQ. Synthetic
+  sandbox bindings exercise UI/backend authorization without any Docker execution.
+- Cumulative API/P3.5 verifier passed all 98 tests, zero skips/failures, with required
+  live knowledge and evidence, real isolated PostgreSQL/Redis/BullMQ, dashboard
+  HTTP/CSP/deep-link boundaries and restart/outage recovery. Report project:
+  p3-5-290b67b9. Test containers removed, volumes retained.
+- Initial harness/keyboard/select-locator failures corrected before the final full
+  passing rerun. Failed temporary DBs also cleaned. Final browser report and visual
+  evidence are ignored .artifacts/p9-* files, not credentials committed to Git.
+- Manual setup: no new account/DB/cloud task. npm ci after pulling; use dev:web or
+  built /dashboard with existing backend. Existing main account/incident untouched.
+  Manual/learning guides document commands, files/functions, async/error/security,
+  positive/negative tests, debugging and learner questions/exercise for each task.
+- Public hosting/model quality and learner checkpoints remain open; P10 not started.
+- Commit: feat(P9.6): verify accessible responsive dashboard with isolated browser tests.

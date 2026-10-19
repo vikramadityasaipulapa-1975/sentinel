@@ -297,3 +297,131 @@ Exercise: add a read-only explanation beside the expiry time without extending i
 ### Commit summary
 
 feat(P9.5): add exact sandbox approval review and audit interface
+
+## P9.6 — Accessibility, responsive layout and complete browser verification
+
+### Concept → Architecture/data flow → File plan
+
+Accessibility makes information and controls usable without assuming a mouse or
+large screen. Loading, empty, invalid, unauthorized and unavailable are different
+states. A failed read must not silently look like a healthy empty result.
+
+- App.tsx adds a keyboard skip link, main-content focus on route/auth transitions
+  and a route-keyed ErrorBoundary. It preserves routing/session state during links.
+- ErrorBoundary.tsx displays a recoverable error screen for unexpected render data
+  without logging operational payloads. Reload explicitly requires reauthentication.
+- styles.css adds narrow-screen navigation, wrapping filters/actions/metadata,
+  single-column evidence charts, focus rings, readable dialog bounds and reduced
+  motion support. Scrollable tables/raw panels have keyboard focus and table regions
+  have accessible names. Empty/partial/unavailable states retain clear text labels.
+- EvidenceWorkspace renders comparisons and hypothesis references as readable
+  tables/links rather than requiring raw JSON interpretation. Raw provenance remains
+  available in details; untrusted text is always escaped by React.
+- Stream parsing bounds complete and incomplete frames. LiveTimeline cancels a
+  connection after 30 seconds without a received chunk/heartbeat, clears that timer
+  and abort listener in finally, then uses its existing bounded reconnect budget.
+- Confirmation disables stale/expired confirmation while preserving Cancel. The
+  pending ref blocks a second click synchronously, before React rerenders.
+- apps/api/test/dashboard-fixture.ts guards an owned sentinel_p9_verify_* local DB,
+  applies real migrations and creates generated temporary role accounts. It calls
+  the real engine and persists validated snapshots/reports. A test-only polling
+  harness advances investigations through actual repository claim/finish methods;
+  it is not the production BullMQ worker. The existing cumulative verifier covers
+  actual Redis/BullMQ delivery, outages and crash recovery.
+- scripts/verify-p9.py creates only that random test DB, passes generated secrets in
+  environment variables, chooses a free loopback port, launches the test backend,
+  runs browsers and removes the DB in finally. No learner account is used. Sandbox
+  bindings are explicitly synthetic and no Docker executor is invoked by this test.
+- apps/web/browser/dashboard.spec.ts uses real Edge/HTTP/backend and live engine
+  reads. Explicit HTTP failure/malicious-text/expiry overrides test browser handling;
+  those injected cases are not real outages or real malicious production records.
+- playwright.config.ts selects installed Edge on Windows or Chromium elsewhere;
+  serial tests prevent synthetic proposal state conflicts. Traces/video are off to
+  avoid recording generated login secrets. Screenshots/logs are ignored artifacts.
+
+### Approval checkpoint → Implementation → Walkthrough
+
+Covered by the user's six-task approval. No database migration, hosted resource,
+paid service or real sandbox execution was added. New dependencies are pinned in
+package-lock.json. Local tests use generated credentials, not the learner's password.
+Native dialog focus goes to Cancel; Escape works while idle and close restores
+prior focus. Expired/changed data cannot silently retain a checked review.
+
+### Run/test — measured results
+
+From the repository root with Docker/local API/evidence/knowledge running:
+
+```powershell
+npm run test:web
+npm run verify:p9
+$env:TEST_KNOWLEDGE_REQUIRED='1'
+.venv\Scripts\python.exe scripts/verify-p3.py --task P3.5 --with-evidence
+npm run format:check
+```
+
+- 19 frontend tests passed, including memory-only session expiry, invalid render
+  recovery, exact action binding and safe unknown/missing data.
+- 9 real Edge browser tests passed on the final build (29.9 seconds): login/error/
+  logout, keyboard skip link and in-memory token handling; saved real evidence and
+  exact chart sample comparison to its persisted API snapshot; stream replay;
+  OPERATOR creation/investigation/status and reload persistence; backend VIEWER
+  rejection/ADMIN confirmation/audit; URL filter/cursor pagination; mobile empty
+  and evidence layouts; escaped malicious service text; revoked sessions; synthetic
+  storage/malformed responses; expired proposal. Two immediate confirm clicks
+  produced one backend decision request.
+- Axe reported zero WCAG A/AA violations on the tested overview, evidence, modal,
+  mobile filter and mobile evidence views. Keyboard focus/modal behavior and
+  390px-wide overflow checks passed. This is not a complete screen-reader audit or
+  a claim that every assistive technology/physical mobile device was tested.
+- 98 cumulative backend tests passed, zero skipped/failed; full P3.5 verifier passed
+  with real isolated PostgreSQL/Redis and required live evidence/knowledge. It
+  includes dashboard CSP/assets/deep links and API/database/queue restart recovery.
+- Initial browser work found an unfocusable scroll panel and two incorrect select
+  test locators. These were fixed and the full final suite rerun. Initial harness
+  startup lacked the launcher-provided evidence URL; it was corrected and failed
+  attempts cleaned their test DBs. Failures were not counted as passes.
+- Final browser report: .artifacts/p9-browser-verification.json. Screenshots:
+  p9-evidence-desktop.png, p9-mobile.png and p9-evidence-mobile.png in .artifacts.
+  Backend report: .artifacts/p3-5-verification.json (project p3-5-290b67b9).
+
+### Debug → Manual setup → Hosting
+
+No new user account/cloud setup is required. After pulling, npm ci installs web
+packages. Use npm run dev:web (5173/dashboard/) or build web/API and restart the
+existing supervisor once for 3000/dashboard/. Do not run duplicate supervisors.
+Use your existing account; refreshing intentionally clears its in-memory session.
+The old auth-test page remains a diagnostic fallback. Invalid credentials show an
+error; 401 clears protected UI; 403 never becomes an approval success.
+
+For browser tests Edge is already installed on this machine. If it is unavailable,
+run npx playwright install chromium and set SENTINEL_WEB_BROWSER_CHANNEL=chromium
+in that test terminal. Never put DB/JWT/collector secrets into Vite variables.
+The verifier needs the local main database only to create/remove its own test DB;
+the production app has no browser access to its migration owner.
+
+Sparse metrics, truncated logs, disabled chat inference, or unavailable knowledge
+remain visible limitations. A successful dashboard does not turn them into complete
+evidence. Knowledge timeout under resource pressure is displayed as UNAVAILABLE;
+required live knowledge checks passed in the cumulative backend run. No real-world
+LLM quality, public deployment or production remediation claim is made.
+
+For hosting, package apps/web/dist with the API and use same-origin HTTPS. Existing
+host/port, private engine transport, hosted bootstrap, databases/Redis/worker,
+collectors, backups and SSE proxy acceptance work remains as documented in
+HOSTED-SETUP.md. Cloud setup can still wait; it has not been provisioned by P9.
+
+### Understanding check
+
+1. Why must empty, unavailable and partial evidence have different presentation?
+2. What does an automated accessibility pass prove, and what does it leave untested?
+3. Why do browser approval tests use synthetic bindings and never start Docker?
+
+Exercise: add an accessible hint to one loading/error state, then run its component
+and browser test. Learner answers and independent changes remain pending.
+
+### Commit summary
+
+feat(P9.6): verify accessible responsive dashboard with isolated browser tests
+
+P9.1–P9.6 software delivery is complete after the recorded checks and commit. P10
+requires a new learning-first explanation and approval; it is not started here.

@@ -408,3 +408,10 @@ http://localhost:3000/dashboard/ after rebuilding/restarting the API. Sign in wi
 your existing account; tokens are held in memory and refresh requires login.
 See [P9 learning guide](docs/P9-LEARNING-GUIDE.md) for task walkthroughs and checks.
 No hosted resources are provisioned by these commands.
+
+P9 includes incident filtering/detail, role-aware incident writes, saved metrics/logs,
+reports and knowledge citations, replayable investigation progress, and exact sandbox
+approval/audit review. Use `npm run test:web` for component checks and `npm run verify:p9`
+for isolated browser/accessibility checks. The latter requires the local DB/evidence
+stack and Edge (or installed Playwright Chromium). It never uses your account or
+executes Docker actions. See [manual setup](docs/MANUAL-SETUP.md) for detailed steps.

@@ -90,7 +90,12 @@ export function MetricCharts({
                 </svg>
                 <details>
                   <summary>Sample values · {points.length}</summary>
-                  <div className="table-scroll">
+                  <div
+                    className="table-scroll"
+                    tabIndex={0}
+                    role="region"
+                    aria-label="Scrollable evidence table"
+                  >
                     <table>
                       <caption>
                         {def.title} · {def.unit}

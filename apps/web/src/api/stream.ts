@@ -14,6 +14,8 @@ export function frames(buffer: string) {
     boundary: number;
   while ((boundary = remaining.indexOf("\n\n")) >= 0) {
     const block = remaining.slice(0, boundary);
+    if (block.length > 131072)
+      throw new Error("Progress event exceeds safe size");
     remaining = remaining.slice(boundary + 2);
     let event = "message",
       id: string | undefined;

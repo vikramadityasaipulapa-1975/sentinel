@@ -1,9 +1,12 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { SessionProvider } from "./auth/Session";
 import { App } from "./App";
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
 function mount() {
   render(
     <MemoryRouter>
@@ -83,4 +86,42 @@ test("invalid credentials keep protected content hidden and show an error", asyn
     "credentials invalid",
   );
   expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
+});
+
+test("session expiry removes protected content and explains reauthentication", async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      async (path: string) =>
+        new Response(
+          JSON.stringify(
+            path.endsWith("login")
+              ? {
+                  access_token: "synthetic-token",
+                  expires_in: 1,
+                  user: {
+                    id: "u1",
+                    email: "operator@example.test",
+                    role: "OPERATOR",
+                  },
+                }
+              : { services: [] },
+          ),
+          { status: 200 },
+        ),
+    ),
+  );
+  mount();
+  signin();
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(1001);
+  });
+  expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
+  expect(screen.getByRole("alert")).toHaveTextContent("Session expired");
 });

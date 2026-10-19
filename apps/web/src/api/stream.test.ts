@@ -33,4 +33,5 @@ test("wrong incident, invalid sequence and oversized buffers are rejected", () =
   expect(() => timelineEvent(row, "other")).toThrow();
   expect(() => timelineEvent({ ...row, sequence: "-1" }, "i")).toThrow();
   expect(() => frames("x".repeat(131073))).toThrow();
+  expect(() => frames("data: " + "x".repeat(131073) + "\n\n")).toThrow();
 });

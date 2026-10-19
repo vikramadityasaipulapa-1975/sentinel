@@ -36,6 +36,16 @@ export function LiveTimeline({
         attempt++
       ) {
         let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+        const connection = new AbortController();
+        const stopConnection = () => connection.abort();
+        controller.signal.addEventListener("abort", stopConnection, {
+          once: true,
+        });
+        let idleTimer = setTimeout(stopConnection, 30000);
+        const received = () => {
+          clearTimeout(idleTimer);
+          idleTimer = setTimeout(stopConnection, 30000);
+        };
         try {
           setStatus(
             attempt
@@ -51,7 +61,7 @@ export function LiveTimeline({
               },
               cache: "no-store",
               credentials: "omit",
-              signal: controller.signal,
+              signal: connection.signal,
             },
           );
           if (response.status === 401) {
@@ -78,6 +88,7 @@ export function LiveTimeline({
           while (!controller.signal.aborted) {
             const chunk = await reader.read();
             if (chunk.done) break;
+            received();
             buffer += decoder.decode(chunk.value, { stream: true });
             const parsed = frames(buffer);
             buffer = parsed.remaining;
@@ -107,6 +118,9 @@ export function LiveTimeline({
           if (controller.signal.aborted) return;
           setStatus(message(error));
         } finally {
+          clearTimeout(idleTimer);
+          controller.signal.removeEventListener("abort", stopConnection);
+          connection.abort();
           try {
             await reader?.cancel();
           } catch {
@@ -184,7 +198,7 @@ export function LiveTimeline({
             </div>
             <details>
               <summary>{event.type.replaceAll("_", " ")} details</summary>
-              <pre className="raw">
+              <pre className="raw" tabIndex={0}>
                 {JSON.stringify(event.payload, null, 2)}
               </pre>
             </details>

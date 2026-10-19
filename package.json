@@ -40,7 +40,8 @@
     "test:sandbox": ".venv\\Scripts\\python.exe -m pytest scripts/tests -q",
     "dev:web": "npm run dev --workspace=@sentinel/web",
     "test:web": "npm run test --workspace=@sentinel/web",
-    "test:web:browser": "npm run test:browser --workspace=@sentinel/web"
+    "test:web:browser": "npm run test:browser --workspace=@sentinel/web",
+    "verify:p9": "npm run build --workspace=@sentinel/web && npm run build --workspace=@sentinel/api && .venv\\Scripts\\python.exe scripts/verify-p9.py"
   },
   "devDependencies": {
     "prettier": "3.9.10"
