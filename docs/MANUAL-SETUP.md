@@ -435,3 +435,36 @@ can still wait until the separately approved deployment phase.
 
 No manual cloud provisioning is needed for P10.1. GitHub Actions was confirmed
 enabled; account allowance or organization policy can still prevent runner use.
+
+## P10.2 — Reproduce the local fault-quality experiment
+
+No new manual cloud setup, account or secret is required. Keep Docker Desktop
+running with Linux containers. Existing .env.api must point to the dedicated local
+sentinel_api database, and .env.evidence must contain the local SELECT-only deployment
+reader prepared in P5. Do not paste these values into chat or commit them.
+
+1. Open PowerShell at V:\sentinel\sentinel. Run `npm ci` after pulling and ensure
+   the existing Python requirements are installed in .venv.
+2. Ensure the existing API database and demo deployment database are available.
+   Follow the earlier api-local/init-local setup if they are not ready. The main
+   dashboard, engine and observability helper may remain running; this runner uses
+   distinct ports and collectors. No executor watcher is needed.
+3. Run `npm run build` and
+   `.venv\Scripts\python.exe -m pytest scripts/tests/test_quality.py -q`.
+4. Run `.venv\Scripts\python.exe scripts/verify-p10-quality.py`. Default: nine
+   trials, roughly 12–15 minutes including startup, collection and recovery. Output
+   reports each completed trial and ends with a summary. Avoid simultaneous load
+   experiments. An interrupted/failed run is not a nine-trial measurement.
+5. Read .artifacts/p10-quality.json and the named run's ignored results.json.
+   MEASURED means completed, not perfect quality. Check misses, duplicates, healthy
+   false positives, source coverage, saved reports, recovery and cleanup flags.
+   Read docs/P10-EVALUATION.md for the accepted measured sample.
+6. For a shorter diagnostic use `--repetitions 1` (three trials). Record its sample
+   size separately. `scripts/evaluate-p6.py` is synthetic evidence evaluation, not
+   another live nine-trial result. Do not merge those accuracy percentages.
+
+The runner generates and drops only its exact sentinel_p10_quality_* database and
+stops only its owned children/collector project. It does not stop shared collectors
+or rewrite .env files. Raw ignored logs/results are not uploaded by CI. Cleanup
+failure is reported; never use prune or delete persistent volumes to fix it.
+Public hosting is unchanged; continue the separate hosted guide when ready.

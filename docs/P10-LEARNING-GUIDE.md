@@ -146,3 +146,148 @@ passed Windows fast, Linux fast and fresh Linux integration/browser for db4a393.
 See PROGRESS.md for counts and the recorded first-run failure. A subsequent
 documentation-only commit records these observed results; its automatic CI run
 is a separate run, not evidence used retroactively for this record.
+
+## P10.2 — Fault matrix and incident quality
+
+### Concept
+
+A fault matrix lists controlled conditions and expected behavior before running
+an experiment. Detection delay is measured from fault-mode readiness/traffic start
+to the first observation of a new persisted incident. This includes scrape, rule
+hold, Alertmanager grouping/delivery and polling delay. It is not just API latency.
+Top-1 accuracy compares the first saved hypothesis category with the known injected
+category. Missing detections and unsaved reports remain in the denominator.
+Healthy controls measure false incident creation separately. These are simulated
+payments and local measurements; no production or chat-model accuracy is claimed.
+
+### Architecture/data flow
+
+Owned native checkout/payment → separate Prometheus and Alloy/Loki → separate
+Alertmanager → authenticated backend webhook → disposable PostgreSQL incident.
+An OPERATOR requests an investigation using the real API. Python calls the existing
+parallel engine workflow against the separate collectors and the existing SELECT-only
+local deployment registry. A test-only stdin processor claims the queued job and
+uses the existing backend finish transaction to validate/store evidence and report.
+The runner reads the saved report through authenticated HTTP with hash verification.
+This processor is not BullMQ, which was separately tested in P10.1. No knowledge
+retrieval, optional model inference, Docker executor or automatic remediation runs.
+
+The nine-trial default is three repetitions of healthy, payment error and payment
+timeout. Fault category is dependency for both fault modes: the checkout application
+is receiving failures/timeouts from its payment dependency. Healthy traffic runs
+35 seconds; faults run 40 seconds; each fault is followed by 45 seconds of healthy
+recovery. One request can be in flight, with a target interval of 0.5 seconds and
+an eight-second transport deadline. Achieved rates and HTTP counts are measured;
+slow requests lower throughput rather than creating an unbounded work queue.
+
+The existing 30-second error-ratio rule, six-second hold, two-second scrape/evaluation
+and Alertmanager grouping remain unchanged. Misses are reported at the observation
+budget, not retried indefinitely. Polling can overestimate incident persistence delay
+by roughly a request duration plus pacing/query overhead. Startup is excluded.
+
+### File plan → Approval checkpoint
+
+The user approved the preceding explanation with CONTIUE ALL. This implements all
+of P10.2's approved matrix, scoring, tests, documentation and delivery. P10.3 has
+not been implemented; it requires its own explanation and approval. No new API
+contract, schema, production dependency or hosted resource is introduced.
+
+### Implementation → Walkthrough
+
+- scripts/verify-p10-quality.py owns a uniquely named artifact directory and database.
+  settings reads existing ignored configuration without printing it. free_ports holds
+  probes until all six distinct loopback ports are selected; readiness checks catch
+  a later port race. launch keeps exact child handles and separate ignored logs.
+- mode stops only its previous payment child, starts normal/error/latency mode and
+  waits for health. traffic sends fresh simulated order IDs serially and records
+  actual status counts, elapsed time and requests/second. It never sends real money.
+- observe uses monotonic time and queries only the disposable database for newly
+  persisted episodes. Healthy incidents, duplicate incidents, misses, partial sources
+  and recovery outcomes are retained in JSON rather than hidden by a green label.
+- collect runs the existing read-only async tools in the parallel workflow, synthesizes
+  deterministic hypotheses and serializes exact evidence windows. Calls remain bounded
+  by existing tool/workflow deadlines. The Windows SelectorEventLoop is selected for
+  psycopg async reads. Short windows can produce INSUFFICIENT_DATA for metric halves;
+  log-supported hypotheses must not be described as complete metric comparisons.
+- apps/api/test/quality-fixture.ts refuses any database/directory outside its exact
+  generated local pattern, applies existing migrations, seeds services and creates a
+  temporary OPERATOR. It serves the existing authenticated routes on loopback.
+  Private stdin accepts bounded collections, claims a 30-second lease, and calls the
+  existing finish transaction. It exposes no new HTTP completion bypass. Backend
+  validation/hash/citation checks remain active. Credentials are environment-only.
+- scripts/quality_support.py generates Compose/configuration from existing pinned
+  collector images. Separate logs/configs/ports prevent existing telemetry and
+  Alertmanager deliveries from leaking into user incidents. Linux uses host networking
+  only for the two collectors needing loopback access, binding their web listeners
+  to 127.0.0.1. Windows uses Docker Desktop host forwarding. No shared named volumes.
+- summarize separates healthy controls, retains fault misses and failed reports in
+  top-1 denominator and refuses negative/nonfinite delays. Min/median/max apply only
+  to detected faults; that conditional sample count is always included.
+- apps/api/test/quality-fixture.test.ts launches the fixture with a main database
+  and a mismatched directory and proves both are rejected before connecting.
+- scripts/tests/test_quality.py checks a successful match, a missed detection, a
+  failed report, a healthy false positive, invalid times, empty data and Linux config
+  isolation. Existing rule tests remain separate from live quality measurements.
+- finally stops owned children, brings down only the unique collector project, drops
+  only the generated test database, deletes the generated webhook token and writes
+  ignored JSON reports. No .env rewrite, shared container stop, volume prune, account
+  mutation or production incident operation is performed.
+
+### Run/test
+
+From V:\sentinel\sentinel, with existing local API PostgreSQL and deployment-reader
+configuration ready, Node/Python requirements installed and Docker Linux engine up:
+
+```powershell
+$env:PYTHONUTF8='1'
+npm run build
+.venv\Scripts\python.exe -m pytest scripts/tests/test_quality.py -q
+.venv\Scripts\python.exe scripts/verify-p10-quality.py
+.venv\Scripts\python.exe scripts/evaluate-p6.py
+```
+
+Default live sample size is nine trials. --repetitions 1 is a three-trial diagnostic
+run and must not be reported as the nine-trial experiment. MEASURED means the matrix
+finished, not perfect detection/accuracy. FAILED means setup, execution or cleanup
+failed. Detailed outputs are ignored .artifacts/p10-quality.json and the unique
+run's results.json. Synthetic P6 evaluation is deliberately a separate artifact.
+Measured results, actual command outcomes and limitations belong in P10-EVALUATION.md.
+
+### Debug
+
+Missing compiled fixture: npm run build. No Docker: start Docker Desktop with Linux
+containers. Read only this run's ignored logs; do not paste credentials. No alerts:
+inspect the separate Prometheus target/rule state and Alertmanager route, then the
+isolated backend log. Do not point its receiver at the user's main API. A missing
+Loki source or unsaved report is not a successful hypothesis. Keep all failed trial
+records. Never delete development volumes to make an experiment pass.
+
+### Manual setup
+
+No new manual cloud setup, account or secret required. Existing local .env.api and
+.env.evidence must be prepared using the earlier guides. Docker Desktop must run.
+The runner generates separate local secrets and ports; it does not need the main
+API, observability helper, engine or executor stopped. This heavy experiment is an
+explicit developer command, not added to every fast CI push. Public hosting still
+requires the separate hosted setup; these local results do not provision it.
+
+### Understanding check
+
+1. Why would excluding missed detections inflate top-1 accuracy?
+2. Why are detection delays reported together with the number of detected faults?
+3. Why must recovery of an alert signal leave the incident open?
+
+Exercise: use --repetitions 1, compare achieved rates in error versus timeout trials,
+and explain why one in-flight request limits the timeout trial's throughput. Keep
+that diagnostic result distinct from the documented nine-trial run.
+
+### Commit summary
+
+feat(P10.2): measure isolated live fault detection and hypothesis quality.
+The nine-trial run completed: six faults detected/correct saved top category, zero
+incidents in three healthy controls, median detection 21.047 seconds, six recovery
+checks passed. This is a narrow dependency-only local sample with partial metric
+comparisons; see P10-EVALUATION.md and PROGRESS.md for actual results and limits.
+Changes are committed/pushed under the configured sole author after local checks.
+GitHub Actions verifies fast checks on both platforms and the existing integration
+tier; the heavy nine-trial quality experiment remains explicit local developer work.

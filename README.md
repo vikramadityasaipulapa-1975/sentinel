@@ -425,3 +425,13 @@ evidence, knowledge, sandbox and browser checks. CI runs fast checks on Windows
 and Linux, then integration on a fresh Linux runner. See the
 [P10 learning guide](docs/P10-LEARNING-GUIDE.md) for scope, debugging and safety
 controls. Never run the CI-only bootstrap against your development environment.
+
+## Fault-quality measurements (P10.2)
+
+With Docker and the existing dedicated local API/deployment databases available,
+run `npm run build`, then `.venv\Scripts\python.exe scripts/verify-p10-quality.py`.
+The default nine trials measure healthy controls, simulated payment errors/timeouts,
+incident detection, saved hypotheses and signal recovery in a separate local fixture.
+No real payments, model calls, user incidents or automatic remediation are involved.
+See [P10 learning guide](docs/P10-LEARNING-GUIDE.md) and
+[manual steps](docs/MANUAL-SETUP.md). Synthetic evaluations are kept separate.

@@ -1,6 +1,6 @@
 # Sentinel progress
 
-Current phase/task: P10.1 portable test/lint/CI verified; hosted setup deferred
+Current phase/task: P10.2 fault-quality matrix locally measured; CI delivery verification follows; hosted setup deferred
 Status: P1-P9 LOCAL SOFTWARE VERIFIED; cloud deployment, chat-model quality and learner checkpoints remain open
 Last fully accepted software phase: P9 local dashboard with role/evidence/streaming/browser checks; public hosting and production remediation unperformed
 Last completed learner checkpoint: none confirmed
@@ -1690,3 +1690,41 @@ P3.4 requires its own explanation/approval before implementation.
   optional merge rules and exact verification steps are in MANUAL-SETUP.md.
 - P10.1 software acceptance complete. P10.2 requires a new learning-first approval;
   public hosting, optional chat-model evaluation and learner checkpoints remain open.
+
+## P10.2 — Fault matrix and incident quality (2026-10-20 IST)
+
+- Approval: user continued all after the nine-trial fault-quality plan and approval
+  checkpoint. P10.2 only; later tasks retain their learning-first checkpoints.
+- Separate native checkout/payment ports, Prometheus/Loki/Alloy/Alertmanager project,
+  temporary OPERATOR, guarded disposable local database and private stdin processor.
+  Existing rule, webhook auth, migration, report validation and persistence reused.
+- Real async evidence tools and deterministic synthesis run against isolated telemetry;
+  SELECT-only existing deployment registry is read. No chat-model, knowledge retrieval,
+  BullMQ processor, executor or remediation is used by this experiment.
+- New scoring/config/cleanup tests pass: seven focused checks. Full scripts suite
+  passed 19 before the cleanup regression was added; final count recorded below.
+- Fresh API compilation, JS lint and Python safety lint passed. Synthetic baseline
+  rerun: 10 fixtures, 6/7 top-1 labelled causes, 18/18 citation references valid,
+  one false deployment attribution among six nondeployment causes; not live accuracy.
+- Completed live run sentinel_p10_quality_24d3a37eb651: nine trials, three healthy
+  controls, six dependency faults. Detected 6/6, no healthy false incidents (0/3),
+  one incident per fault, saved top category correct 6/6; no model inference.
+- Detection seconds: error 15.032/17.563/18.547; timeout 24.656/24.609/23.547.
+  Median 21.047, range 15.032–24.656, n=6 detected faults. Recovery passed 6/6;
+  resolved signals left incidents OPEN. Trial requests 569, recovery requests 540.
+- Actual HTTP cohorts, saved hashes/categories/model flags independently checked.
+  No owned containers, database or generated token remain after cleanup.
+- Limits retained: calculations PARTIAL 9/9, deployment EMPTY 9/9; Loki PARTIAL
+  3/9 from retrieval cap. Dependency-only live ranking is not broad causal or
+  production/model accuracy. Synthetic baseline remains a separate denominator.
+- Full table, sample size, protocol, uncertainty and reproduction in
+  docs/P10-EVALUATION.md. P10.3 not implemented.
+- Manual steps and task walkthrough added to the learning/manual guides. No new
+  manual cloud setup or secrets required. Public hosting remains deferred.
+
+- Final local fast tier PASSED: format, JS/Python lint, positive/negative controls,
+  all builds, checkout 17, API non-DB 43, React 20, payment 32, engine 50, scripts 20.
+  Live quality experiment is separate from synthetic fixtures and CI integration.
+- Commit subject: feat(P10.2): measure isolated live fault detection and hypothesis quality.
+  Configured Git account remains sole author; no co-author trailer. Remote workflow
+  outcome is verified separately in Actions rather than inferred from local tests.

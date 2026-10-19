@@ -44,7 +44,8 @@
     "verify:p9": "npm run build --workspace=@sentinel/web && npm run build --workspace=@sentinel/api && .venv\\Scripts\\python.exe scripts/verify-p9.py",
     "lint:js": "eslint apps/api/src apps/api/test services/checkout-service/src services/checkout-service/test apps/web/src apps/web/browser apps/web/vite.config.ts apps/web/playwright.config.ts",
     "check": "python scripts/check.py fast",
-    "check:integration": "python scripts/check.py integration"
+    "check:integration": "python scripts/check.py integration",
+    "verify:p10:quality": "python scripts/verify-p10-quality.py"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
