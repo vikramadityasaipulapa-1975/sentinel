@@ -266,3 +266,68 @@ textarea:focus-visible {
   outline: 3px solid #b5e7d2;
   outline-offset: 3px;
 }
+
+.filters {
+  display: flex;
+  gap: 18px;
+  align-items: end;
+  margin-bottom: 24px;
+}
+.filters label {
+  min-width: 180px;
+}
+.incident-list {
+  border-top: 1px solid var(--line);
+}
+.incident-row {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  padding: 22px 12px;
+  border-bottom: 1px solid var(--line);
+  text-decoration: none;
+  color: var(--text);
+}
+.incident-row:hover {
+  background: #1a2a2d;
+}
+.incident-main {
+  display: grid;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+.back {
+  display: inline-block;
+  margin-bottom: 24px;
+  text-decoration: none;
+}
+.metadata {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 20px;
+  margin: 0 0 24px;
+}
+.metadata dt {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+}
+.metadata dd {
+  margin: 8px 0 0;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+.empty {
+  text-align: center;
+  padding: 44px;
+}

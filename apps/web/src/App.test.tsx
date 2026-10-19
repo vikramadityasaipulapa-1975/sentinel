@@ -65,19 +65,17 @@ test("sign in renders real response services and sign out removes protected UI",
 test("invalid credentials keep protected content hidden and show an error", async () => {
   vi.stubGlobal(
     "fetch",
-    vi
-      .fn()
-      .mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            error: {
-              code: "UNAUTHORIZED",
-              message: "Authentication required or credentials invalid",
-            },
-          }),
-          { status: 401 },
-        ),
+    vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: {
+            code: "UNAUTHORIZED",
+            message: "Authentication required or credentials invalid",
+          },
+        }),
+        { status: 401 },
       ),
+    ),
   );
   mount();
   signin();

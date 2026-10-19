@@ -93,3 +93,52 @@ Learner answers/independent changes are pending.
 ### Commit summary
 
 feat(P9.1): add authenticated React dashboard and service overview
+
+## P9.2 — Incident list/detail, filtering and status
+
+### Concept → Architecture/data flow → File plan
+
+Filters/pagination are URL state; records remain PostgreSQL state. The Incidents
+page reads /incidents?status=&service_id=&cursor= with a bounded page size. Filter
+changes clear the cursor. Detail links contain the server ID. Refresh and writes
+reload confirmed server state rather than inventing optimistic state.
+
+- src/api/incidents.ts validates incident/page status and fields and describes the
+  existing status-transition choices. It does not authorize backend writes.
+- src/pages/Incidents.tsx uses URL search parameters, abortable reads and a
+  controlled creation form. The service registry supplies human-readable labels.
+  A ref blocks duplicate submissions before React's busy state rerenders.
+- src/pages/IncidentDetail.tsx loads an incident by route parameter, displays
+  dates/severity/status and offers allowed transitions to OPERATOR/ADMIN.
+  change(status) awaits PATCH, validates the response and refreshes the read.
+- App/Services add navigation and service-filter links. Router links preserve the
+  in-memory session, unlike full-page anchor reloads. CSS adds lists/metadata.
+- Unit tests validate good/bad record pages, closed transitions, VIEWER controls,
+  filter queries, empty results and network failures.
+
+### Approval checkpoint → Implementation → Run/test
+
+Covered by the user's six-task approval. No API/schema change or manual setup.
+`npm run build --workspace=@sentinel/web` passed; `npm run test:web` passed 9 tests.
+These frontend checks use synthetic mocked API responses; real database contracts
+are covered by the cumulative API verifier and final browser verification.
+
+### Walkthrough → Debug
+
+useLoad discards aborted responses after filter/navigation changes. Missing service
+names display IDs; service-registry errors are explicit. An empty list is shown only
+for a successful empty response, never as a substitute for failed storage. Backend
+403/409 messages remain visible. A full browser refresh requires login again, but
+URL filters and persisted incident state can then be read from the server.
+
+### Understanding check
+
+1. Why does changing a filter invalidate the old cursor?
+2. Why can hidden VIEWER buttons never replace API authorization?
+3. Why should a status update await the backend before displaying success?
+
+Exercise: add a clear-filters control using URL search parameters and test it.
+
+### Commit summary
+
+feat(P9.2): add incident workspace with filters and server-confirmed status

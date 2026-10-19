@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { services } from "../api/client";
 import { useSession } from "../auth/Session";
 import { Notice, useLoad } from "../components/Common";
@@ -17,7 +18,7 @@ export function Services() {
         </div>
         <button onClick={state.refresh}>Refresh services</button>
       </header>
-      {state.loading && <p role="status">Loading services…</p>}
+      {state.loading && <p role="status">Loading servicesâ€¦</p>}
       {state.error && <Notice>{state.error}</Notice>}
       {state.data && (
         <>
@@ -25,7 +26,7 @@ export function Services() {
             <strong>{state.data.length.toString().padStart(2, "0")}</strong>
             <span>registered services</span>
             <span className="muted">
-              Registry data · not a health assessment
+              Registry data Â· not a health assessment
             </span>
           </div>
           <div className="service-grid">
@@ -35,6 +36,13 @@ export function Services() {
                 <h2>{service.name}</h2>
                 <p className="muted">Owned by {service.owner}</p>
                 <code>{service.id}</code>
+                <p>
+                  <Link
+                    to={`/incidents?service_id=${encodeURIComponent(service.id)}`}
+                  >
+                    View incidents →
+                  </Link>
+                </p>
               </article>
             ))}
           </div>
