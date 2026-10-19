@@ -1,6 +1,6 @@
 # Sentinel progress
 
-Current phase/task: P8.1-P8.5 local sandbox software complete; hosted setup deferred
+Current phase/task: P9.1 dashboard foundation complete; P9.2-P9.6 approved and in progress
 Status: P1-P8 LOCAL SOFTWARE VERIFIED; cloud deployment, chat-model quality and learner checkpoints remain open
 Last fully accepted software phase: P8 local human-approval/sandbox boundaries verified; production remediation and public hosting unperformed
 Last completed learner checkpoint: none confirmed
@@ -1557,3 +1557,23 @@ P3.4 requires its own explanation/approval before implementation.
   a fresh faulty binding, then start sandbox_executor.py --watch and explicitly
   review/approve through the UI. No new setup is needed for ordinary investigations.
 - Documentation-only commit: test(P8.5): record completed sandbox regression and cleanup.
+
+## P9.1 — Authenticated React foundation (2026-10-19 IST)
+
+- Approval: user approved the detailed P9.1–P9.6 plan before code changes.
+- Implemented the apps/web workspace with pinned React/Router/Vite/Vitest/browser
+  dependencies, strict TypeScript, in-memory login/expiry, abortable typed API
+  reads, navigation and the real service registry screen. No schema migration.
+- Added optional built dashboard serving at /dashboard/ with CSP, deep links and
+  missing-asset/API boundaries; existing auth-test remains available. API test
+  script builds the frontend first so a fresh checkout can run the route test.
+- Verification: production build passed; 5 frontend tests passed; 1 real HTTP
+  built-asset/deep-link/CSP/404 test passed. Mock login/data are synthetic; tests
+  do not use the learner's password. Formatting and diff whitespace checks passed.
+- Manual setup: no new account/secrets/cloud work. npm ci; npm run dev:web;
+  open http://localhost:5173/dashboard/. Existing backend must be running.
+  Production assets are served after building web/API and restarting the API.
+- Full file walkthrough, arguments, async/error/security flow, debugging and 3
+  questions/independent exercise are in docs/P9-LEARNING-GUIDE.md. Learner answers
+  remain pending. Public deployment is not performed.
+- Commit: feat(P9.1): add authenticated React dashboard and service overview.

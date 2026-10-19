@@ -1,3 +1,4 @@
+import { dashboardRoutes } from "./dashboard.js";
 import { remediationRoutes } from "./remediation-routes.js";
 import type { RemediationStore } from "./remediation-repository.js";
 import express from "express";
@@ -122,6 +123,7 @@ export function createApp(
       response.sendFile(filename, { root: publicDirectory });
     });
   }
+  app.use(dashboardRoutes());
   app.post(
     "/api/v1/auth/login",
     express.json({ limit: "8kb" }),

@@ -397,3 +397,14 @@ After starting the current local stack, sign in at `/auth-test`, enqueue a fresh
 investigation and use **Hypothesis report** plus **Saved evidence**. Older P5 runs
 retain their evidence but have no report. All suggestions remain hypotheses;
 there is no automated remediation. Public/cloud setup can wait and is not deployed.
+
+## React dashboard (P9)
+
+The dashboard lives in `apps/web`. Build it before cumulative API tests:
+`npm run build --workspace=@sentinel/web`. Start local backend dependencies using
+the existing helpers, then `npm run dev:web` and open
+http://localhost:5173/dashboard/. The production build is served by the API at
+http://localhost:3000/dashboard/ after rebuilding/restarting the API. Sign in with
+your existing account; tokens are held in memory and refresh requires login.
+See [P9 learning guide](docs/P9-LEARNING-GUIDE.md) for task walkthroughs and checks.
+No hosted resources are provisioned by these commands.
