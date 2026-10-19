@@ -559,3 +559,11 @@ that value or test with a real provider token. Explain which rule caught it.
 feat(P10.4): verify secret hygiene and authorization audit boundaries.
 Record only actually completed checks; configured account is the sole author.
 P10.5 requires its own teaching plan and approval.
+
+## P10.5 — Reproducible local demo
+
+See [P10.5 complete task guide](P10-DEMO.md) for Concept → Architecture/data flow →
+File plan → Approval checkpoint → Implementation → Walkthrough → Run/test → Debug →
+Understanding check → Commit summary, exact Windows/Linux commands, preservation
+boundaries and pending hosted responsibilities. User approval covered this task;
+P10.6 has not been approved. Measured results are recorded separately in PROGRESS.md.

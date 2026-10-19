@@ -1,6 +1,6 @@
 # Sentinel progress
 
-Current phase/task: P10.4 security checks locally verified; strict local knowledge limitation recorded; hosted setup deferred
+Current phase/task: P10.5 approved demo workflow implemented; acceptance checks in progress; hosted setup deferred
 Status: P1-P9 LOCAL SOFTWARE VERIFIED; cloud deployment, chat-model quality and learner checkpoints remain open
 Last fully accepted software phase: P9 local dashboard with role/evidence/streaming/browser checks; public hosting and production remediation unperformed
 Last completed learner checkpoint: none confirmed
@@ -1805,3 +1805,45 @@ P3.4 requires its own explanation/approval before implementation.
 - Commit subject: feat(P10.4): verify secret hygiene and authorization audit boundaries.
   Configured account remains sole author, no co-author trailer. Remote four-job CI
   outcome is checked separately, with required knowledge still enabled in integration.
+
+## P10.5 — Reproducible foreground demo (2026-10-20 IST)
+
+- Approval: user approved the explained portable launcher/preflight/readiness/setup
+  reuse/fresh-checkout CI/manual-documentation scope before implementation.
+- P10.4 remote acceptance: all four jobs (Windows/Linux fast, full-history Secret
+  scan, fresh Linux integration/browser with required knowledge) PASSED for a8c6ae1
+  in [run 39317985760](https://github.com/vikramadityasaipulapa-1975/sentinel/actions/runs/39317985760).
+  Prior strict local cold-knowledge failures remain recorded above.
+- Added scripts/demo.py and demo_support.py: read-only preflight before installs/
+  preparation; reuse locked setup/migration/seed paths; direct native child ownership
+  with partial-start cleanup; separate core/knowledge probes; retained dependency data.
+- CI uses the same shared preflight/preparation/runtime path, asserts owned children
+  stop and config bytes survive runtime/repeated preparation. Cleanup attempts all
+  known CI projects, retaining volumes. Safe demo summary added to artifact allowlist.
+- Evidence setup now appends only missing defaults, preserving existing comments/
+  custom settings/secrets. Observability webhook file explicitly uses UTF-8.
+- Local initial script suite passed 33 tests including ten new socket/ownership/
+  configuration/Linux collector/readiness regressions. Test doubles are explicit;
+  real project DBs were not used for these unit tests. Python lint passed.
+- Actual local negative startup returned occupied-port 3000 before any preparation;
+  existing owner was not stopped. Actual read-only doctor returned all eight core
+  endpoint probes READY and unchanged bounded knowledge probe READY. Worker is
+  explicitly NOT_CHECKED_BY_HTTP. This single sample does not erase prior slow runs.
+- Current user stack/config/databases retained. Full local fast/security and fresh
+  Linux CI outcomes are recorded below only after actually observed. No fresh Windows
+  standard-port startup claimed while user's existing stack occupies those ports.
+- docs/P10-DEMO.md gives the complete required learning workflow, per-file/function
+  walkthrough, commands/expected outputs, manual account/collector setup, debugging,
+  three questions and independent exercise. Manual/learning/README link this guide.
+- No new API/schema/default human account, automatic fault/action executor, cloud
+  provisioning, payment or external deployment. Existing public-hosting checklist
+  remains pending; P10.6 requires separate explanation and approval.
+
+- Final local fast tier PASSED: checkout 25, API non-database 44, React 20, payment
+  32, engine 51, script tests 33; format, JS/Python lint, negative controls and builds
+  passed. Focused final demo tests ten passed after lifecycle-test refinement.
+- Pre-commit security scan PASSED: 60 reachable commits, 286 worktree files, generated
+  negative/positive/reviewed-path controls passed and no findings.
+- Commit subject: feat(P10.5): add a supervised reproducible local demo workflow.
+  Configured account only, no co-author trailer. Fresh Linux shared-lifecycle CI
+  acceptance remains pending at this commit; do not infer it from local unit checks.

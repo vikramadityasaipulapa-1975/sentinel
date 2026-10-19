@@ -48,6 +48,17 @@ See the [P8 learning guide](docs/P8-LEARNING-GUIDE.md),
 [threat model](docs/P8-THREAT-MODEL.md) and
 [manual setup](docs/MANUAL-SETUP.md#p8-human-approved-local-sandbox-actions).
 
+## Reproducible foreground demo (P10.5)
+
+Use the [complete Windows/Linux demo guide](docs/P10-DEMO.md). With the existing
+venv/dependencies, run `.venv\Scripts\python.exe scripts/demo.py doctor` to inspect
+an already running stack. Start a free local stack with
+`.venv\Scripts\python.exe scripts/demo.py start --skip-install`. Startup refuses
+occupied ports; normal Ctrl+C stops only owned native processes and retains data.
+Fresh clone/bootstrap, explicit account creation and collector restart instructions
+are in the guide. Knowledge readiness is separate from HTTP health. This remains a
+local demo; public hosting is not configured.
+
 ## Run the Sentinel API locally (P3.1-P3.5)
 
 From `V:\sentinel\sentinel`, with Node/npm dependencies installed and Docker Desktop running:

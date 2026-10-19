@@ -76,7 +76,7 @@ def prepare_reader():
     )
     with psycopg.connect(owner, connect_timeout=3) as conn:
         grant_reader(conn, role, password)
-    values = {
+    defaults = {
         "SENTINEL_DEPLOYMENT_READ_URL": f"postgresql://{role}:{quote(password, safe='')}@127.0.0.1:{url.port}/sentinel",
         "SENTINEL_EVIDENCE_SECRET": settings.get(
             "SENTINEL_EVIDENCE_SECRET", secrets.token_hex(32)
@@ -84,17 +84,13 @@ def prepare_reader():
         "SENTINEL_PROMETHEUS_URL": "http://127.0.0.1:9090",
         "SENTINEL_LOKI_URL": "http://127.0.0.1:3100",
     }
-    for name in (
-        "SENTINEL_LLM_PROVIDER",
-        "SENTINEL_LLM_URL",
-        "SENTINEL_LLM_MODEL",
-        "SENTINEL_LLM_LOCAL_ONLY",
-    ):
-        if name in settings:
-            values[name] = settings[name]
-    path.write_text(
-        "".join(f"{key}={value}\n" for key, value in values.items()), encoding="utf-8"
-    )
+    # Repeated demo preparation must preserve comments, custom settings and secrets.
+    # Only missing local defaults are appended; never rewrite an existing file.
+    values = {**defaults, **settings}
+    missing = {key: value for key, value in defaults.items() if key not in settings}
+    if missing:
+        with path.open("a" if path.exists() else "x", encoding="utf-8") as handle:
+            handle.write("\n" + "".join(f"{key}={value}\n" for key, value in missing.items()))
     print(
         "Local deployment reader prepared; ignored .env.evidence written; credentials omitted"
     )

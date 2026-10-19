@@ -552,3 +552,16 @@ its eight-second deadline and yield PARTIAL/UNAVAILABLE guidance. Fast/security 
 does not prove knowledge readiness. The required-knowledge cumulative check retains
 its strict assertion. No provider secret rotation is indicated by that timeout;
 collect resource/startup measurements rather than resetting DBs or deleting models.
+
+## P10.5 — Portable foreground startup and readiness
+
+Follow [the full step-by-step P10.5 guide](P10-DEMO.md#runtest--exact-manual-steps).
+Existing running checkout: `.venv\Scripts\python.exe scripts/demo.py doctor` is
+read-only for project state. To start the new launcher, stop native processes in
+their original terminals and stop the known checkout's collector project first;
+do not delete configuration or volumes. Then use
+`.venv\Scripts\python.exe scripts/demo.py start --skip-install` for already
+installed dependencies. Fresh Windows/Linux clone commands, explicit hidden-password
+account creation, expected outputs, conflict recovery and shutdown are in that guide.
+No new cloud account/setup is required for this local task. All prior hosted
+DB/Redis/backend/worker/TLS/SSE/telemetry/backup tasks remain pending and explicit.

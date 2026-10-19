@@ -176,7 +176,7 @@ class Demo:
 def webhook_secret():
     values = dict(
         line.split("=", 1)
-        for line in (ROOT / ".env.api").read_text().splitlines()
+        for line in (ROOT / ".env.api").read_text(encoding="utf-8").splitlines()
         if line and not line.startswith("#") and "=" in line
     )
     import re
@@ -187,6 +187,6 @@ def webhook_secret():
             "Run scripts/api-local.py to generate local webhook configuration"
         )
     directory = DATA / "secrets"
-    directory.mkdir(exist_ok=True)
-    (directory / "webhook-token").write_text(value)
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "webhook-token").write_text(value, encoding="utf-8")
     return value
