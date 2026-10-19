@@ -41,6 +41,9 @@ P10.2 fault-quality benchmarking is not started. No schema/API change is needed.
   job. Fast excludes the DB-only module explicitly; integration requires actual
   PostgreSQL/Redis/live evidence/knowledge and browser checks. Actions pins were
   resolved from official action releases, not guessed major tags.
+- .gitattributes preserves LF text checkouts on both operating systems. The first
+  remote Windows run exposed CRLF/Prettier mismatch; this policy fixed checkout
+  reproducibility without rewriting every source file.
 - eslint.config.mjs enables core error checks, TypeScript-aware unused variables,
   React hook rules and dependency checks. TypeScript owns undefined-name checking.
   Two incident-title control-character regexes retain intentional ASCII rejection
@@ -136,4 +139,10 @@ independent work remain pending.
 
 feat(P10.1): add portable lint and isolated cross-platform CI checks
 
-Remote execution will be claimed only after GitHub reports its actual conclusion.
+Implementation 838903b and checkout fix db4a393 were pushed with the configured
+account as sole author and no co-author trailer. Local fast/integration tiers passed;
+[GitHub run 39251878743](https://github.com/vikramadityasaipulapa-1975/sentinel/actions/runs/39251878743)
+passed Windows fast, Linux fast and fresh Linux integration/browser for db4a393.
+See PROGRESS.md for counts and the recorded first-run failure. A subsequent
+documentation-only commit records these observed results; its automatic CI run
+is a separate run, not evidence used retroactively for this record.

@@ -1,6 +1,6 @@
 # Sentinel progress
 
-Current phase/task: P10.1 portable test/lint/CI implementation in progress; hosted setup deferred
+Current phase/task: P10.1 portable test/lint/CI verified; hosted setup deferred
 Status: P1-P9 LOCAL SOFTWARE VERIFIED; cloud deployment, chat-model quality and learner checkpoints remain open
 Last fully accepted software phase: P9 local dashboard with role/evidence/streaming/browser checks; public hosting and production remediation unperformed
 Last completed learner checkpoint: none confirmed
@@ -1651,7 +1651,7 @@ P3.4 requires its own explanation/approval before implementation.
 - Public hosting/model quality and learner checkpoints remain open; P10 not started.
 - Commit: feat(P9.6): verify accessible responsive dashboard with isolated browser tests.
 
-## P10.1 — Portable checks and CI (2026-10-19 IST, in progress)
+## P10.1 — Portable checks and CI (2026-10-19 IST, verified)
 
 - Approval: user continued after detailed P10.1 concepts/files/risks/tests plan.
 - Added pinned JS lint tooling, existing-Ruff safety rules, portable fail-fast tiers,
@@ -1665,7 +1665,7 @@ P3.4 requires its own explanation/approval before implementation.
   renamed. New stale-response and fail-fast/developer-state regressions added.
 - Actions API availability confirmed enabled. Compose override config validation
   passed without starting/changing local containers. Negative/positive lint probes
-  and failure propagation passed. Local acceptance passed; remote acceptance pending.
+  and failure propagation passed. Local acceptance passed; remote acceptance also passed (run linked below).
 - Local fast: checkout 17, API non-DB 42, React 20, payment 32 and engine 50
   passed. Updated scripts suite: 13 passed. Format, lint and stdin controls passed.
 - Local integration: cumulative API 98 passed (zero skips), deployment-reader
@@ -1678,3 +1678,15 @@ P3.4 requires its own explanation/approval before implementation.
 - First remote run: Linux fast passed; Windows format failed because checkout
   converted source to CRLF. Added .gitattributes LF text checkout policy; no
   repository-wide formatting rewrite. Integration correctly remained gated.
+
+- Remote acceptance: GitHub run [39251878743](https://github.com/vikramadityasaipulapa-1975/sentinel/actions/runs/39251878743)
+  at code commit db4a393 passed all three required workflow jobs: Ubuntu fast,
+  Windows fast and fresh Ubuntu integration/browser. No skipped integration job.
+  This validates the fresh Linux bootstrap, model downloads, image builds and
+  collector loopback override, in addition to the locally measured checks.
+- Implementation commits: 838903b; Windows checkout correction db4a393. Both use
+  configured account as sole author, no co-author trailers; pushed to origin/main.
+- No new manual hosted setup or repository secret is required. Pull and npm ci;
+  optional merge rules and exact verification steps are in MANUAL-SETUP.md.
+- P10.1 software acceptance complete. P10.2 requires a new learning-first approval;
+  public hosting, optional chat-model evaluation and learner checkpoints remain open.
