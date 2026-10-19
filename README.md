@@ -1,7 +1,8 @@
 # Sentinel
 
 Sentinel is a learning-first AI-assisted incident response and reliability project.
-Current local software: P1-P8 implemented and tested. Start with the
+Current local software: P1-P9 implemented and verified; P10.1-P10.5 validation,
+security and reproducible-demo results are documented in the progress log. Start with the
 [manual checklist](docs/MANUAL-SETUP.md) for the current stack; earlier sections
 record each phase. Optional chat-model/cloud setup is deferred; P7 uses verified local embeddings.
 **P1 implementation is complete:** two local demo services, validated simulated

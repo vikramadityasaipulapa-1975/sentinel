@@ -1,6 +1,6 @@
 # Sentinel progress
 
-Current phase/task: P10.5 approved demo workflow implemented; acceptance checks in progress; hosted setup deferred
+Current phase/task: P10.5 local demo workflow verified; P10.6 not approved; hosted setup deferred
 Status: P1-P9 LOCAL SOFTWARE VERIFIED; cloud deployment, chat-model quality and learner checkpoints remain open
 Last fully accepted software phase: P9 local dashboard with role/evidence/streaming/browser checks; public hosting and production remediation unperformed
 Last completed learner checkpoint: none confirmed
@@ -1847,3 +1847,23 @@ P3.4 requires its own explanation/approval before implementation.
 - Commit subject: feat(P10.5): add a supervised reproducible local demo workflow.
   Configured account only, no co-author trailer. Fresh Linux shared-lifecycle CI
   acceptance remains pending at this commit; do not infer it from local unit checks.
+
+- Remote P10.5 acceptance: implementation commit 21a0ef7 PASSED all four jobs in
+  [run 39320066950](https://github.com/vikramadityasaipulapa-1975/sentinel/actions/runs/39320066950):
+  Windows/Linux fast, full-history Secret scan, fresh Linux integration/browser.
+  The shared real startup, required knowledge, DB/Redis/worker/evidence, enabled
+  checkout resilience, pgvector, isolated sandbox and browser tests passed. Bootstrap
+  assertions confirmed all owned native handles stopped, runtime configuration bytes
+  stayed identical and second preparation preserved every config byte.
+- Additional actual Windows owned-child launch/stop probe PASSED. Actual Docker
+  Compose merge validation of generated Linux overrides PASSED (host networking,
+  loopback listeners, inherited ports reset, no duplicate mount targets), without
+  starting containers. Initial platform-simulation diagnostic selected Docker's Unix
+  wrapper on Windows and failed WinError 193; retaining the actual Windows Docker
+  executable before generating Linux config corrected that diagnostic. No source
+  workaround or application budget change was needed.
+- P10.5 implementation acceptance is complete for the measured Windows probes and
+  fresh Linux shared lifecycle. Fresh Windows standard-port end-to-end startup and
+  macOS remain unclaimed. Learner questions/exercise and cloud setup remain open.
+- Documentation follow-up records this verified implementation result; its own
+  subsequent workflow is distinct from the accepted implementation run above.

@@ -218,7 +218,15 @@ real integration coverage. CI runs the shared real lifecycle on a fresh Linux ru
 including real DB/Redis/worker/telemetry/knowledge/sandbox/browser tests. The CI-only
 bootstrap refuses developer machines and must not be run locally to bypass safety.
 
-Measured results and the final CI URL are recorded in PROGRESS.md. Do not interpret
+Measured acceptance: implementation commit `21a0ef7` passed all four jobs in
+[CI run 39320066950](https://github.com/vikramadityasaipulapa-1975/sentinel/actions/runs/39320066950),
+including real fresh Linux shared startup/integration/browser, child shutdown and
+unchanged runtime/repeated-preparation config assertions. Local full fast passed:
+25 checkout, 44 API non-DB, 20 React, 32 payment, 51 engine and 33 script tests.
+The occupied-port refusal, current-stack doctor (core and knowledge READY), actual
+owned Windows child shutdown and Linux Compose merge validation were also run.
+Fresh Windows standard-port end-to-end startup was not run over the user's occupied
+ports; macOS was not verified. Detailed records are in PROGRESS.md. Do not interpret
 an unrun/pending check as passed. A previously slow local knowledge run remains
 recorded; a single successful doctor sample does not erase it.
 
