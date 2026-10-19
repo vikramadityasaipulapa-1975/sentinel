@@ -1674,3 +1674,7 @@ P3.4 requires its own explanation/approval before implementation.
   Test databases/containers cleaned; developer records and persistent volumes retained.
 - Walkthrough, commands, test scope, security, manual steps and learner questions
   are in docs/P10-LEARNING-GUIDE.md. No P10.2 work started.
+
+- First remote run: Linux fast passed; Windows format failed because checkout
+  converted source to CRLF. Added .gitattributes LF text checkout policy; no
+  repository-wide formatting rewrite. Integration correctly remained gated.
