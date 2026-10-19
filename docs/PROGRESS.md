@@ -1,6 +1,6 @@
 # Sentinel progress
 
-Current phase/task: P10.3 checkout resilience locally verified; P10.2 CI verified; hosted setup deferred
+Current phase/task: P10.4 security checks locally verified; strict local knowledge limitation recorded; hosted setup deferred
 Status: P1-P9 LOCAL SOFTWARE VERIFIED; cloud deployment, chat-model quality and learner checkpoints remain open
 Last fully accepted software phase: P9 local dashboard with role/evidence/streaming/browser checks; public hosting and production remediation unperformed
 Last completed learner checkpoint: none confirmed
@@ -1759,3 +1759,49 @@ P3.4 requires its own explanation/approval before implementation.
 - Learning guide/manual/.env.example document every setting, file/function, security,
   test scope, remaining limitations, restart steps and learner exercise. No hosted
   resources provisioned; no running user demo/sandbox image or process overwritten.
+
+- P10.3 remote acceptance: commit 4a79d4a passed Windows/Linux fast and fresh Linux
+  integration/browser, including the real enabled-breaker probe, in
+  [run 39313825291](https://github.com/vikramadityasaipulapa-1975/sentinel/actions/runs/39313825291).
+
+## P10.4 — Secret/config/access/audit review (2026-10-20 IST)
+
+- User explicitly approved the security plan before implementation. Pinned Gitleaks
+  8.30.1 official Windows/Linux x64 archives with SHA256 verification, exact-member
+  reading, bounded calls and no source upload. Only safe finding metadata is emitted.
+- Worktree/nonignored files plus all reachable history scanned. Shallow clones,
+  tracked secret .env, symlinks/outside-workspace paths and tool failures fail closed.
+- Initial incomplete negative fixture failed detection and correctly blocked the
+  scan. Corrected to pinned github-pat rule syntax; generated value never issued by
+  a provider. Negative/positive and reviewed-path controls pass.
+- Initial ten matches were reviewed public model/source hashes and a migration
+  filename, not credentials. Exact values AND exact paths excepted only for generic
+  API-key rule; provider rules/commits/directories are not excluded. Latest measured
+  scan passed over 59 reachable commits and 281 files before final documentation.
+- Three checksum/archive/redaction tests and the real-JWT HTTP canary/access test
+  passed. Full local fast PASSED: checkout 25, API non-DB 44, React 20, payment 32,
+  engine 51, scripts 23; format/lint/control/build checks passed.
+- Completed local cumulative run dd5885db: 100 tests, 98 passed, two reported
+  failures (required knowledge UNAVAILABLE vs OK plus parent suite). All new audit
+  UPDATE/DELETE/decision-identity assertions passed. No full local cumulative pass
+  is claimed and no application deadline/assertion was relaxed.
+- Diagnostics: cold retrieval returned three citations in 8.875 seconds outside the
+  application budget; subsequent unchanged bounded path succeeded in 7.296 seconds.
+  Local runtime readiness remains limited under current resources.
+- Earlier attempts: required-knowledge failure (83c5dc91), then old 120-second
+  combined build/test wrapper expiry (b3c88d4a) caused cleanup-related DB errors.
+  Raised only the bounded build/test command budget to 300 seconds; later run
+  completed and isolated the actual remaining knowledge limitation. All temporary
+  containers removed; volumes retained. Remote CI remains separately verified.
+- Existing production configuration/authorization/redaction retained after review.
+  No schema changes, credential rotation, raw secret output, deployment or history
+  rewrite. CI adds full-history Secret scan gate and safe summary artifact.
+- Security/learning/manual docs explain findings, tests, CORS vs auth, normal-SQL audit
+  limits, hosted role/retention responsibilities and learner questions/exercise.
+
+- Final pre-commit source scan PASSED: 59 reachable commits, 282 worktree files,
+  all controls passed, no remaining findings. Final focused tool tests three passed;
+  Python lint and repository format checks passed after final helper/doc updates.
+- Commit subject: feat(P10.4): verify secret hygiene and authorization audit boundaries.
+  Configured account remains sole author, no co-author trailer. Remote four-job CI
+  outcome is checked separately, with required knowledge still enabled in integration.

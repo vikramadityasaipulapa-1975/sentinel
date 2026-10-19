@@ -174,7 +174,10 @@ def main():
             f"{task}: running cumulative unit and real-database integration tests",
             flush=True,
         )
-        run([npm, "run", "test:api"], env)
+        # Includes both frontend/API compilation and the cumulative DB suite.
+        # Keep a bounded command budget without tearing down fixtures mid-suite
+        # on slower Windows hosts; individual application/test deadlines remain.
+        run([npm, "run", "test:api"], env, timeout=300)
         report["unit_and_database_tests"] = True
         digest = hashlib.sha256()
         paths = (

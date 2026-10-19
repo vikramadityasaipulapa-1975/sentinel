@@ -101,6 +101,26 @@ export async function remediationDatabaseChecks(t: TestContext, pool: Pool) {
         ),
         /append-only/,
       );
+      await assert.rejects(
+        pool.query(
+          "UPDATE sentinel_api.remediation_events SET observations='{}' WHERE action_id=$1",
+          [id],
+        ),
+        /append-only/,
+      );
+      await assert.rejects(
+        pool.query("DELETE FROM sentinel_api.remediation_actions WHERE id=$1", [
+          id,
+        ]),
+        /append-only/,
+      );
+      await assert.rejects(
+        pool.query(
+          "UPDATE sentinel_api.remediation_actions SET status='CANCELLED',decided_by=$2 WHERE id=$1",
+          [id, op],
+        ),
+        /Decision identity is immutable/,
+      );
       const history = await postgresIncidents(pool).events(incident.id, {
         limit: 20,
       });

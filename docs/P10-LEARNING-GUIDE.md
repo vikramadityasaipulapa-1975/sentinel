@@ -460,3 +460,102 @@ permits are released. Keep health independent of those operations.
 feat(P10.3): bound payment work with deadlines and circuit isolation.
 Local checks completed before commit/push; configured account as sole author, no trailer.
 P10.4 still requires its own explanation and approval.
+
+## P10.4 — Secure configuration, redaction and audit review
+
+### Concept → Architecture/data flow
+
+Source scanning, redaction, authorization and audit integrity are different controls.
+A scan can flag a public hash, while a valid token can still be dangerous if logged.
+Use all four controls and document what each actually proves. Gitleaks runs locally
+on an exported nonignored worktree and full reachable history; only safe metadata
+is emitted. Real HTTP canaries check boundaries, then disposable PostgreSQL tests
+exercise immutable audit policy. No request or credential is sent to a remote scanner.
+
+### File plan → Approval checkpoint
+
+User explicitly approved P10.4 including the pinned scanner, tests, audit review,
+CI and docs. No schema/new public endpoint or production rewrite is needed after
+review; add regressions to retain existing safe behavior. A CLI avoids introducing
+a production dependency or an external code-upload service. Checksums protect the
+selected bytes, not trust against a compromised publisher; official release provenance
+and review are still important. Unsupported platforms fail rather than running an
+unverified binary.
+
+### Implementation → Walkthrough
+
+- scripts/security_scan.py scanner() chooses a pinned Windows/Linux x64 archive and
+  validates size/SHA256 before reading exact member bytes with binary_bytes(). It
+  validates cached executable bytes too. No extractall or arbitrary command string.
+- scan(tool,mode,target,output,source,log_opts) invokes argument arrays with a timeout,
+  full redaction, explicit config/empty ignore file and no inline allow bypass. It
+  accepts only completed clean/finding exit codes, checks consistency and returns
+  rule/file/line/commit fields. Raw Match/Secret/line text never reaches the summary.
+- main verifies positive/negative/path-scoped controls, checks tracked .env exclusions,
+  copies only in-workspace nonignored regular files into an owned temporary directory,
+  scans worktree/full refs, refuses shallow history and records measured coverage.
+  Errors record FAILED/error_type. Findings make the command fail, not silently pass.
+- .gitleaks.toml extends pinned defaults. Reviewed public hashes/migration filename
+  exceptions require both exact values and specific paths for generic-api-key only.
+  No commits/directories/provider rules are skipped. False positives and the initial
+  failed control are documented in P10-SECURITY-REVIEW.md.
+- scripts/tests/test_security_scan.py tests bad checksum refusal before execution,
+  forbids archive extraction despite a traversal-shaped member, and refuses any
+  unredacted finding before it can enter a safe summary.
+- apps/api/test/security.test.ts uses real signed JWTs/Express/HTTP with explicit
+  store doubles. It checks safe errors/logs, malformed/oversized input, no cross-origin
+  read headers, invalid/disabled sessions and forbidden/extra-command approvals before
+  any action-store call. No claim of real-DB coverage is made for that fixture.
+- remediation-database-checks.ts adds normal-SQL immutability assertions for events,
+  actions and recorded decision identity in the existing disposable cumulative suite.
+  Privileged DB schema operators could bypass triggers; this is not a cryptographic
+  chain. Existing migrations/production authorization stay unchanged.
+- scripts/verify-p3.py now gives the combined compile/cumulative-test command a
+  bounded 300 seconds instead of 120. On the slower local Windows run, the old
+  wrapper timeout started fixture cleanup mid-suite, causing secondary DB errors.
+  Application/individual test/knowledge deadlines are unchanged.
+- ci.yml adds a full-checkout Linux Secret scan job and makes integration depend on
+  it and fast tests. Only safe summary artifacts are uploaded. No repository secret,
+  paid scanner license, source upload or history rewrite is required.
+- Security/manual/progress documents provide exact commands, findings, role matrix,
+  scope, caveats and pending hosted responsibilities.
+
+### Run/test → Debug
+
+Use the exact commands and measured outcomes in P10-SECURITY-REVIEW.md. Positive:
+harmless scanner fixture passes and a real JWT can read permitted resources. Negative:
+a generated never-issued token shape must trigger github-pat, checksum corruption is
+rejected and VIEWER approval is denied. The real DB rejects audit mutations. Full local fast passed (25 checkout, 44 API
+non-DB, 20 React, 32 payment, 51 engine, 23 scripts). The completed required-knowledge
+cumulative run was 98 pass/two reported failures (knowledge assertion plus parent),
+with all new audit assertions passing. No complete local knowledge pass is claimed;
+see the security review for measured diagnostics and test-wrapper correction.
+
+Scanner download/config failure is not a clean scan. Check the pinned asset/network
+and safe error type; never disable rules to obtain green. Findings are metadata for
+private review. A matching public hash needs narrow review, not a blanket exception.
+Use the full-history checkout; partial history is rejected. Do not reset volumes,
+rotate provider credentials without review or rewrite Git history as an automatic fix.
+
+### Manual setup
+
+No new manual cloud setup required. Run the helper with existing Python and Git; its
+first verified download needs GitHub connectivity. Existing local DB/evidence stack
+is needed only for the cumulative integration command. All provider/role/network/TLS,
+backup and retention setup remains the hosted guide; no accounts are provisioned.
+
+### Understanding check
+
+1. Why can CORS restrictions never replace backend authorization?
+2. Why does a reviewed public checksum need an exact path/value exception?
+3. Why do immutable-row triggers not protect against a privileged schema owner?
+
+Exercise: in a temporary local fixture, move a generated never-issued token-shaped
+value into a reviewed public-hash path and show it is still detected. Do not commit
+that value or test with a real provider token. Explain which rule caught it.
+
+### Commit summary
+
+feat(P10.4): verify secret hygiene and authorization audit boundaries.
+Record only actually completed checks; configured account is the sole author.
+P10.5 requires its own teaching plan and approval.

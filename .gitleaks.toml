@@ -1,0 +1,37 @@
+title = "Sentinel secret review"
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+
+[[rules.allowlists]]
+description = "Public pinned embedding artifact SHA256 values, not credentials"
+condition = "AND"
+paths = ['''(?:^|[/\\])knowledge[/\\]embedding-model\.json$''']
+regexes = [
+  '''^01e220eed6921254f7e086bb3506d1c03f019f5f747bb9ac2f6ec5ce541edc12$''',
+  '''^13582bcf2effc85b7bf3d3f5532e686bc1c9ce86bb009d10f0ec33cbe92299dd$''',
+  '''^51f1bd0addd6e859e42c2c8021a5e5461385bb676a649f4b269aa445449f2431$''',
+  '''^99881c45e073696289224931dd48694398bc6bcd1fe7cb7018bca1e0cc00e1fc$''',
+  '''^5d5b662e421ea9fac075174bb0688ee0d9431699900b90662acd44b2a350503a$''',
+  '''^d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66$''',
+  '''^0b29c7bfc889e53b36d9dd3e686dd4300f6525110eaa98c76a5dafceb2029f53$''',
+  '''^07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3$''',
+]
+
+[[rules.allowlists]]
+description = "Reviewed historical public source digest, not a credential"
+condition = "AND"
+paths = ['''(?:^|[/\\])docs[/\\]PROGRESS\.md$''']
+regexes = [
+  '''^bc4b467210f9ddc591635e10bea66f3c97c3f10920ad1c0596138c1b9fa80db0\.?$''',
+]
+
+[[rules.allowlists]]
+description = "Literal migration filename in teaching output"
+condition = "AND"
+paths = ['''(?:^|[/\\])docs[/\\]P3-LEARNING-GUIDE\.md$''']
+regexes = [
+  '''^002_incidents\.sql$''',
+]

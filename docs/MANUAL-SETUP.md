@@ -517,3 +517,38 @@ mutation): `.venv\Scripts\python.exe scripts/verify-p10-resilience.py`. Expected
 PASSED, real failure/open/recovery flags true, a measured sub-1.5-second budget
 response and owned_processes_stopped true. Existing payment/checkout ports may stay
 occupied; this probe uses separate ports. It is also part of CI integration.
+
+## P10.4 — Run security checks and review findings
+
+No new manual cloud setup, account, paid scanner license or repository secret required.
+
+1. At V:\sentinel\sentinel, run `.venv\Scripts\python.exe scripts/security_scan.py`.
+   It downloads pinned Gitleaks once into ignored .tools and verifies archive/executable
+   bytes. Internet access to official GitHub release assets is needed initially.
+2. Expected: PASSED, controls_passed true, findings empty and measured file/commit
+   counts. Ignored local .env files are not uploaded or scanned as repository source.
+   They must remain excluded from Git. Run full history, not a shallow checkout.
+3. On failure, inspect only .artifacts/security-summary.json metadata. Generated
+   fully redacted scanner reports stay local; do not publish raw logs or credentials.
+   A tool/download/config error is not proof of a clean scan. Restore connectivity or
+   verify pinned configuration instead of bypassing the job.
+4. If a real credential is ever found, revoke/rotate at its provider and update the
+   appropriate ignored/deployment secret. Do not paste it into chat. Do not rewrite
+   shared Git history without separate approval. Current reviewed findings require
+   no provider rotation: they were public hashes and a migration filename.
+5. GitHub → Actions → Sentinel checks must now show both fast OS jobs, Secret scan,
+   and Integration and browser. Optional main-branch required-check rules should
+   include Secret scan too; repository rules are not modified automatically.
+6. Read docs/P10-SECURITY-REVIEW.md for role matrix, immutable audit checks and limits.
+   Hosted deployment still needs separate migration/runtime identities, network/TLS,
+   provider secret management, backups and retention. No cloud setup is done here.
+
+Local HTTP/DB check commands and expected outputs are in the security review and
+P10 learning guide. All DB mutation assertions use a disposable verifier database;
+never run ad-hoc audit UPDATE/DELETE commands against your existing user database.
+
+Known local runtime limitation found during P10.4: cold knowledge retrieval can exceed
+its eight-second deadline and yield PARTIAL/UNAVAILABLE guidance. Fast/security pass
+does not prove knowledge readiness. The required-knowledge cumulative check retains
+its strict assertion. No provider secret rotation is indicated by that timeout;
+collect resource/startup measurements rather than resetting DBs or deleting models.
