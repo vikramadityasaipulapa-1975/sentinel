@@ -133,6 +133,8 @@ def run_scenario(name, mode, expected, delay, timeout, k6):
                 "GIT_COMMIT": "unknown",
                 "DEPLOYMENT_ID": "unregistered",
                 "PAYMENT_MAX_ATTEMPTS": "1",
+                # This historical load verifier measures sustained raw faults.
+                "PAYMENT_CIRCUIT_ENABLED": "false",
             }
             flags = (
                 {"creationflags": subprocess.CREATE_NO_WINDOW}

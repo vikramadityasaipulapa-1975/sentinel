@@ -92,5 +92,6 @@ jobs:
             .artifacts/p7-knowledge-verification.json
             .artifacts/p8-sandbox-verification.json
             .artifacts/p9-browser-verification.json
+            .artifacts/p10-resilience-verification.json
           if-no-files-found: ignore
           retention-days: 7

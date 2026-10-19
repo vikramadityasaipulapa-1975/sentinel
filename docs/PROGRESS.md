@@ -1,6 +1,6 @@
 # Sentinel progress
 
-Current phase/task: P10.2 fault-quality matrix locally measured; CI delivery verification follows; hosted setup deferred
+Current phase/task: P10.3 checkout resilience locally verified; P10.2 CI verified; hosted setup deferred
 Status: P1-P9 LOCAL SOFTWARE VERIFIED; cloud deployment, chat-model quality and learner checkpoints remain open
 Last fully accepted software phase: P9 local dashboard with role/evidence/streaming/browser checks; public hosting and production remediation unperformed
 Last completed learner checkpoint: none confirmed
@@ -1728,3 +1728,34 @@ P3.4 requires its own explanation/approval before implementation.
 - Commit subject: feat(P10.2): measure isolated live fault detection and hypothesis quality.
   Configured Git account remains sole author; no co-author trailer. Remote workflow
   outcome is verified separately in Actions rather than inferred from local tests.
+
+- P10.2 remote acceptance: commit 267def8 passed all three GitHub jobs in
+  [run 39311757608](https://github.com/vikramadityasaipulapa-1975/sentinel/actions/runs/39311757608):
+  Linux/Windows fast and fresh Linux integration/browser. Local nine-trial experiment
+  is separate from this CI suite. P10.2 task is complete; learner checkpoint remains open.
+
+## P10.3 — Failure isolation and budgets (2026-10-20 IST)
+
+- Approval: user explicitly approved P10.3 after the task plan via the approval prompt.
+- Checkout now has a total operation deadline including retry/backoff/body reads,
+  process-local consecutive-failure breaker with one logical recovery probe and a
+  no-wait capacity limit. Default breaker enabled. No schema/package/cloud changes.
+- Existing structured errors retained; new 503 PAYMENT_BUSY/PAYMENT_CIRCUIT_OPEN and
+  504 PAYMENT_BUDGET_EXHAUSTED distinguish controlled rejection/budget expiry.
+- Fake-clock and real HTTP-stub checkout suite passed 25 tests, including eight new
+  resilience tests. Actual 2.7-second source-cancellation graph regression passed;
+  graph suite three passed. Full local fast tier passed: checkout 25, API non-DB 43,
+  React 20, payment 32, engine 51, scripts 20; format/lint/controls/builds passed.
+- Real isolated Express/FastAPI probe passed: simulated failures open the breaker,
+  a recovery probe closes it, latency budget response in 0.437 seconds, health stays
+  responsive and capacity recovers. Owned native children stopped; no database
+  used. Added this short check and its safe artifact to CI integration.
+- No production collector/worker timeout rewrite needed after reviewing existing
+  budgets and adding the actual hanging-source cancellation regression. Delivery
+  workflow result remains a separate remotely observed check.
+- Existing engine/model/collector/worker bounds reviewed and retained. Training
+  helpers/sandbox explicitly disable the breaker so raw fault/recovery experiments
+  retain their original meaning. Ordinary checkout/base Compose defaults stay enabled.
+- Learning guide/manual/.env.example document every setting, file/function, security,
+  test scope, remaining limitations, restart steps and learner exercise. No hosted
+  resources provisioned; no running user demo/sandbox image or process overwritten.

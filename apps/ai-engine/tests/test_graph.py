@@ -42,3 +42,26 @@ def test_parallel_and_reference_workflow_produce_identical_facts():
         assert sequential.status == parallel.status
 
     asyncio.run(check())
+
+
+def test_hanging_source_is_cancelled_and_other_evidence_survives():
+    async def check():
+        win = window()
+        tools = fixture_tools(win)
+        cancelled = asyncio.Event()
+
+        async def hanging(_window):
+            try:
+                await asyncio.Event().wait()
+            finally:
+                cancelled.set()
+
+        tools["loki"] = hanging
+        # Exercise the actual 2.7-second source deadline, not a mocked clock.
+        state = await asyncio.wait_for(run_parallel(win, tools), 5)
+        assert cancelled.is_set()
+        assert state.evidence[1].status == "UNAVAILABLE"
+        assert state.evidence[0].status == "OK"
+        assert len(state.evidence) == 4 and state.status == "PARTIAL"
+
+    asyncio.run(check())

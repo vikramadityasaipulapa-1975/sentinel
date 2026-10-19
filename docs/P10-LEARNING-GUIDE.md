@@ -291,3 +291,172 @@ comparisons; see P10-EVALUATION.md and PROGRESS.md for actual results and limits
 Changes are committed/pushed under the configured sole author after local checks.
 GitHub Actions verifies fast checks on both platforms and the existing integration
 tier; the heavy nine-trial quality experiment remains explicit local developer work.
+
+## P10.3 — Timeouts, retries, circuit breakers and budgets
+
+### Concept
+
+A timeout limits one attempt, including response body reading. Retrying that call
+can still multiply total duration. A total deadline includes attempts and backoff.
+Retries are capped and preserve the idempotency key because a timeout cannot prove
+that the remote payment operation did not complete. Payments here remain simulated.
+A circuit breaker stops repeated calls temporarily after dependency failures; after
+a cooldown, only one logical checkout can probe recovery. A concurrency bulkhead
+caps active checkout-to-payment operations without creating a waiting queue.
+
+Alternatives include relying only on per-attempt timeouts (does not isolate repeated
+faults), using a shared Redis breaker (adds a dependency/coordination failure mode),
+or adding a resilience package (unnecessary for this small explicit state machine).
+Chosen state is in memory per createApp/process. Replicas have independent limits;
+a restart resets breaker state. This is not a global capacity/expense guarantee.
+
+### Architecture/data flow
+
+Valid checkout and stable idempotency key → process-local gate → bounded pay loop
+→ downstream payment HTTP → validated result/error → release capacity in finally.
+No capacity queue is created. The breaker rejects an OPEN circuit or concurrent
+HALF_OPEN probes with 503 PAYMENT_CIRCUIT_OPEN. Saturation returns 503 PAYMENT_BUSY.
+Each existing retryable failure may retry up to the existing maximum two attempts;
+the same request data/key survive retries. A total timeout returns 504
+PAYMENT_BUDGET_EXHAUSTED; per-attempt expiry still uses PAYMENT_TIMEOUT when budget
+remains. Other existing payment errors/conflicts retain their contracts.
+
+The gate counts failed logical operations, not each attempt. A 409 business conflict
+is reachable dependency behavior and resets consecutive failure accounting. Input
+validation occurs before gate acquisition. Unknown exceptions count as failure;
+capacity release remains guaranteed. An older in-flight result cannot override a
+newer OPEN transition because each permit captures a breaker generation.
+
+### File plan → Approval checkpoint
+
+User explicitly approved P10.3 after the concepts/files/tests/risk explanation via
+the approval question. Changes stay within checkout resilience, its tests, one
+existing async source-deadline regression, training-profile compatibility and docs.
+No migration, new package, external deployment or optional model purchase occurs.
+
+### Implementation → Walkthrough
+
+- config.ts adds optional fields so existing typed test callers remain compatible.
+  paymentLimits(config) resolves defaults and validates finite integer ranges.
+  readConfig maps environment strings into these fields and accepts only literal
+  true/false for PAYMENT_CIRCUIT_ENABLED. Configuration errors omit supplied values.
+- resilience.ts PaymentGate owns active count, consecutive failures, state,
+  openedAt monotonic time, generation and probe flag. acquire() rejects immediately
+  when unavailable or full and otherwise returns a release(healthy) callback.
+  Each callback releases once. Failure can open/reopen the circuit; a healthy probe
+  closes it. Stale generation completions release capacity but cannot change state.
+  The injected now function supports deterministic cooldown tests without sleeping.
+- app.ts creates one gate per app instance, acquires only after request validation,
+  classifies business conflicts as healthy reachability and releases in finally.
+  Health/metrics routes remain independent of payment availability/capacity.
+- payment-client.ts pay sets one performance.now deadline for all attempts. Remaining
+  budget clamps AbortSignal.timeout for each fetch and its body reader. Backoff is
+  allowed only if remaining time exceeds 50 ms, and the next loop rechecks budget.
+  No Promise.race leaves an unbounded local fetch running. Remote completion remains
+  uncertain on timeout, so key reuse and existing payment-side deduplication matter.
+- resilience.test.ts tests fake-clock breaker transitions, stale completions, single
+  probe, disabled-breaker capacity, threshold reset and invalid environment bounds.
+  Real HTTP stubs hang before headers/inside body, verify responsive health and
+  saturation, budget cancellation/capacity recovery, identical retry keys, no calls
+  while open, shared backoff budget and non-retried business conflicts. Stub evidence
+  is not presented as a live FastAPI payment measurement.
+- apps/ai-engine/tests/test_graph.py adds a real 2.7-second hanging-source cancellation
+  regression. Healthy branches survive and output remains PARTIAL within five seconds.
+  Existing collector/worker production logic is retained after reviewing its limits.
+- scripts/verify-p10-resilience.py launches real Express/FastAPI children on distinct
+  loopback ports with memory storage and generated simulated orders. It observes
+  real failure-driven opening, recovery-probe closure and total-budget expiry, then
+  stops only its owned children. Its report contains safe flags/duration, no secrets.
+  check.py integration now runs this short probe; CI uploads its safe summary.
+- .env.example documents fake, nonsecret checkout limits. Historical P1 load, Demo
+  observability, P10.2 quality and P8 sandbox profiles explicitly set circuit=false
+  so sustained injected faults/recovery remain observable. This is a deliberate
+  training override, not the default for ordinary checkout startup. Deadlines and
+  capacity limits remain on in those profiles. Base development Compose retains
+  default-enabled circuit behavior.
+
+### Defaults and resource-bound review
+
+| Setting                           | Default | Accepted range                 |
+| --------------------------------- | ------: | ------------------------------ |
+| PAYMENT_TOTAL_TIMEOUT_MS          |    4500 | integer 50–25000 ms            |
+| PAYMENT_MAX_INFLIGHT              |      16 | integer 1–64                   |
+| PAYMENT_CIRCUIT_ENABLED           |    true | literal true / false           |
+| PAYMENT_CIRCUIT_FAILURE_THRESHOLD |       5 | integer 1–100 logical failures |
+| PAYMENT_CIRCUIT_COOLDOWN_MS       |   10000 | integer 100–60000 ms           |
+
+Existing payment attempts remain 1–2; per-attempt timeout remains 50–10000 ms.
+A larger per-attempt timeout never bypasses the total deadline. Timer scheduling is
+not hard real time; tests allow scheduling margin while requiring the smaller bound.
+For a recovered HALF_OPEN probe, the existing maximum attempts still applies to that
+one logical operation; one probe does not mean multiple callers can retry together.
+
+Existing engine bounds reviewed: source wrapper 2.7 seconds; parallel graph 12 seconds;
+optional local-model call eight seconds, 40 facts/16 KiB input, 768 output-token request
+and 32 KiB envelope cap; knowledge child eight seconds; outer collector call 24 seconds,
+worker 27 seconds and evidence lease 30 seconds. The internal collector admits at most
+two active collections. These layers are retained; this task does not claim global
+cluster limits, zero-cost inference or protection against arbitrary CPU-bound tools.
+
+### Run/test
+
+```powershell
+npm run test --workspace=@sentinel/checkout-service
+.venv\Scripts\python.exe -m pytest -c apps/ai-engine/pytest.ini apps/ai-engine/tests/test_graph.py -q
+.venv\Scripts\python.exe scripts/check.py fast
+.venv\Scripts\python.exe scripts/verify-p10-resilience.py
+```
+
+Focused checkout suite: 25 tests passed (17 existing plus eight new). Graph suite:
+three passed, including the actual hanging-source cancellation. Full local fast
+tier passed: checkout 25, API non-DB 43, React 20, payment 32, engine 51, scripts 20,
+plus format/lint/control/build checks. Real isolated Express/FastAPI verification
+passed: failure-driven opening/recovery, health/capacity recovery and total deadline
+expiry observed in 0.437 seconds under a configured 400 ms budget (scheduling overhead
+included). Fake dependencies are not substituted for this live probe.
+Remote workflow conclusions are verified separately in GitHub Actions.
+Positive: transient 503 then success returns 201 with the identical key. Negative:
+hanging headers/body return budget 504 while an excess operation gets 503 and health
+stays 200. Breaker open makes zero additional stub calls. No test result is inferred
+from mocks alone: HTTP stubs, fake-clock state tests and real cancellation are labelled.
+
+### Debug and security
+
+PAYMENT_BUSY: check legitimate concurrency and downstream latency before raising the
+limit. PAYMENT_CIRCUIT_OPEN: wait for cooldown and inspect failures/recovery; a health
+200 only proves the checkout server is alive, not successful payments. Budget 504:
+compare attempt/total limits and preserve the original idempotency key when retrying.
+Thresholds can reject legitimate traffic during transient faults and must be tuned
+with measured load. Circuit-generated 503s alter telemetry and may limit what current
+deterministic hypotheses infer; P10.2 raw-fault profiles deliberately isolate that
+experiment. Neither controls nor generated hypotheses authorize remediation.
+
+No new secrets, external requests or browser-config values are added. Local payment
+URL allowlists remain unchanged; hosted backend/private service networking is still
+separate reviewed deployment work. Read documentation rather than resetting volumes
+or silently disabling production safeguards to make a test pass.
+
+### Manual setup
+
+No new manual cloud setup required. Rebuild checkout before restarting it or rebuilding
+an image; already-running processes keep their old code. Ordinary checkout startup
+uses the defaults automatically. Optional validated settings belong to checkout's
+process environment before startup, never browser configuration. Training helpers
+intentionally override only the circuit flag. See MANUAL-SETUP.md for exact commands.
+No cloud DB, Redis secret, model service or account change is needed for this task.
+
+### Understanding check
+
+1. Why does an attempt timeout differ from the total operation deadline?
+2. Why must a timed-out payment retry keep its idempotency key?
+3. Why must an old successful completion not close a newly opened circuit?
+
+Exercise: in a temporary branch, set maxInflight=2 in a focused test and demonstrate
+that two operations enter while the third receives PAYMENT_BUSY, then prove both
+permits are released. Keep health independent of those operations.
+
+### Commit summary
+
+feat(P10.3): bound payment work with deadlines and circuit isolation.
+Local checks completed before commit/push; configured account as sole author, no trailer.
+P10.4 still requires its own explanation and approval.

@@ -18,6 +18,8 @@ services:
       PAYMENT_URL: http://payment:3002
       PAYMENT_TIMEOUT_MS: "1000"
       PAYMENT_MAX_ATTEMPTS: "1"
+      # Training rollback verifies the injected fault/recovery, without suppression.
+      PAYMENT_CIRCUIT_ENABLED: "false"
     ports: ["127.0.0.1:4301:3001"]
     read_only: true
     cap_drop: [ALL]

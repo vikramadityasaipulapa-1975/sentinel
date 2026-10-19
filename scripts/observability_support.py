@@ -111,6 +111,8 @@ class Demo:
             PAYMENT_URL="http://127.0.0.1:3002",
             PAYMENT_TIMEOUT_MS="1000",
             PAYMENT_MAX_ATTEMPTS="1",
+            # Deliberate sustained faults measure alerting, not breaker suppression.
+            PAYMENT_CIRCUIT_ENABLED="false",
         )
         try:
             self.payment("normal")

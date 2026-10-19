@@ -468,3 +468,52 @@ stops only its owned children/collector project. It does not stop shared collect
 or rewrite .env files. Raw ignored logs/results are not uploaded by CI. Cleanup
 failure is reported; never use prune or delete persistent volumes to fix it.
 Public hosting is unchanged; continue the separate hosted guide when ready.
+
+## P10.3 — Checkout resilience settings
+
+No new manual cloud setup, database migration, credential or account required.
+Existing processes do not hot-reload compiled changes.
+
+1. At V:\sentinel\sentinel, run `npm run build --workspace=@sentinel/checkout-service`.
+2. Run `npm run test --workspace=@sentinel/checkout-service` (expected: 25 passed).
+3. For ordinary direct checkout startup in a separate terminal, ensure its port 3001
+   is free and the payment process is available. Do not start a second checkout on
+   a port already owned by observability-local.py. In that case keep the helper
+   running or stop its own terminal normally before a deliberate direct-start demo.
+4. Optional direct-start settings, set before `npm run start:checkout`:
+
+```powershell
+$env:PAYMENT_TOTAL_TIMEOUT_MS='4500'
+$env:PAYMENT_MAX_INFLIGHT='16'
+$env:PAYMENT_CIRCUIT_ENABLED='true'
+$env:PAYMENT_CIRCUIT_FAILURE_THRESHOLD='5'
+$env:PAYMENT_CIRCUIT_COOLDOWN_MS='10000'
+npm run start:checkout
+```
+
+Defaults already match these values; .env.example is documentation, not automatically
+loaded by this command. Leave the existing local PAYMENT_URL, storage and timeout
+setup as documented previously. Hosted/container process settings must be set in
+that deployment's environment; Compose does not automatically forward arbitrary
+host environment variables into a service. Tune/rebuild/redeploy only in separately
+approved deployment work.
+
+5. Observe structured errors: 503 PAYMENT_BUSY at capacity; 503 PAYMENT_CIRCUIT_OPEN
+   during cooldown; 504 PAYMENT_BUDGET_EXHAUSTED at the total deadline. Health still
+   returns 200. Never assume a timeout proves the payment did not execute; reuse its
+   idempotency key. Use focused tests to simulate faults without affecting the demo.
+6. Observability/P1/P10.2/P8 controlled training profiles disable only the breaker to
+   observe sustained raw faults and rollback recovery. Ordinary direct/base Compose
+   startup enables it by default. Do not copy training overrides into hosted config.
+7. Existing sandbox checkout images contain their previous compiled code until rebuilt
+   in reviewed demo work. CI rebuilds its own images; this task does not restart or
+   overwrite your running sandbox images. No Docker volume cleanup is needed.
+
+See P10-LEARNING-GUIDE.md for ranges, state transitions, async cancellation, exact
+file walkthrough, tests, debugging, limitations and the learner exercise.
+
+Short live verification (new ports, memory-only simulated payments, no Docker/DB
+mutation): `.venv\Scripts\python.exe scripts/verify-p10-resilience.py`. Expected
+PASSED, real failure/open/recovery flags true, a measured sub-1.5-second budget
+response and owned_processes_stopped true. Existing payment/checkout ports may stay
+occupied; this probe uses separate ports. It is also part of CI integration.

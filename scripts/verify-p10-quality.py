@@ -185,6 +185,7 @@ def main():
         "PAYMENT_URL": f"http://127.0.0.1:{ports['payment']}",
         "PAYMENT_TIMEOUT_MS": "1000",
         "PAYMENT_MAX_ATTEMPTS": "1",
+        "PAYMENT_CIRCUIT_ENABLED": "false",
         "PAYMENT_FAULT_DELAY_MS": "2500",
         "PAYMENT_VERSION": "unversioned",
         "SOURCE_SHA256": "unknown",

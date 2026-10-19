@@ -1,9 +1,10 @@
 import express from "express";
 import { tracing } from "./tracing.js";
 import { createMetrics } from "./metrics.js";
-import { readConfig, type Config } from "./config.js";
+import { paymentLimits, readConfig, type Config } from "./config.js";
 import { isPaymentRequest, uuidPattern } from "./contracts.js";
-import { pay } from "./payment-client.js";
+import { pay, PaymentError } from "./payment-client.js";
+import { PaymentGate } from "./resilience.js";
 import {
   handleError,
   HttpError,
@@ -17,6 +18,7 @@ export function createApp(
   log: LogSink = stdoutLog,
 ) {
   const app = express();
+  const payments = new PaymentGate(paymentLimits(config));
   app.disable("x-powered-by");
   const metrics = createMetrics();
   app.use(metrics.observe);
@@ -47,14 +49,25 @@ export function createApp(
         "INVALID_IDEMPOTENCY_KEY",
         "Idempotency-Key must be a UUID",
       );
-    const payment = await pay(
-      request.body,
-      config,
-      response.locals.requestId,
-      key.toLowerCase(),
-      response.locals.trace,
-    );
-    response.status(201).json(payment);
+    const release = payments.acquire();
+    let healthy = false;
+    try {
+      const payment = await pay(
+        request.body,
+        config,
+        response.locals.requestId,
+        key.toLowerCase(),
+        response.locals.trace,
+      );
+      healthy = true;
+      response.status(201).json(payment);
+    } catch (error) {
+      // A business conflict proves reachability; it must not trip the breaker.
+      healthy = error instanceof PaymentError && error.status < 500;
+      throw error;
+    } finally {
+      release(healthy);
+    }
   });
 
   // Registered last so only requests without a matching route reach this handler.

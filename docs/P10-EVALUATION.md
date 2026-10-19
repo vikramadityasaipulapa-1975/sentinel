@@ -118,3 +118,9 @@ MANUAL-SETUP.md P10.2 for prerequisites and exact commands. Run npm run build,
 then .venv\Scripts\python.exe scripts/verify-p10-quality.py. --repetitions 1 is
 only a three-trial diagnostic; keep its result separate. Never reset shared volumes
 or route the experiment's Alertmanager to the main API to work around a failure.
+
+The accepted nine-trial baseline was measured at P10.2 before the P10.3 breaker.
+Later runner revisions explicitly set PAYMENT_CIRCUIT_ENABLED=false for this raw-fault
+experiment; ordinary checkout enables it. This keeps breaker suppression from changing
+the experiment's meaning. P10.3 has a separate enabled-breaker live verification;
+its result is not pooled into these nine trials.

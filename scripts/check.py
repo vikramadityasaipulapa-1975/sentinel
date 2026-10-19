@@ -78,6 +78,7 @@ def main():
                 ("API/PostgreSQL/Redis/BullMQ/live evidence", ["scripts/verify-p3.py", "--task", "P3.5", "--with-evidence"]),
                 ("deployment reader permissions", ["scripts/verify-p5-deployments.py"]),
                 ("sequential/parallel live evidence", ["scripts/verify-p6.py"]),
+                ("real checkout deadline/circuit recovery", ["scripts/verify-p10-resilience.py"]),
                 ("real embeddings/pgvector", ["scripts/verify-p7.py"]),
                 ("real isolated Docker sandbox", ["scripts/verify-p8.py"]),
                 ("real browser/RBAC/accessibility", ["scripts/verify-p9.py"]),

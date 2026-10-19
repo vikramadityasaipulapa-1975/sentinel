@@ -5,7 +5,7 @@ import {
   type PaymentRequest,
   type PaymentResponse,
 } from "./contracts.js";
-import type { Config } from "./config.js";
+import { paymentLimits, type Config } from "./config.js";
 import { HttpError } from "./http.js";
 
 export class PaymentError extends HttpError {
@@ -26,9 +26,22 @@ export async function pay(
   tracing?: RequestTrace,
 ): Promise<PaymentResponse> {
   const maxAttempts = config.paymentMaxAttempts ?? 1;
+  const deadline = performance.now() + paymentLimits(config).totalTimeoutMs;
+  const exhausted = () => new PaymentError(504, "PAYMENT_BUDGET_EXHAUSTED");
   for (let attempt = 1; ; attempt++) {
+    const remaining = deadline - performance.now();
+    if (remaining <= 0) throw exhausted();
     try {
-      return await payOnce(request, config, requestId, key, tracing);
+      const result = await payOnce(
+        request,
+        config,
+        requestId,
+        key,
+        remaining,
+        tracing,
+      );
+      if (performance.now() >= deadline) throw exhausted();
+      return result;
     } catch (error) {
       if (
         !(error instanceof PaymentError) ||
@@ -36,6 +49,8 @@ export async function pay(
         attempt >= maxAttempts
       )
         throw error;
+      // Backoff belongs inside the total budget; never start a doomed retry.
+      if (deadline - performance.now() <= 50) throw exhausted();
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
   }
@@ -46,9 +61,13 @@ async function payOnce(
   config: Config,
   requestId: string,
   key: string,
+  remaining: number,
   tracing?: RequestTrace,
 ): Promise<PaymentResponse> {
-  const signal = AbortSignal.timeout(config.paymentTimeoutMs);
+  const budgetLimited = remaining <= config.paymentTimeoutMs;
+  const signal = AbortSignal.timeout(
+    Math.max(1, Math.ceil(Math.min(config.paymentTimeoutMs, remaining))),
+  );
   const span = clientSpan(tracing);
   try {
     const response = await fetch(`${config.paymentUrl}/payments`, {
@@ -108,7 +127,12 @@ async function payOnce(
     return result;
   } catch (error) {
     span?.setStatus({ code: SpanStatusCode.ERROR });
-    if (signal.aborted) throw new PaymentError(504, "PAYMENT_TIMEOUT", true);
+    if (signal.aborted)
+      throw new PaymentError(
+        504,
+        budgetLimited ? "PAYMENT_BUDGET_EXHAUSTED" : "PAYMENT_TIMEOUT",
+        !budgetLimited,
+      );
     if (error instanceof PaymentError) throw error;
     throw new PaymentError(502, "PAYMENT_UNAVAILABLE", true);
   } finally {
