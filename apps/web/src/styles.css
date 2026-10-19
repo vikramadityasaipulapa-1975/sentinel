@@ -470,3 +470,49 @@ caption {
   font-size: 12px;
   color: var(--muted);
 }
+
+.preview {
+  margin: 20px 0;
+  padding: 20px;
+  border: 1px solid #6b7e57;
+  border-radius: 8px;
+}
+.binding {
+  background: #101b1e;
+  padding: 18px;
+  border-radius: 6px;
+  margin-top: 20px;
+}
+.checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 22px 0;
+}
+.checkbox input {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.audit {
+  padding-left: 22px;
+}
+.audit li {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+dialog {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 28px;
+  max-width: 650px;
+  width: calc(100% - 32px);
+  max-height: 85vh;
+  overflow: auto;
+}
+dialog::backdrop {
+  background: #000a;
+}

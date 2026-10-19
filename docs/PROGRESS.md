@@ -1610,3 +1610,15 @@ P3.4 requires its own explanation/approval before implementation.
 - Abort/expiry cleanup and terminal-event evidence refresh preserve server authority.
   No migration/manual setup; file walkthrough and learner checkpoints are in P9 guide.
 - Commit: feat(P9.4): add bounded investigation progress and replayable timeline.
+
+## P9.5 — Approval and audit UI (2026-10-19 IST)
+
+- Approved scope implemented: allowlisted dry run, stable-key proposal creation,
+  exact saved-binding review, ADMIN/expiry-aware confirmation and audit/results.
+- Build and all 17 frontend tests passed, including non-admin, expired, changed
+  binding, terminal, cross-incident and non-sandbox rejection. Backend authorization
+  remains mandatory. No user proposal executed during implementation.
+- Read-only UI needs no manual setup. Interactive real sandbox execution still needs
+  fresh sandbox preparation, separate watcher and explicit human approval. Full
+  file/function walkthrough, errors/security and learner exercise are in P9 guide.
+- Commit: feat(P9.5): add exact sandbox approval review and audit interface.

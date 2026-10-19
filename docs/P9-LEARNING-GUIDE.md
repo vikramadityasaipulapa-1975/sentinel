@@ -244,3 +244,56 @@ Exercise: change the display event bound and explain why backend history survive
 ### Commit summary
 
 feat(P9.4): add bounded investigation progress and replayable timeline
+
+## P9.5 — Exact sandbox proposal review and audit
+
+### Concept → Architecture/data flow → File plan
+
+Human authorization is a backend decision about a fixed action, not a UI toggle.
+Dry run previews an allowlisted binding; creation saves the actual immutable proposal;
+ADMIN reviews that saved record and confirms APPROVE or REJECT. The private executor
+is separate, and approval is not execution or incident resolution.
+
+- src/api/actions.ts validates sandbox scope/versions/image IDs, incident linkage,
+  status and expiry. fingerprint binds review to action ID, incident, immutable
+  binding, status and expiry. canDecide requires a pending, unexpired exact review
+  and ADMIN. These checks improve UX; backend RBAC and locked transactions remain
+  authoritative and are not replaced.
+- Remediations.tsx previews/proposes with a stable request key, lists/loads exact
+  saved actions, resets review on selection/refresh, shows full binding/expiry and
+  audit observations, and checks expiry each second. Ref guards block duplicate
+  clicks before busy state renders. decide awaits the backend before refreshing.
+- Confirmation.tsx uses a native modal dialog, labels its title, focuses Cancel,
+  supports Escape when idle and restores prior focus. The decision sends only the
+  reviewed action ID and APPROVE/REJECT, never arbitrary commands/images.
+- IncidentDetail embeds controls/audit; styles distinguish proposal/binding and
+  confirmation. Unit tests cover exact review, roles, expiry, binding drift,
+  terminal state, cross-incident and non-sandbox data rejection.
+
+### Approval checkpoint → Implementation → Run/test
+
+Covered by approved P9 plan. Production build and all 17 frontend tests passed.
+No user proposal was executed during implementation. Final browser checks exercise
+real backend role decisions against an isolated DB with explicitly synthetic bindings;
+real Docker execution remains covered by the separately run P8 sandbox verifier.
+
+### Walkthrough → Debug → Manual setup
+
+No new setup for read-only audit browsing. For an interactive real training rollback,
+prepare sandbox-local.py, start sandbox_executor.py --watch and explicitly approve
+only after reviewing the exact target. P8's registry may be absent after verification;
+that makes Preview fail safely until fresh setup. Never point this UI at production
+Docker. A 403/409/expired result clears the review and remains visible. An approval
+can stay APPROVED while its separate executor is offline; refresh shows saved truth.
+
+### Understanding check
+
+1. Why does a changed image invalidate a previous checked review box?
+2. Why must ADMIN permission be rechecked by the backend at decision time?
+3. Why does VERIFIED not prove the incident is resolved?
+
+Exercise: add a read-only explanation beside the expiry time without extending it.
+
+### Commit summary
+
+feat(P9.5): add exact sandbox approval review and audit interface

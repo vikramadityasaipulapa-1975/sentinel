@@ -1,3 +1,4 @@
+import { Remediations } from "../components/Remediations";
 import {
   LiveTimeline,
   InvestigationStart,
@@ -116,6 +117,11 @@ export function IncidentDetail() {
             key={`timeline-${id}`}
             incidentId={id}
             onTerminal={() => setRevision((value) => value + 1)}
+          />
+          <Remediations
+            key={`actions-${id}`}
+            incidentId={id}
+            revision={revision}
           />
           <EvidenceWorkspace
             key={`${id}-${revision}`}
