@@ -1518,3 +1518,42 @@ P3.4 requires its own explanation/approval before implementation.
   restore local dependencies, rerun scripts/verify-p8.py through its final success
   line and check no disposable verification DB remains. Public hosting, optional
   chat-model testing and learner comprehension checks remain unperformed.
+
+## P8.5 recheck completion and local restoration (2026-10-19 IST)
+
+- Resumed the user's authorized remaining tests. Docker Desktop was closed;
+  normal launch eventually restored its Linux engine. No factory reset, socket
+  deletion, WSL reset, volume deletion or credential replacement was needed.
+- Restored retained knowledge PostgreSQL, main/demo PostgreSQL, Redis, the
+  API/worker/engine supervisor and observability supervisor. Migrations reported
+  none pending. Existing configuration/data were retained.
+- Reran scripts/verify-p8.py and captured exit code 0 plus its final success line.
+  Actual HTTP login/RBAC/PostgreSQL approvals exercised real Docker rollback only
+  inside the simulated training sandbox. Image/version/readiness matched;
+  successful_checkouts=3, samples=3, window_seconds=3.187. Terminal result VERIFIED.
+- Duplicate execution returned NO_EXECUTION; one competing attempt verified.
+  Security checks passed for revoked role, disabled account, reset token, expired
+  approval, changed binding, forged viewer approval, stale container, abandoned
+  attempt reconciliation without mutation, and immutable execution token. The
+  incident was not automatically resolved.
+- The wrapper's outside-container snapshot assertion passed and its temporary
+  API database was removed. A separate PostgreSQL count confirmed zero remaining
+  sentinel_p8_verify_* databases, closing the earlier interrupted-cleanup concern.
+  Updated evidence: .artifacts/p8-sandbox-verification.json.
+- Final service checks: API 3000, engine 8001, checkout 3001, payment 3002 and
+  Prometheus 9090 returned 200. Anonymous /api/v1/services returned 401. Loki 3100
+  initially returned a warm-up 503, then its /ready returned 200; collector
+  containers remained running. This transient check was retried, not hidden.
+- Combined completed suites from the preceding 2026-10-18 run remain 97 API,
+  50 engine, 32 payment, 17 checkout, 9 executor/security = 205 passing tests.
+  P5 live/permission, P6 live/synthetic evaluation and P7 real embeddings/pgvector
+  checks are recorded above; they were not unnecessarily repeated on resumption.
+- Scope: this completes the selected remaining local regression/end-to-end checks,
+  not a rerun of every historic P1/P2/P4 standalone load/fault verifier. Cloud
+  deployment, production remediation and real chat-model quality remain untested.
+- No user account or saved investigation was changed by these tests. The sandbox
+  ends recovered at payment-v1, with its registry invalidated by verifier cleanup.
+  For a later interactive rollback exercise run sandbox-local.py again to prepare
+  a fresh faulty binding, then start sandbox_executor.py --watch and explicitly
+  review/approve through the UI. No new setup is needed for ordinary investigations.
+- Documentation-only commit: test(P8.5): record completed sandbox regression and cleanup.
