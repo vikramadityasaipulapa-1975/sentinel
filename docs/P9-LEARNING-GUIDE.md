@@ -194,3 +194,53 @@ Exercise: add an explanatory tooltip to one metric unit without changing its dat
 ### Commit summary
 
 feat(P9.3): visualize saved evidence with provenance and report citations
+
+## P9.4 — Investigation submission and replayable progress
+
+### Concept → Architecture/data flow → File plan
+
+An accepted enqueue is not completion. InvestigationStart sends an empty JSON body
+plus one stable idempotency key; failed/uncertain retries reuse it. New investigation
+key explicitly starts a separate request identity. The UI follows persisted backend
+sequence/events instead of predicting an outcome or automatically resolving incidents.
+
+- src/api/stream.ts parses chunk-split SSE frames, comments, CRLF and multiline data;
+  validates incident scope/type/sequence and merges at most 100 display events by
+  ID using BigInt ordering. Invalid/oversized input fails safely.
+- InvestigationProgress.tsx contains InvestigationStart and LiveTimeline. The stream
+  uses fetch with Authorization headers rather than URL tokens, reconnects at most
+  five times with bounded backoff and sends last-event-id. AbortController cancels
+  navigation/pause/logout connections; the reader is cancelled in finally. Confirmed
+  terminal events refresh saved evidence/report reads without enqueuing new work.
+- SessionProvider exposes a stable expire callback so SSE 401/auth_expired clears
+  memory and returns to sign-in. Details are plain text and cannot invoke actions.
+- IncidentDetail composes submission, timeline and keyed evidence views. Parser
+  tests cover split frames, partial events, duplicate replay, huge sequence values,
+  wrong-incident input and oversized buffers.
+
+### Approval checkpoint → Implementation → Run/test
+
+Included in the six-task approval. Production build and all 15 frontend tests
+passed. No backend/schema changes, new account or manual setup are required.
+Use npm run dev:web with the existing API/worker/engine helpers running.
+Final real browser verification exercises queued work and replay with test accounts.
+
+### Walkthrough → Debug
+
+Pause does not cancel backend jobs; it only closes this browser's stream. Reconnect
+replays saved history; latest 100 received events are a display bound, not deletion.
+When a token expires, sign in again and navigate back to the same incident/run.
+Retry budgets stop endless reconnect loops. Errors/insufficient evidence never turn
+into success badges. Public deployment still needs tested HTTPS/SSE proxy behavior.
+
+### Understanding check
+
+1. Why must retrying an uncertain submission preserve its request key?
+2. Why is Last-Event-ID different from the investigation UUID?
+3. Why does pausing a stream not cancel a worker investigation?
+
+Exercise: change the display event bound and explain why backend history survives.
+
+### Commit summary
+
+feat(P9.4): add bounded investigation progress and replayable timeline

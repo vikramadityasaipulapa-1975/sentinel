@@ -1,3 +1,7 @@
+import {
+  LiveTimeline,
+  InvestigationStart,
+} from "../components/InvestigationProgress";
 import { EvidenceWorkspace } from "../components/EvidenceWorkspace";
 import { useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -22,6 +26,7 @@ export function IncidentDetail() {
   const [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   const pending = useRef(false);
+  const [revision, setRevision] = useState(0);
   async function change(status: string) {
     if (pending.current) return;
     pending.current = true;
@@ -102,7 +107,21 @@ export function IncidentDetail() {
                 </div>
               )}
           </section>
-          <EvidenceWorkspace key={id} incidentId={id} />
+          <InvestigationStart
+            key={`start-${id}`}
+            incidentId={id}
+            onQueued={() => setRevision((value) => value + 1)}
+          />
+          <LiveTimeline
+            key={`timeline-${id}`}
+            incidentId={id}
+            onTerminal={() => setRevision((value) => value + 1)}
+          />
+          <EvidenceWorkspace
+            key={`${id}-${revision}`}
+            incidentId={id}
+            revision={revision}
+          />
         </>
       )}
     </>

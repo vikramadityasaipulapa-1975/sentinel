@@ -14,6 +14,7 @@ beforeEach(() => {
     api,
     login: vi.fn(),
     logout: vi.fn(),
+    expire: vi.fn(),
   });
   api.mockImplementation(async (path: string) =>
     path === "/api/v1/services"

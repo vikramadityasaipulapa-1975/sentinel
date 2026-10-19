@@ -1599,3 +1599,14 @@ P3.4 requires its own explanation/approval before implementation.
 - No manual setup, database migration or collector credentials in browser required.
   P9 guide records file/function walkthrough, error paths, commands and learner checks.
 - Commit: feat(P9.3): visualize saved evidence with provenance and report citations.
+
+## P9.4 — Investigation controls and SSE (2026-10-19 IST)
+
+- Approved scope implemented: stable-key enqueue, explicit new request key, saved
+  run selection and authenticated fetch/SSE progress, replay and bounded retries.
+  PARTIAL events accepted; replay deduplicated and ordered with BigInt sequences.
+- Build and all 15 frontend tests passed. Tests exercise parsing split/multiline
+  frames, wrong scope, oversized data and duplicate/large-sequence replay.
+- Abort/expiry cleanup and terminal-event evidence refresh preserve server authority.
+  No migration/manual setup; file walkthrough and learner checkpoints are in P9 guide.
+- Commit: feat(P9.4): add bounded investigation progress and replayable timeline.

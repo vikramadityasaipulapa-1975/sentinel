@@ -21,6 +21,7 @@ type Session = {
   notice: string;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  expire: () => void;
   api: (
     path: string,
     options?: RequestInit,
@@ -88,11 +89,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       throw error;
     }
   }
+  const expire = useCallback(
+    () => clear("Session expired or revoked. Sign in again."),
+    [clear],
+  );
   return (
     <Context.Provider
       value={{
         token,
         user,
+        expire,
         notice,
         login,
         logout: () =>
