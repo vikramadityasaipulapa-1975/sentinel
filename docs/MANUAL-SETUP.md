@@ -565,3 +565,13 @@ installed dependencies. Fresh Windows/Linux clone commands, explicit hidden-pass
 account creation, expected outputs, conflict recovery and shutdown are in that guide.
 No new cloud account/setup is required for this local task. All prior hosted
 DB/Redis/backend/worker/TLS/SSE/telemetry/backup tasks remain pending and explicit.
+
+## P10.6 — Complete operator workflow
+
+No manual setup required for this documentation task. Use the current
+[end-to-end walkthrough](DEMO-WALKTHROUGH.md) as the ordered operator guide. It
+explains existing/fresh setup, intentional account creation, healthy traffic,
+incident/investigation/live replay, evidence/knowledge, isolated fault experiment
+and optional explicit sandbox preparation/approval/executor/shutdown. Older sections
+remain phase-specific reference material; do not combine competing supervisors on
+the same ports. Cloud provisioning/model quality remain separate, unfinished work.

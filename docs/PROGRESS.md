@@ -1,6 +1,6 @@
 # Sentinel progress
 
-Current phase/task: P10.5 local demo workflow verified; P10.6 not approved; hosted setup deferred
+Current phase/task: P10.6 implementation complete; local checks passed; fresh CI acceptance pending; hosted setup deferred
 Status: P1-P9 LOCAL SOFTWARE VERIFIED; cloud deployment, chat-model quality and learner checkpoints remain open
 Last fully accepted software phase: P9 local dashboard with role/evidence/streaming/browser checks; public hosting and production remediation unperformed
 Last completed learner checkpoint: none confirmed
@@ -1867,3 +1867,57 @@ P3.4 requires its own explanation/approval before implementation.
   macOS remain unclaimed. Learner questions/exercise and cloud setup remain open.
 - Documentation follow-up records this verified implementation result; its own
   subsequent workflow is distinct from the accepted implementation run above.
+
+## P10.6 — Architecture, decisions and complete workflow (2026-10-29 IST)
+
+- Approval: user approved the explained documentation plan and requested complete
+  end-to-end operating instructions with all working features. Final task in the
+  existing P1–P10 master plan; no new runtime feature/schema/dependency was introduced.
+- Concepts: architecture/trust boundaries, retrospective ADRs with alternatives and
+  consequences, reproducible presentation and evidence-backed portfolio claims.
+- Files: rewritten current README; ARCHITECTURE with component/port/storage table,
+  diagrams and failure/security boundaries; adr/ index plus four decisions;
+  DEMO-WALKTHROUGH with exact terminals/commands/roles/observations/errors; PORTFOLIO
+  honest bullets and evidence map; P10 learning/manual/progress links; corrected
+  P10-DEMO Windows numbered-list formatting.
+- Main app, isolated quality fixture and explicit rollback sandbox are documented
+  as distinct workflows. No fixture incident is presented as a main dashboard record.
+  No automatic production remediation, model inference or public deployment claimed.
+- Walkthrough documents all implemented feature families, source statuses, saved vs
+  live views, idempotency/queue/SSE behavior, optional model, image/setup/approval/
+  exact executor workflow, shutdown, troubleshooting and remaining hosted steps.
+  Sandbox/action instructions were not executed by this documentation task.
+- Runtime probe today: all core HTTP probes and knowledge UNAVAILABLE; Docker Linux
+  engine readiness false. No restart/reset or database/volume/config change attempted.
+  No fresh local integration pass claimed; historical CI is not current uptime.
+- Confirmed P10.5 follow-up 2fcdead PASSED all four jobs in
+  [run 39321282863](https://github.com/vikramadityasaipulapa-1975/sentinel/actions/runs/39321282863).
+- Positive/negative documentation checks, local fast/security and P10.6 remote CI
+  results are recorded below only after actually observed. No cloud manual setup
+  required for documentation; running Docker/account/sandbox and hosted rollout
+  remain explicit user operations. Learner questions/exercise are in the P10 guide.
+
+- Documentation QA PASSED: 13 Markdown files, 79 links seen, relative file targets
+  resolve; positive known-link and intentional missing-link controls passed. External
+  HTTP links and browser Mermaid rendering were not verified by that checker.
+- Actual PowerShell parser accepted all 23 documented command blocks in README,
+  walkthrough and startup guide; valid/invalid parser controls passed. Commands
+  were parsed, not executed. Explicit source-reference check passed for 17 file/
+  directory/glob references and an intentional missing-source control. Initial
+  broad regex misclassified slash-separated prose; restricted to inline code
+  references, with no actual missing source remaining.
+- Repository source/history Gitleaks scan PASSED: 62 reachable commits, 294 worktree
+  files, controls_passed true, findings empty. Explicit ADR formatting check passed.
+
+- Local fast tier PASSED: checkout 25, API non-database 44, React 20, payment 32,
+  engine 51, scripts 33, plus format/lint/build and failure controls. Current machine
+  probe showed 0.36 GiB free of 11.71 GiB visible memory during the run; React took
+  73.27 s but passed. This is an observation, not proof of the cause of every delay.
+- Current runtime source/schema/dependencies were unchanged. Only documentation
+  changed; existing user configuration/databases/volumes/accounts were preserved.
+- Implementation portion of the existing master plan is complete through P10.6.
+  Fresh P10.6 CI remains pending at this commit. Hosted rollout, optional real model
+  quality, learner comprehension/exercises and production remediation remain distinct
+  from implemented local software; none are falsely marked completed.
+- Commit subject: docs(P10.6): document architecture decisions and complete demo workflow.
+  Configured account is sole author; no co-author trailer.

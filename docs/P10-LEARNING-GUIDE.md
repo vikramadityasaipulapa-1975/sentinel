@@ -567,3 +567,111 @@ File plan → Approval checkpoint → Implementation → Walkthrough → Run/tes
 Understanding check → Commit summary, exact Windows/Linux commands, preservation
 boundaries and pending hosted responsibilities. User approval covered this task;
 P10.6 has not been approved. Measured results are recorded separately in PROGRESS.md.
+
+## P10.6 — Architecture, decisions and end-to-end communication
+
+### Concept
+
+Architecture explains components and boundaries; an ADR records a decision with
+alternatives and costs; a demo script makes the operator's inputs, observations and
+error paths repeatable. Portfolio wording ties claims to actual evidence. No new
+technology or package is needed: Markdown, repository-native Mermaid diagrams and
+existing source/test records are sufficient. Reusing local tooling avoids new
+formatting/rendering or external publishing dependencies.
+
+### Architecture/data flow
+
+See [ARCHITECTURE](ARCHITECTURE.md): browser/API/PostgreSQL, durable outbox/Redis
+worker, parallel read-only engine, saved evidence/knowledge and authenticated SSE.
+Separate diagram: exact human decision → trusted executor → simulated sandbox →
+measured audit. The walkthrough distinguishes main app, isolated experiment and
+sandbox; it never claims those contexts are one automatically remediated incident.
+
+### File plan → Approval checkpoint
+
+The user approved the explained P10.6 plan, then requested the full working-feature
+end-to-end instructions. Documentation-only scope: README, ARCHITECTURE, four ADRs
+and their index, DEMO-WALKTHROUGH, PORTFOLIO, learning/manual/progress records and
+clarification of startup instructions. No API/schema/runtime or dependency changes,
+provisioning, real fault injection or remediation execution are part of this task.
+
+### Implementation → Walkthrough
+
+- README is the current entry point: setup, diagram, feature matrix, real measurement
+  denominators, caveats and references. Earlier phase-specific commands remain in
+  their learning guides instead of conflicting with current supervisor startup.
+- ARCHITECTURE maps service/port/storage/authority boundaries and two diagram flows;
+  source navigation links behavior to actual implementation files. It distinguishes
+  graph execution from durable workflow state and trace export from trace querying.
+- adr/README indexes the four retrospective decisions: outbox/queue/SSE; bounded
+  read-only hypotheses; pgvector/exact provenance; human-approved sandbox. Every
+  record states context, decision, alternatives, costs, failure/validation and revisit
+  conditions. They explain why the code was chosen without inventing design history.
+- DEMO-WALKTHROUGH provides exact terminals/commands, role matrix, healthy traffic,
+  manual incident, async investigation, replay, source statuses, isolated fault tests,
+  explicit sandbox image/preparation/decision/execution, shutdown and hosted checklist.
+  It describes commands; writing the document does not execute the sandbox actions.
+- PORTFOLIO provides optional honest bullets and a claim/evidence map. No claim of
+  production impact, broad AI accuracy, public deployment or external publication.
+- MANUAL-SETUP and the P10 learning guide link the authoritative operator path.
+  P10-DEMO's numbered Windows setup is corrected for readable separate steps.
+  PROGRESS records approval, actual checks, limitations and implementation completion
+  separately from learner mastery, live model evaluation and hosting.
+
+Important control flow remains the existing one: API acceptance persists work before
+worker execution; independent async source reads join before ranking; backend checks
+citations before saving; SSE replays durable events; executor authorization is a
+separate recheck. No new functions, arguments, return types, async code or error
+contracts were added by P10.6. The architecture/walkthrough explain those existing
+boundaries rather than pretending documentation introduced runtime functionality.
+
+### Run/test
+
+Use `.venv\Scripts\python.exe scripts/check.py fast` and
+`.venv\Scripts\python.exe scripts/security_scan.py` for existing regression/security
+checks. Run Prettier explicitly on `docs/adr/*.md` too: the existing repository glob
+only covers top-level docs. Relative documentation links/files are checked with an
+owned local checker; positive known links must resolve and an intentional missing
+link must be detected. Source paths, UI labels, state transitions and measured
+denominators are cross-checked against source/phase evidence. Runtime and diagram
+claims are scoped to the validation actually performed; Mermaid source review is
+not a claim of browser rendering or fresh local integration. Actual results are
+recorded in PROGRESS only after completion. Local docs QA does not operate your
+development sandbox; existing CI uses its own disposable simulated action tests.
+
+### Debug
+
+Use DEMO-WALKTHROUGH's symptom table and existing ignored native logs. A stopped
+Docker engine makes local DB/integration unavailable; it does not justify deleting
+volumes or claiming a new pass from historical CI. A dead link is a documentation
+failure, not an application outage. Fix its target/path; don't remove negative
+controls to make QA pass. Use existing CI for a fresh Linux integration run and
+record its exact revision. Public provider interfaces need review at setup time.
+
+### Manual setup
+
+No manual setup required for P10.6 documentation. To operate the project, start
+Docker/Linux, run the launcher, sign in with your intentional account and prepare
+optional sandbox/model work separately. Hosting/real model evaluation, learner
+questions and independent exercises remain explicitly open; no external deployment
+or paid resource is created by documenting the final implementation task.
+
+### Understanding check
+
+1. Which durable records survive a browser/worker restart, and why isn't LangGraph
+   itself the crash-recovery store?
+2. Why can't the six detected dependency faults establish general AI accuracy?
+3. Why can a sandbox action be VERIFIED while its associated incident remains OPEN?
+
+Exercise: draw the flow from Start investigation to one displayed source citation
+without reading the diagram, then compare it with ARCHITECTURE. Add a local note
+explaining one failure boundary in your own words and verify the referenced source.
+Do not execute an action or put a secret in the exercise.
+
+### Commit summary
+
+`docs(P10.6): document architecture decisions and complete demo workflow`
+
+Configured account only; no co-author trailers. P10.6 is the final task in the
+current master plan. Software implementation completion does not complete the
+learner checkpoints, hosted rollout, production remediation or optional model eval.

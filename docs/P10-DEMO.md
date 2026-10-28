@@ -171,13 +171,19 @@ py -3.11 -m venv .venv
 
 Replace YOUR_EMAIL locally. Enter the password in the hidden terminal prompts
 (12–128 characters). No password/token in command arguments or chat. If an account
-already exists, sign in with it; do not recreate it. No automatic default user exists. 5. Open `http://localhost:3000/dashboard/`, sign in, load services/incidents. Seeded
-`checkout-service`/`payment-service` are demo metadata, not monitored public systems. 6. Run doctor in that second terminal. For full validation use the commands below.
-An optional chat-model provider and P8 sandbox/executor are separate explicit
-setups in MANUAL-SETUP.md; this launcher does not start an action executor, inject
-faults, build the sandbox or authorize rollback. Hypotheses remain suggestions. 7. Keep ignored `.env*` and Docker volumes together. Back up sensitive config privately;
-never paste it into chat or commit it. Losing a password does not justify resetting
-a database. Existing users/incidents persist in API DB storage.
+already exists, sign in with it; do not recreate it. No automatic default user exists.
+
+5. Open `http://localhost:3000/dashboard/`, sign in, load services/incidents. Seeded
+   `checkout-service`/`payment-service` are demo metadata, not monitored public systems.
+
+6. Run doctor in that second terminal. For full validation use the commands below.
+   An optional chat-model provider and P8 sandbox/executor are separate explicit
+   setups in MANUAL-SETUP.md; this launcher does not start an action executor, inject
+   faults, build the sandbox or authorize rollback. Hypotheses remain suggestions.
+
+7. Keep ignored `.env*` and Docker volumes together. Back up sensitive config privately;
+   never paste it into chat or commit it. Losing a password does not justify resetting
+   a database. Existing users/incidents persist in API DB storage.
 
 ### Fresh Linux checkout
 
